@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="shortcut icon" href="favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+    <link rel="manifest" href="site.webmanifest" />
+    <title>Delivery Dates - MSR Dashboard</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary-charcoal: #2d2d2d;
+            --accent-gold: #d4b896;
+            --accent-gold-dark: #c4a57a;
+            --white: #ffffff;
+            --light-gray: #f5f5f5;
+            --medium-gray: #e0e0e0;
+            --dark-gray: #666666;
+            --text-gray: #666666;
+            --border-gray: #cccccc;
+            --warning-orange: #ff9800;
+            --danger-red: #dc3545;
+            --info-blue: #17a2b8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif;
+            background-color: var(--light-gray);
+            color: var(--primary-charcoal);
+        }
+
+        /* Navbar Styles */
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-charcoal) 0%, #2a2a2a 100%);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            color: var(--white) !important;
+            font-weight: 600;
+            font-size: 1.3rem;
+            text-decoration: none;
+        }
+
+        .navbar-brand img {
+            height: 40px;
+            margin-right: 15px;
+        }
+
+        .navbar-nav .nav-link {
+            color: var(--white) !important;
+            margin: 0 10px;
+            transition: color 0.3s ease;
+            font-weight: 500;
+        }
+
+        .navbar-nav .nav-link:hover {
+            color: var(--accent-gold) !important;
+        }
+
+        .navbar-nav .nav-link.active {
+            color: var(--accent-gold) !important;
+            border-bottom: 2px solid var(--accent-gold);
+        }
+
+        /* Main Container */
+        .container-fluid {
+            padding: 2rem;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            background: linear-gradient(135deg, var(--primary-charcoal) 0%, #2a2a2a 100%);
+            color: var(--white);
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .page-header h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-header p {
+            color: var(--medium-gray);
+            font-size: 1rem;
+            margin-bottom: 0;
+        }
+
+        /* Stats Cards */
+        .stats-card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+
+        .stats-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .stats-card h3 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .stats-card p {
+            color: var(--text-gray);
+            margin-bottom: 0;
+            font-size: 0.9rem;
+        }
+
+        .stats-card .icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .icon-upcoming { color: var(--info-blue); }
+        .icon-week { color: var(--warning-orange); }
+        .icon-overdue { color: var(--danger-red); }
+        .icon-total { color: var(--accent-gold); }
+
+        /* Card Styles */
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .card-header {
+            background-color: var(--white);
+            border-bottom: 2px solid var(--light-gray);
+            padding: 1.5rem;
+            border-radius: 12px 12px 0 0 !important;
+        }
+
+        .card-header h5 {
+            margin: 0;
+            font-weight: 600;
+            color: var(--primary-charcoal);
+        }
+
+        /* Table Styles */
+        .table-container {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .table {
+            margin-bottom: 0;
+        }
+
+        .table thead {
+            background-color: var(--primary-charcoal);
+            color: var(--white);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .table thead th {
+            border: none;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            padding: 1rem;
+        }
+
+        .table tbody tr {
+            transition: background-color 0.2s ease;
+        }
+
+        .table tbody tr:hover {
+            background-color: rgba(212, 184, 150, 0.1);
+        }
+
+        .table td {
+            padding: 1rem;
+            vertical-align: middle;
+        }
+
+        /* Badges */
+        .badge {
+            font-weight: 500;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        .badge-upcoming {
+            background-color: var(--info-blue);
+            color: var(--white);
+        }
+
+        .badge-soon {
+            background-color: var(--warning-orange);
+            color: var(--white);
+            font-weight: 600;
+        }
+
+        .badge-overdue {
+            background-color: var(--danger-red);
+            color: var(--white);
+        }
+
+        .badge-ready {
+            background-color: var(--accent-gold);
+            color: var(--white);
+        }
+
+        .badge-delivered {
+            background-color: var(--accent-gold);
+            color: var(--white);
+        }
+
+        .badge-secondary {
+            background-color: var(--medium-gray);
+            color: var(--dark-gray);
+        }
+
+        /* Filters */
+        .filter-section {
+            background: var(--white);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .filter-section .form-control,
+        .filter-section .form-select {
+            border: 2px solid var(--border-gray);
+            border-radius: 6px;
+            padding: 0.5rem 1rem;
+        }
+
+        .filter-section .form-control:focus,
+        .filter-section .form-select:focus {
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 0 0.2rem rgba(212, 184, 150, 0.25);
+        }
+
+        .btn-primary {
+            background-color: var(--accent-gold);
+            border: none;
+            padding: 0.5rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-gold-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .btn-outline-secondary {
+            border: 2px solid var(--border-gray);
+            color: var(--text-gray);
+            padding: 0.5rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-outline-secondary:hover {
+            background-color: var(--light-gray);
+            border-color: var(--text-gray);
+            color: var(--primary-charcoal);
+        }
+
+        /* Loading Spinner */
+        .loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--light-gray);
+            border-radius: 50%;
+            border-top-color: var(--accent-gold);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* View Toggle */
+        .view-toggle {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .view-toggle .btn {
+            padding: 0.5rem 1rem;
+        }
+
+        .view-toggle .btn.active {
+            background-color: var(--accent-gold);
+            color: var(--white);
+            border-color: var(--accent-gold);
+        }
+
+        /* Calendar View */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .calendar-day {
+            background: var(--white);
+            border: 1px solid var(--border-gray);
+            border-radius: 8px;
+            padding: 1rem;
+            min-height: 120px;
+        }
+
+        .calendar-day-header {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-gray);
+        }
+
+        .calendar-delivery {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            margin-bottom: 0.25rem;
+            border-radius: 4px;
+            background-color: var(--light-gray);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="index.html">
+                <img src="favicon-96x96.png" alt="Invenio-Tek Logo">
+                MSR Dashboard - Delivery Dates
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">
+                            <i class="fas fa-home me-1"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="samsara-tracking.html">
+                            <i class="fas fa-map-marker-alt me-1"></i> GPS Trackers
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="gap-analysis.html">
+                            <i class="fas fa-chart-line me-1"></i> Gap Analysis
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="material-tracking.html">
+                            <i class="fas fa-boxes me-1"></i> Material Tracking
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="delivery-dates.html">
+                            <i class="fas fa-truck me-1"></i> Delivery Dates
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="project-schedule.html">
+                            <i class="fas fa-calendar-alt me-1"></i> Project Schedule
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="samsara-tracking.html">
+                            <i class="fas fa-map-marker-alt me-1"></i> GPS Tracking
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1><i class="fas fa-truck me-2"></i> Ready to Ship Dates</h1>
+            <p>Track expected ready-to-ship dates for installation materials and equipment (76 items with dates, 32 TBD)</p>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="icon icon-total">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <h3 id="totalDeliveries">0</h3>
+                    <p>Total Items</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="icon icon-upcoming">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <h3 id="upcomingDeliveries">0</h3>
+                    <p>Ready Next 30 Days</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="icon icon-week">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <h3 id="weekDeliveries">0</h3>
+                    <p>Ready This Week</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="icon icon-overdue">
+                        <i class="fas fa-times-circle"></i>
+                    </div>
+                    <h3 id="overdueDeliveries">0</h3>
+                    <p>Ready Now</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filter-section">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <input type="text" class="form-control" id="searchInput" placeholder="Search PO, Package, Supplier...">
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="filterStatus">
+                        <option value="">All Status</option>
+                        <option value="ready">Ready Now</option>
+                        <option value="week">Ready This Week</option>
+                        <option value="upcoming">Not Ready Yet</option>
+                        <option value="tbd">TBD (No Date)</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="filterSupplier">
+                        <option value="">All Suppliers</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="filterPhase">
+                        <option value="">All Phases</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" id="filterTimeframe">
+                        <option value="all">All Timeframes</option>
+                        <option value="ready">Ready Now (Past RTS Date)</option>
+                        <option value="week">Ready This Week (7 days)</option>
+                        <option value="month">Ready This Month (30 days)</option>
+                        <option value="upcoming">Ready Next 30 Days</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-md-12">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="view-toggle">
+                            <button class="btn btn-outline-secondary active" id="btnListView">
+                                <i class="fas fa-list me-1"></i> List View
+                            </button>
+                            <button class="btn btn-outline-secondary" id="btnCalendarView">
+                                <i class="fas fa-calendar me-1"></i> Calendar View
+                            </button>
+                        </div>
+                        <button class="btn btn-primary" id="btnExport">
+                            <i class="fas fa-download me-1"></i> Export to Excel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- List View -->
+        <div id="listView">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-list me-2"></i> Ready to Ship Schedule (<span id="resultCount">0</span> items)</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-container">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Ready to Ship Date</th>
+                                    <th>Status</th>
+                                    <th>PO Number</th>
+                                    <th>Package Description</th>
+                                    <th>Tag Number</th>
+                                    <th>Supplier</th>
+                                    <th>Phase</th>
+                                    <th>Date Range / Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="deliveryTableBody">
+                                <tr>
+                                    <td colspan="8" class="text-center py-5">
+                                        <span class="loading-spinner"></span>
+                                        <p class="mt-2 text-muted">Loading delivery dates...</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calendar View (hidden by default) -->
+        <div id="calendarView" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5><i class="fas fa-calendar me-2"></i> Calendar View</h5>
+                        <div>
+                            <button class="btn btn-sm btn-outline-secondary" id="btnPrevMonth">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <span class="mx-3" id="calendarMonth"></span>
+                            <button class="btn btn-sm btn-outline-secondary" id="btnNextMonth">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="calendar-grid" id="calendarGrid">
+                        <!-- Calendar will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+
+    <!-- Shared Utilities -->
+    <script src="js/utils/constants.js"></script>
+    <script src="js/utils/formatting.js"></script>
+    <script src="js/utils/supabase-client.js"></script>
+    <script src="js/utils/export.js"></script>
+
+    <!-- Delivery Dates JavaScript -->
+    <script src="delivery-dates.js?v=3"></script>
+</body>
+</html>

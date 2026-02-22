@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git rm:*)",
+      "Bash(python samsara_client.py:*)",
+      "Bash(cat:*)",
+      "Bash(echo:*)",
+      "Bash(\"c:\\Users\\thomasenglish\\Desktop\\ProjectProgressandPO\\.env\")",
+      "Bash(python -c:*)",
+      "Bash(supabase/update_geofence.sql)",
+      "Bash(python:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nAdd GitHub Actions workflow for automated Samsara sync\n\nImplemented cloud-based automated syncing of Samsara tracker data:\n\nFiles Added:\n- .github/workflows/sync-samsara.yml: GitHub Actions workflow that runs hourly\n- GITHUB_ACTIONS_SETUP.md: Complete setup guide for GitHub Actions\n- SETUP_AUTOMATED_SYNC.md: Alternative sync methods (Task Scheduler, cloud platforms)\n- sync_samsara.bat: Windows batch file for local syncing with logging\n\nFeatures:\n- Runs every hour at :00 via GitHub Actions cron schedule\n- Manual trigger available via workflow_dispatch\n- Uses GitHub Secrets for secure credential storage\n- Email notifications on failure\n- Detailed logging of sync operations\n- Free for public repositories (unlimited minutes)\n- No local machine required - fully cloud-based\n\nSetup Required:\n1. Add three GitHub Secrets:\n   - SAMSARA_API_TOKEN\n   - SUPABASE_URL\n   - SUPABASE_ANON_KEY\n2. Push this commit to trigger workflow\n3. Test manual run from Actions tab\n4. Monitor workflow runs in GitHub Actions UI\n\nBenefits:\n- Always-on operation (24/7 cloud execution)\n- No infrastructure to maintain\n- Version controlled workflow\n- Easy monitoring via GitHub UI\n- Automatic email alerts on failures\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(ls:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="shortcut icon" href="favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+    <link rel="manifest" href="site.webmanifest" />
+    <title>MSR Dashboard - Greenfield LNG Terminal</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Chart.js for visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        /* Invenio-Tek - Official Color Scheme */
+        :root {
+            --primary-charcoal: #2d2d2d;   /* Dark charcoal - main brand color */
+            --primary-dark: #2a2a2a;       /* Darker charcoal */
+            --primary-darker: #1a1a1a;     /* Darkest charcoal */
+            --accent-gold: #d4b896;        /* Invenio-Tek Gold - signature brand color */
+            --accent-gold-light: #e2cdb3;  /* Lighter gold */
+            --accent-gold-dark: #c4a57a;   /* Darker gold */
+            --white: #ffffff;
+            --off-white: #f5f0eb;
+            --light-gray: #e8e8e8;
+            --medium-gray: #cccccc;
+            --dark-gray: #666666;
+            --text-dark: #333333;
+            --success-green: #4a9e6e;      /* Success green */
+            --warning-orange: #f5a623;
+            --danger-red: #d0021b;
+            --info-blue: #4a90e2;
+        }
+
+        body {
+            background-color: var(--off-white);
+            font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif;
+            color: var(--text-dark);
+            line-height: 1.6;
+        }
+
+        .metric-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        .navbar {
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background-color: var(--primary-charcoal) !important;
+            padding: 1rem 0;
+        }
+
+        .navbar-brand {
+            font-weight: 600;
+            font-size: 1.35rem;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .navbar-brand img {
+            height: 50px;
+            width: auto;
+            /* Logo is already in correct colors, no filter needed */
+        }
+
+        .navbar-brand span {
+            color: var(--white);
+        }
+
+        .navbar-nav .nav-link {
+            color: var(--white) !important;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+        }
+
+        .navbar-nav .nav-link:hover {
+            color: var(--accent-gold) !important;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .status-badge {
+            font-size: 0.875rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+        }
+
+        .table-container {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 2rem;
+            height: 2rem;
+            border: 0.25rem solid #f3f4f6;
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .nav-pills .nav-link {
+            color: var(--dark-gray);
+            border-radius: 8px;
+            font-weight: 500;
+            padding: 0.75rem 1.5rem;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .nav-pills .nav-link:hover {
+            background-color: var(--light-gray);
+            color: var(--accent-gold-dark);
+            border-color: var(--accent-gold);
+        }
+
+        .nav-pills .nav-link.active {
+            background-color: var(--accent-gold);
+            color: var(--white);
+            border-color: var(--accent-gold);
+            box-shadow: 0 4px 12px rgba(212, 184, 150, 0.3);
+        }
+
+        .card {
+            border: 1px solid var(--light-gray);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            background: var(--white);
+        }
+
+        .card-header {
+            border-bottom: 3px solid var(--accent-gold);
+            font-weight: 600;
+            padding: 1.25rem 1.5rem;
+            background-color: var(--white);
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-gold);
+            border: none;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            padding: 0.5rem 1.25rem;
+            border-radius: 6px;
+            color: var(--white);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-gold-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(212, 184, 150, 0.4);
+        }
+
+        .btn-light {
+            background-color: var(--white);
+            border: 2px solid var(--accent-gold);
+            color: var(--accent-gold);
+        }
+
+        .btn-light:hover {
+            background-color: var(--accent-gold);
+            color: var(--white);
+        }
+
+        .table thead {
+            background-color: var(--primary-charcoal);
+            color: var(--white);
+        }
+
+        .table thead th {
+            border: none;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+        }
+
+        .table-hover tbody tr {
+            transition: all 0.2s ease;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(212, 184, 150, 0.1);
+        }
+
+        /* KPI Card Icon Backgrounds */
+        .kpi-icon-accent {
+            background-color: var(--accent-gold);
+        }
+
+        .kpi-icon-charcoal {
+            background-color: var(--primary-charcoal);
+        }
+
+        .kpi-icon-green {
+            background-color: var(--accent-gold-dark);
+        }
+
+        .kpi-icon-gray {
+            background-color: var(--dark-gray);
+        }
+
+        /* Badge Styling */
+        .badge {
+            font-weight: 500;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+        }
+
+        .bg-success {
+            background-color: var(--accent-gold) !important;
+        }
+
+        .bg-warning {
+            background-color: var(--warning-orange) !important;
+        }
+
+        .bg-danger {
+            background-color: var(--danger-red) !important;
+        }
+
+        .bg-info {
+            background-color: var(--info-blue) !important;
+        }
+
+        .bg-secondary {
+            background-color: var(--medium-gray) !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <img src="favicon-96x96.png" alt="Invenio-Tek Logo" onerror="this.style.display='none'">
+                <span>MSR Dashboard</span>
+            </a>
+            <div class="navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="index.html">
+                            <i class="fas fa-chart-line me-1"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="gap-analysis.html">
+                            <i class="fas fa-chart-bar me-1"></i> Gap Analysis
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="material-tracking.html">
+                            <i class="fas fa-link me-1"></i> Material Tracking
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="delivery-dates.html">
+                            <i class="fas fa-truck me-1"></i> Delivery Dates
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="project-schedule.html">
+                            <i class="fas fa-calendar-alt me-1"></i> Project Schedule
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="samsara-tracking.html">
+                            <i class="fas fa-map-marker-alt me-1"></i> GPS Trackers
+                        </a>
+                    </li>
+                    <li class="nav-item ms-3">
+                        <span class="navbar-text text-white">
+                            <i class="fas fa-clock me-2"></i>
+                            Last Updated: <span id="lastUpdated">Loading...</span>
+                        </span>
+                    </li>
+                    <li class="nav-item ms-3">
+                        <button class="btn btn-light btn-sm" onclick="refreshData()">
+                            <i class="fas fa-sync-alt me-1"></i>
+                            Refresh
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container-fluid py-4">
+        <!-- Project Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-2">
+                            <i class="fas fa-industry text-primary me-2"></i>
+                            Greenfield LNG Terminal - Material Status Report
+                        </h2>
+                        <p class="text-gray-600 mb-0">
+                            Comprehensive tracking of procurement, shipments, and installation progress
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <ul class="nav nav-pills mb-4" id="dashboardTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="overview-tab" data-bs-toggle="pill" data-bs-target="#overview" type="button">
+                    <i class="fas fa-home me-2"></i>Overview
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="procurement-tab" data-bs-toggle="pill" data-bs-target="#procurement" type="button">
+                    <i class="fas fa-shopping-cart me-2"></i>Procurement
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="shipments-tab" data-bs-toggle="pill" data-bs-target="#shipments" type="button">
+                    <i class="fas fa-truck me-2"></i>Shipments
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="installation-tab" data-bs-toggle="pill" data-bs-target="#installation" type="button">
+                    <i class="fas fa-tools me-2"></i>Installation
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="dashboardTabContent">
+            <!-- Overview Tab -->
+            <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                <!-- KPI Cards -->
+                <div class="row g-4 mb-4" id="kpiCards">
+                    <div class="col-md-3">
+                        <div class="card metric-card shadow-sm border-0">
+                            <div class="card-body">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <p class="text-sm text-gray-600 mb-1">Total POs</p>
+                                        <h3 class="text-3xl font-bold text-gray-900" id="totalPOs">
+                                            <span class="loading-spinner"></span>
+                                        </h3>
+                                    </div>
+                                    <div class="p-3 kpi-icon-accent rounded-full">
+                                        <i class="fas fa-file-invoice text-white text-xl"></i>
+                                    </div>
+                                </div>
+                                <p class="text-sm text-gray-500 mt-2">Purchase Orders</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="card metric-card shadow-sm border-0">
+                            <div class="card-body">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <p class="text-sm text-gray-600 mb-1">Total Value</p>
+                                        <h3 class="text-3xl font-bold text-gray-900" id="totalValue">
+                                            <span class="loading-spinner"></span>
+                                        </h3>
+                                    </div>
+                                    <div class="p-3 kpi-icon-charcoal rounded-full">
+                                        <i class="fas fa-dollar-sign text-white text-xl"></i>
+                                    </div>
+                                </div>
+                                <p class="text-sm text-gray-500 mt-2">PO Value</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="card metric-card shadow-sm border-0">
+                            <div class="card-body">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <p class="text-sm text-gray-600 mb-1">Shipments</p>
+                                        <h3 class="text-3xl font-bold text-gray-900" id="totalShipments">
+                                            <span class="loading-spinner"></span>
+                                        </h3>
+                                    </div>
+                                    <div class="p-3 kpi-icon-green rounded-full">
+                                        <i class="fas fa-shipping-fast text-white text-xl"></i>
+                                    </div>
+                                </div>
+                                <p class="text-sm text-gray-500 mt-2">
+                                    <span id="deliveredShipments">-</span> Delivered
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="card metric-card shadow-sm border-0">
+                            <div class="card-body">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <p class="text-sm text-gray-600 mb-1">Install Items</p>
+                                        <h3 class="text-3xl font-bold text-gray-900" id="totalInstallItems">
+                                            <span class="loading-spinner"></span>
+                                        </h3>
+                                    </div>
+                                    <div class="p-3 kpi-icon-gray rounded-full">
+                                        <i class="fas fa-hard-hat text-white text-xl"></i>
+                                    </div>
+                                </div>
+                                <p class="text-sm text-gray-500 mt-2">5 Disciplines</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-white">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-chart-pie text-primary me-2"></i>
+                                    PO Status Distribution
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="poStatusChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-white">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-chart-bar text-primary me-2"></i>
+                                    Shipment Status
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="shipmentStatusChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Discipline Breakdown -->
+                <div class="row g-4">
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-white">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-layer-group text-primary me-2"></i>
+                                    Installation by Discipline
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container" style="height: 350px;">
+                                    <canvas id="disciplineChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upcoming Milestones -->
+                <div class="row g-4 mt-4">
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-flag-checkered text-primary me-2"></i>
+                                    Upcoming Milestones
+                                </h5>
+                                <a href="project-schedule.html" class="btn btn-sm btn-outline-primary">
+                                    View Full Schedule <i class="fas fa-arrow-right ms-1"></i>
+                                </a>
+                            </div>
+                            <div class="card-body">
+                                <div id="upcomingMilestonesWidget">
+                                    <div class="text-center py-3">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <p class="mt-2 mb-0 text-muted">Loading milestones...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Procurement Tab -->
+            <div class="tab-pane fade" id="procurement" role="tabpanel">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-list text-primary me-2"></i>
+                                    Purchase Order Details
+                                </h5>
+                            </div>
+                            <div class="col-auto">
+                                <input type="text" class="form-control" id="poSearch" placeholder="Search POs...">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-container">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>PO ID</th>
+                                        <th>Description</th>
+                                        <th>Status</th>
+                                        <th>Supplier</th>
+                                        <th>Category</th>
+                                        <th>Delivery Date</th>
+                                        <th>Net Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="poTableBody">
+                                    <tr>
+                                        <td colspan="7" class="text-center py-5">
+                                            <span class="loading-spinner"></span>
+                                            <p class="mt-2 text-muted">Loading purchase orders...</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shipments Tab -->
+            <div class="tab-pane fade" id="shipments" role="tabpanel">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-truck text-primary me-2"></i>
+                                    Shipment Tracking
+                                </h5>
+                            </div>
+                            <div class="col-auto">
+                                <select class="form-select" id="shipmentStatusFilter">
+                                    <option value="">All Statuses</option>
+                                    <option value="Delivered">Delivered</option>
+                                    <option value="In Transit">In Transit</option>
+                                    <option value="Not RTS">Not RTS</option>
+                                    <option value="RTS">RTS</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-container">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Shipment #</th>
+                                        <th>PO #</th>
+                                        <th>Part Description</th>
+                                        <th>Status</th>
+                                        <th>Supplier</th>
+                                        <th>Category</th>
+                                        <th>ETA</th>
+                                        <th>Delivery Date</th>
+                                        <th># Pcs</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="shipmentTableBody">
+                                    <tr>
+                                        <td colspan="9" class="text-center py-5">
+                                            <span class="loading-spinner"></span>
+                                            <p class="mt-2 text-muted">Loading shipments...</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Installation Tab -->
+            <div class="tab-pane fade" id="installation" role="tabpanel">
+                <div class="row g-4 mb-4">
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-white">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-tasks text-primary me-2"></i>
+                                    Installation Progress Summary
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="disciplineCards" class="row g-3">
+                                    <div class="col-12 text-center py-5">
+                                        <span class="loading-spinner"></span>
+                                        <p class="mt-2 text-muted">Loading installation data...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-12">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-white">
+                                <div class="row align-items-center">
+                                    <div class="col">
+                                        <h5 class="mb-0">
+                                            <i class="fas fa-clipboard-list text-primary me-2"></i>
+                                            Installation Items
+                                        </h5>
+                                    </div>
+                                    <div class="col-auto">
+                                        <select class="form-select" id="disciplineFilter">
+                                            <option value="">All Disciplines</option>
+                                            <option value="civil">Civil</option>
+                                            <option value="electrical">Electrical</option>
+                                            <option value="instrumentation">Instrumentation</option>
+                                            <option value="mechanical">Mechanical</option>
+                                            <option value="steel">Steel</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-container">
+                                    <table class="table table-hover mb-0">
+                                        <thead class="table-light sticky-top">
+                                            <tr>
+                                                <th>Discipline</th>
+                                                <th>Description</th>
+                                                <th>Drawing</th>
+                                                <th>System</th>
+                                                <th>Qty</th>
+                                                <th>UOM</th>
+                                                <th>Field Hours</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="installationTableBody">
+                                            <tr>
+                                                <td colspan="7" class="text-center py-5">
+                                                    <span class="loading-spinner"></span>
+                                                    <p class="mt-2 text-muted">Loading installation items...</p>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+
+    <!-- Shared Utilities -->
+    <script src="js/utils/constants.js"></script>
+    <script src="js/utils/formatting.js"></script>
+    <script src="js/utils/supabase-client.js"></script>
+    <script src="js/utils/export.js"></script>
+
+    <!-- Dashboard JavaScript -->
+    <script src="dashboard.js?v=5"></script>
+</body>
+</html>

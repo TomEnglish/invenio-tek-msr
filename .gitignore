@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.bak
+*.log
+
+# Excel temp files
+~$*.xlsx
+~$*.xls
+
+# Node modules (if needed later)
+node_modules/
+
+# Dashboard specific - keep source Excel files local
+# Uncomment these if you don't want Excel files in repo:
+# *.xlsx
+# *.xls
+
+# Analysis scripts (one-time use only)
+analyze_*.py
+debug_*.py
+check_*.py
+test_*.py
+
+# Supabase
+# Note: supabase-config.js is now committed for Netlify deployment
+# The anon key is safe to expose publicly - it's designed for client-side use
+.env
+.env.local
+*.db
+*.sqlite
+*.sqlite3
+
+# Backend (Flask - no longer needed with Supabase)
+backend/material_tracking.db

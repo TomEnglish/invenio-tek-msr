@@ -1,0 +1,47 @@
+# Netlify Configuration for MSR Dashboard
+# https://docs.netlify.com/configure-builds/file-based-configuration/
+
+[build]
+  # No build command needed - this is a static site
+  publish = "."
+
+  # Ignore Python files and backend scripts
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF"
+
+# Redirect rules (optional - for clean URLs)
+[[redirects]]
+  from = "/"
+  to = "/index.html"
+  status = 200
+
+# Environment variables for Supabase
+# Note: These are PUBLIC and safe to expose in client-side code
+# Set these in Netlify UI: Site settings > Environment variables
+[build.environment]
+  # SUPABASE_URL will be injected via netlify UI or build script
+  # SUPABASE_ANON_KEY will be injected via netlify UI or build script
+
+# Headers for security
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Cache static assets
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/favicon-96x96.png"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

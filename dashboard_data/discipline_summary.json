@@ -1,0 +1,49 @@
+{
+  "civil": {
+    "total_items": 212,
+    "total_field_qty": 4724.49,
+    "total_earned_qty": 30360.0,
+    "uom_breakdown": {
+      "CY": 209,
+      "CY.": 2,
+      "EMU": 1
+    },
+    "total_field_whrs": 0.0
+  },
+  "electrical": {
+    "total_items": 166,
+    "total_field_qty": 54570.12,
+    "total_earned_qty": 0,
+    "uom_breakdown": {
+      "LF.": 166
+    },
+    "total_field_whrs": 10064.456520000002
+  },
+  "instrumentation": {
+    "total_items": 112,
+    "total_field_qty": 112.0,
+    "total_earned_qty": 0,
+    "uom_breakdown": {
+      "EA": 112
+    },
+    "total_field_whrs": 0.0
+  },
+  "mechanical": {
+    "total_items": 38,
+    "total_field_qty": 47.0,
+    "total_earned_qty": 0,
+    "uom_breakdown": {
+      "EA": 38
+    },
+    "total_field_whrs": 3010.7
+  },
+  "steel": {
+    "total_items": 334,
+    "total_field_qty": 832.0,
+    "total_earned_qty": 0,
+    "uom_breakdown": {
+      "TN": 334
+    },
+    "total_field_whrs": 3598.6892860365406
+  }
+}
