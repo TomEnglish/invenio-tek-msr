@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,33 +21,34 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <style>
-        /* Invenio-Tek Color Scheme */
+        /* RPS Branding Color Scheme */
+        h1, h2, h3, h4, h5, h6, .card-title, .lead { color: var(--text-dark) !important; }
         :root {
-            --primary-charcoal: #2d2d2d;
-            --accent-gold: #d4b896;
-            --accent-gold-dark: #c4a57a;
+            --primary-charcoal: #3a3a3a;
+            --lime-green: #2563EB;
+            --lime-green-dark: #7ab82d;
             --white: #ffffff;
-            --off-white: #f5f0eb;
+            --off-white: #F8FAFC;
             --light-gray: #e8e8e8;
             --medium-gray: #cccccc;
             --dark-gray: #666666;
             --text-dark: #333333;
-            --success-green: #4a9e6e;
+            --success-green: #2563EB;
             --warning-orange: #f5a623;
             --danger-red: #d0021b;
             --info-blue: #4a90e2;
         }
 
         body {
-            background-color: var(--off-white);
+            background-color: #F8FAFC;
             font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif;
             color: var(--text-dark);
             line-height: 1.7;
         }
 
         .navbar {
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            background-color: var(--primary-charcoal) !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            background-color: var(--navbar-bg) !important;
             padding: 1rem 0;
         }
 
@@ -62,7 +64,7 @@
 
         .gap-card:hover {
             transform: translateY(-3px);
-            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
         }
 
         .available-card {
@@ -70,7 +72,7 @@
         }
 
         .section-header {
-            border-bottom: 3px solid var(--accent-gold);
+            border-bottom: 3px solid var(--lime-green);
             padding-bottom: 0.75rem;
             margin-bottom: 1.5rem;
         }
@@ -78,7 +80,7 @@
         .metric-badge {
             display: inline-block;
             padding: 0.5rem 1rem;
-            border-radius: 6px;
+            border-radius: 10px;
             font-weight: 600;
             margin: 0.25rem;
         }
@@ -129,11 +131,11 @@
 
         .progress-custom {
             height: 8px;
-            border-radius: 4px;
+            border-radius: 8px;
         }
 
         .btn-primary {
-            background-color: var(--accent-gold);
+            background-color: var(--lime-green);
             border: none;
             color: white;
         }
@@ -141,46 +143,136 @@
         .btn-primary:hover {
             background-color: var(--accent-gold-dark);
         }
+    
+        /* IA Draft 1 App Styling Overrides */
+        h1, h2, h3, h4, h5, h6, .card-title, .lead { color: var(--text-dark) !important; }
+        :root {
+            --primary-blue: #2563EB;
+            --navbar-bg: #FFFFFF;
+            --navbar-text: #64748B;
+            --navbar-active: #2563EB;
+            --border-light: #E2E8F0;
+            --text-dark: #334155;
+            /* Replace lime green with blue seamlessly */
+            --lime-green: var(--primary-blue); 
+            --success-green: #10B981; /* actual green for success states */
+        }
+        
+        .navbar {
+            background-color: var(--navbar-bg) !important;
+            border-bottom: 1px solid var(--border-light);
+            box-shadow: none !important;
+            padding: 0.5rem 0.5rem !important; /* tighter vertical padding */
+        }
+
+        .navbar-brand span {
+            color: var(--text-dark) !important;
+        }
+
+        /* Stacked Mobile-App Style Nav Links */
+        .navbar-nav {
+            gap: 0.5rem;
+            align-items: flex-end; /* right align mostly */
+        }
+        
+        .navbar-nav .nav-link {
+            color: var(--navbar-text) !important;
+            font-size: 0.70rem !important;
+            font-weight: 500;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0.25rem 0.75rem !important;
+            transition: all 0.2s ease;
+        }
+
+        .navbar-nav .nav-link i {
+            font-size: 1.35rem; /* large icon */
+            margin-bottom: 4px;
+            margin-right: 0 !important; /* override me-1 */
+            margin-left: 0 !important;
+        
+            margin-right: 0 !important;
+            margin-left: 0 !important;
+        }
+
+        .navbar-nav .nav-link:hover, .navbar-nav .nav-link.active {
+            color: var(--navbar-active) !important;
+        }
+
     </style>
 </head>
+
 <body>
     <!-- Navigation Bar -->
-    <nav class="navbar navbar-expand-lg navbar-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand d-flex align-items-center gap-3" href="index.html">
-                <img src="favicon-96x96.png" alt="Invenio-Tek Logo">
-                <span>MSR Dashboard</span>
+    <!-- Standardized Navigation Bar -->
+    <nav class="navbar navbar-expand-lg border-b border-[var(--border-light)]" style="padding: 0 !important; min-height: 64px; background: var(--navbar-bg);">
+        <div class="container-fluid" style="padding-top: 0 !important; padding-bottom: 0 !important; padding-left: 1.5rem !important; padding-right: 1.5rem !important; margin-top: 0 !important; margin-bottom: 0 !important;">
+            <a class="navbar-brand m-0" href="index.html" style="display: flex; align-items: center; gap: 12px; text-decoration: none; min-width: 240px; padding: 0.5rem 0;">
+                <img src="favicon-96x96.png" alt="RPS Branding Logo" style="height: 40px; width: auto; object-fit: contain;">
+                <span style="font-size: 1.25rem; font-weight: 600; color: var(--text-dark); letter-spacing: -0.02em;">MSR Dashboard</span>
             </a>
+            
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
             <div class="navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav ms-auto" style="gap: 4px;">
                     <li class="nav-item">
                         <a class="nav-link" href="index.html">
-                            <i class="fas fa-chart-line me-2"></i>Dashboard
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-tachometer-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Dashboard</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link active" href="gap-analysis.html">
-                            <i class="fas fa-clipboard-list me-2"></i>Gap Analysis
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-clipboard-check" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Gap Analysis</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="material-tracking.html">
-                            <i class="fas fa-link me-2"></i>Material Tracking
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-cubes" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Materials</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="delivery-dates.html">
-                            <i class="fas fa-truck me-2"></i>Delivery Dates
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-truck" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Deliveries</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="project-schedule.html">
-                            <i class="fas fa-calendar-alt me-2"></i>Project Schedule
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-history" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Schedule</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="samsara-tracking.html">
-                            <i class="fas fa-map-marker-alt me-2"></i>GPS Trackers
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-map-marker-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">GPS</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="site-plan.html">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-drafting-compass" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Site Plan</span>
+                            </div>
                         </a>
                     </li>
                 </ul>
@@ -193,14 +285,16 @@
         <!-- Page Header -->
         <div class="row mb-4">
             <div class="col-12">
-                <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, var(--primary-charcoal) 0%, #2a2a2a 100%); color: white;">
+                <div class="card shadow-sm border-0"
+                    style="background: var(--navbar-bg); color: var(--text-dark);">
                     <div class="card-body p-4">
                         <h1 class="display-6 mb-2">
-                            <i class="fas fa-exclamation-triangle text-warning me-3"></i>
+                            <i class="fas fa-exclamation-triangle text-[var(--primary-blue)] me-3"></i>
                             MSR Gap Analysis
                         </h1>
                         <p class="lead mb-0">
-                            Comprehensive analysis of available data vs. requirements for complete Material Status Reporting
+                            Comprehensive analysis of available data vs. requirements for complete Material Status
+                            Reporting
                         </p>
                     </div>
                 </div>
@@ -210,37 +304,29 @@
         <!-- Summary Cards -->
         <div class="row g-4 mb-4">
             <div class="col-md-4">
-                <div class="card shadow-sm border-0">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="icon-box success">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
-                            <div>
-                                <h6 class="text-muted mb-1">Available Now</h6>
-                                <h3 class="mb-0">7 Metrics</h3>
-                                <small class="text-success">PO & Installation Planning</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <div class="kpi-card bg-white rounded-xl shadow-sm border-0 p-4 h-100 transition-all d-flex align-items-center justify-content-between">
+    <div class="d-flex flex-column h-100">
+        <span class="text-uppercase fw-semibold" style="font-size: 0.75rem; letter-spacing: 0.05em; color: var(--navbar-text); margin-bottom: 0.25rem;">Available Now</span>
+        <span style="font-size: 2.25rem; font-weight: 700; color: var(--text-dark); line-height: 1.1;">7 Metrics</span>
+        <span class="text-success mt-2" style="font-size: 0.85rem; font-weight: 500;">PO & Installation Planning</span>
+    </div>
+    <div class="header-icon-box" style="width: 48px; height: 48px; min-width: 48px; border-radius: 12px; background: rgba(37,99,235,0.1); display: flex; align-items: center; justify-content: center;">
+        <i class="fas fa-check-circle" style="font-size: 1.5rem; color: var(--primary-blue);"></i>
+    </div>
+</div>
             </div>
 
             <div class="col-md-4">
-                <div class="card shadow-sm border-0">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="icon-box danger">
-                                <i class="fas fa-times-circle"></i>
-                            </div>
-                            <div>
-                                <h6 class="text-muted mb-1">Critical Gaps</h6>
-                                <h3 class="mb-0">6 Items</h3>
-                                <small class="text-danger">Blocking Complete MSR</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <div class="kpi-card bg-white rounded-xl shadow-sm border-0 p-4 h-100 transition-all d-flex align-items-center justify-content-between">
+    <div class="d-flex flex-column h-100">
+        <span class="text-uppercase fw-semibold" style="font-size: 0.75rem; letter-spacing: 0.05em; color: var(--navbar-text); margin-bottom: 0.25rem;">Critical Gaps</span>
+        <span style="font-size: 2.25rem; font-weight: 700; color: var(--text-dark); line-height: 1.1;">6 Items</span>
+        <span class="text-danger mt-2" style="font-size: 0.85rem; font-weight: 500;">Blocking Complete MSR</span>
+    </div>
+    <div class="header-icon-box" style="width: 48px; height: 48px; min-width: 48px; border-radius: 12px; background: rgba(37,99,235,0.1); display: flex; align-items: center; justify-content: center;">
+        <i class="fas fa-times-circle" style="font-size: 1.5rem; color: var(--primary-blue);"></i>
+    </div>
+</div>
             </div>
 
             <div class="col-md-4">
@@ -251,10 +337,11 @@
                                 <i class="fas fa-percentage"></i>
                             </div>
                             <div>
-                                <h6 class="text-muted mb-1">Completeness</h6>
+                                <h6 class="text-[#64748B] mb-1">Completeness</h6>
                                 <h3 class="mb-0">54%</h3>
                                 <div class="progress progress-custom mt-2">
-                                    <div class="progress-bar" role="progressbar" style="width: 54%; background-color: var(--info-blue)"></div>
+                                    <div class="progress-bar" role="progressbar"
+                                        style="width: 54%; background-color: var(--info-blue)"></div>
                                 </div>
                             </div>
                         </div>
@@ -277,11 +364,11 @@
             <div class="col-md-6">
                 <div class="card shadow-sm available-card">
                     <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="fas fa-shopping-cart text-success me-2"></i>
-                            Procurement Status Tracking
-                        </h5>
-                        <p class="card-text">Complete visibility into purchase orders, suppliers, and financial commitments.</p>
+                        <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
+                                    <i class="fas fa-shopping-cart me-2"></i> Procurement Status Tracking
+                                </h5>
+                        <p class="card-text">Complete visibility into purchase orders, suppliers, and financial
+                            commitments.</p>
                         <div class="mt-3">
                             <span class="metric-badge available-badge">
                                 <i class="fas fa-database me-1"></i>97 POs
@@ -297,10 +384,9 @@
             <div class="col-md-6">
                 <div class="card shadow-sm available-card">
                     <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="fas fa-truck text-success me-2"></i>
-                            Shipment Tracking
-                        </h5>
+                        <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
+                                    <i class="fas fa-truck me-2"></i> Shipment Tracking
+                                </h5>
                         <p class="card-text">Shipment status, ETAs, delivery dates, and logistics tracking.</p>
                         <div class="mt-3">
                             <span class="metric-badge available-badge">
@@ -317,11 +403,11 @@
             <div class="col-md-6">
                 <div class="card shadow-sm available-card">
                     <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="fas fa-clipboard-list text-success me-2"></i>
-                            Installation Planning
-                        </h5>
-                        <p class="card-text">Budgeted quantities, work hours, and milestone definitions by discipline.</p>
+                        <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
+                                    <i class="far fa-clipboard-list me-2"></i> Installation Planning
+                                </h5>
+                        <p class="card-text">Budgeted quantities, work hours, and milestone definitions by discipline.
+                        </p>
                         <div class="mt-3">
                             <span class="metric-badge available-badge">
                                 <i class="fas fa-hard-hat me-1"></i>862 Items
@@ -337,17 +423,16 @@
             <div class="col-md-6">
                 <div class="card shadow-sm available-card">
                     <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="fas fa-industry text-success me-2"></i>
-                            Supplier Performance
-                        </h5>
+                        <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
+                                    <i class="fas fa-industry me-2"></i> Supplier Performance
+                                </h5>
                         <p class="card-text">Supplier tracking, category breakdown, and vendor analysis.</p>
                         <div class="mt-3">
                             <span class="metric-badge available-badge">
                                 <i class="fas fa-building me-1"></i>Multiple Vendors
                             </span>
                             <span class="metric-badge available-badge">
-                                <i class="fas fa-chart-bar me-1"></i>Performance Data
+                                <i class="far fa-chart-bar me-1"></i>Performance Data
                             </span>
                         </div>
                     </div>
@@ -370,21 +455,24 @@
                 <div class="card shadow-sm gap-card">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start mb-2">
-                            <h5 class="card-title">
-                                <i class="fas fa-link text-danger me-2"></i>
-                                PO to Installation Linkage
-                            </h5>
+                            <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
+                                    <i class="fas fa-link me-2"></i> PO to Installation Linkage
+                                </h5>
                             <span class="metric-badge priority-high">CRITICAL</span>
                         </div>
-                        <p class="card-text text-muted mb-3">
-                            <strong>Problem:</strong> No connection between purchased materials (PO data) and installation items (audit data). Cannot identify which PO items correspond to installation quantities.
+                        <p class="card-text text-[#64748B] mb-3">
+                            <strong>Problem:</strong> No connection between purchased materials (PO data) and
+                            installation items (audit data). Cannot identify which PO items correspond to installation
+                            quantities.
                         </p>
                         <div class="alert alert-danger mb-3">
-                            <strong>Impact:</strong> Cannot answer "Is material for work package X received?" or "What work is delayed due to missing materials?"
+                            <strong>Impact:</strong> Cannot answer "Is material for work package X received?" or "What
+                            work is delayed due to missing materials?"
                         </div>
                         <div class="card bg-light">
                             <div class="card-body py-2">
-                                <strong>Solution:</strong> Implement material tracking system with unique identifiers (Tag Numbers, Line Numbers, Equipment IDs)
+                                <strong>Solution:</strong> Implement material tracking system with unique identifiers
+                                (Tag Numbers, Line Numbers, Equipment IDs)
                             </div>
                         </div>
                     </div>
@@ -395,21 +483,23 @@
                 <div class="card shadow-sm gap-card">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start mb-2">
-                            <h5 class="card-title">
-                                <i class="fas fa-tasks text-danger me-2"></i>
-                                Actual Installation Progress
-                            </h5>
+                            <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
+                                    <i class="fas fa-history me-2"></i> Actual Installation Progress
+                                </h5>
                             <span class="metric-badge priority-high">CRITICAL</span>
                         </div>
-                        <p class="card-text text-muted mb-3">
-                            <strong>Problem:</strong> ERN_QTY (Earned Quantity) fields are empty in all discipline audit files. No actual completion data available.
+                        <p class="card-text text-[#64748B] mb-3">
+                            <strong>Problem:</strong> ERN_QTY (Earned Quantity) fields are empty in all discipline audit
+                            files. No actual completion data available.
                         </p>
                         <div class="alert alert-danger mb-3">
-                            <strong>Impact:</strong> Cannot calculate actual installation progress, productivity, earned value, or forecast completion dates.
+                            <strong>Impact:</strong> Cannot calculate actual installation progress, productivity, earned
+                            value, or forecast completion dates.
                         </div>
                         <div class="card bg-light">
                             <div class="card-body py-2">
-                                <strong>Solution:</strong> Field teams must update ERN_QTY and milestone completion status weekly
+                                <strong>Solution:</strong> Field teams must update ERN_QTY and milestone completion
+                                status weekly
                             </div>
                         </div>
                     </div>
@@ -420,21 +510,23 @@
                 <div class="card shadow-sm gap-card">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start mb-2">
-                            <h5 class="card-title">
-                                <i class="fas fa-box-open text-danger me-2"></i>
-                                Material Receipt Documentation
-                            </h5>
+                            <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
+                                    <i class="fas fa-box-open me-2"></i> Material Receipt Documentation
+                                </h5>
                             <span class="metric-badge priority-high">CRITICAL</span>
                         </div>
-                        <p class="card-text text-muted mb-3">
-                            <strong>Problem:</strong> Missing formal receiving reports with dates, inspection results, and staging locations.
+                        <p class="card-text text-[#64748B] mb-3">
+                            <strong>Problem:</strong> Missing formal receiving reports with dates, inspection results,
+                            and staging locations.
                         </p>
                         <div class="alert alert-warning mb-3">
-                            <strong>Impact:</strong> Cannot track days from delivery to installation, material currently on-site, or damage during handling.
+                            <strong>Impact:</strong> Cannot track days from delivery to installation, material currently
+                            on-site, or damage during handling.
                         </div>
                         <div class="card bg-light">
                             <div class="card-body py-2">
-                                <strong>Solution:</strong> Implement receiving inspection process with QR code scanning and mobile app
+                                <strong>Solution:</strong> Implement receiving inspection process with QR code scanning
+                                and mobile app
                             </div>
                         </div>
                     </div>
@@ -445,21 +537,22 @@
                 <div class="card shadow-sm gap-card">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start mb-2">
-                            <h5 class="card-title">
-                                <i class="fas fa-calendar-alt text-warning me-2"></i>
-                                Material Required Dates
-                            </h5>
+                            <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
+                                    <i class="far fa-calendar-alt me-2"></i> Material Required Dates
+                                </h5>
                             <span class="metric-badge priority-medium">HIGH</span>
                         </div>
-                        <p class="card-text text-muted mb-3">
+                        <p class="card-text text-[#64748B] mb-3">
                             <strong>Problem:</strong> No Material Required Dates (MRD) aligned to installation schedule.
                         </p>
                         <div class="alert alert-warning mb-3">
-                            <strong>Impact:</strong> Cannot identify materials that will cause delays or prioritize expediting efforts.
+                            <strong>Impact:</strong> Cannot identify materials that will cause delays or prioritize
+                            expediting efforts.
                         </div>
                         <div class="card bg-light">
                             <div class="card-body py-2">
-                                <strong>Solution:</strong> Integrate with project schedule to generate MRDs for each work package
+                                <strong>Solution:</strong> Integrate with project schedule to generate MRDs for each
+                                work package
                             </div>
                         </div>
                     </div>
@@ -470,17 +563,18 @@
                 <div class="card shadow-sm gap-card" style="border-left-color: var(--warning-orange);">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start mb-2">
-                            <h5 class="card-title">
-                                <i class="fas fa-exclamation-circle text-warning me-2"></i>
-                                NCR/OSD Tracking
-                            </h5>
+                            <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
+                                    <i class="far fa-exclamation-circle me-2"></i> NCR/OSD Tracking
+                                </h5>
                             <span class="metric-badge priority-medium">MEDIUM</span>
                         </div>
-                        <p class="card-text text-muted mb-3">
-                            <strong>Problem:</strong> NCR (Non-Conformance) and OSD (Over-Short-Damaged) fields exist but contain no data.
+                        <p class="card-text text-[#64748B] mb-3">
+                            <strong>Problem:</strong> NCR (Non-Conformance) and OSD (Over-Short-Damaged) fields exist
+                            but contain no data.
                         </p>
                         <div class="alert alert-warning mb-3">
-                            <strong>Impact:</strong> Cannot track quality issues, supplier problems, or material replacement needs.
+                            <strong>Impact:</strong> Cannot track quality issues, supplier problems, or material
+                            replacement needs.
                         </div>
                         <div class="card bg-light">
                             <div class="card-body py-2">
@@ -495,21 +589,23 @@
                 <div class="card shadow-sm gap-card" style="border-left-color: var(--info-blue);">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start mb-2">
-                            <h5 class="card-title">
-                                <i class="fas fa-map-marker-alt text-info me-2"></i>
-                                Material Location Tracking
-                            </h5>
+                            <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
+                                    <i class="fas fa-map-marker-alt me-2"></i> Material Location Tracking
+                                </h5>
                             <span class="metric-badge priority-low">LOW</span>
                         </div>
-                        <p class="card-text text-muted mb-3">
-                            <strong>Problem:</strong> No tracking of material location after receipt (laydown area, warehouse, staging).
+                        <p class="card-text text-[#64748B] mb-3">
+                            <strong>Problem:</strong> No tracking of material location after receipt (laydown area,
+                            warehouse, staging).
                         </p>
                         <div class="alert alert-info mb-3">
-                            <strong>Impact:</strong> Difficulty finding materials on-site, inefficient material handling.
+                            <strong>Impact:</strong> Difficulty finding materials on-site, inefficient material
+                            handling.
                         </div>
                         <div class="card bg-light">
                             <div class="card-body py-2">
-                                <strong>Solution:</strong> Add location field to receiving process and track material movements
+                                <strong>Solution:</strong> Add location field to receiving process and track material
+                                movements
                             </div>
                         </div>
                     </div>
@@ -520,19 +616,21 @@
         <!-- Recommended Actions -->
         <div class="row mb-4">
             <div class="col-12">
-                <div class="card shadow-sm border-0" style="border-left: 4px solid var(--accent-gold);">
+                <div class="card shadow-sm border-0" style="border-left: 4px solid var(--lime-green);">
                     <div class="card-body">
                         <h3 class="mb-4">
-                            <i class="fas fa-lightbulb text-warning me-2"></i>
+                            <i class="far fa-lightbulb text-warning me-2"></i>
                             Recommended Next Steps
                         </h3>
                         <div class="row">
                             <div class="col-md-6">
                                 <h5>Immediate Actions (This Week)</h5>
                                 <ol class="mb-3">
-                                    <li class="mb-2">Implement PO-to-Installation material linking system (see Material Tracking page)</li>
+                                    <li class="mb-2">Implement PO-to-Installation material linking system (see Material
+                                        Tracking page)</li>
                                     <li class="mb-2">Begin populating ERN_QTY fields with actual progress weekly</li>
-                                    <li class="mb-2">Create receiving inspection checklist with date/location capture</li>
+                                    <li class="mb-2">Create receiving inspection checklist with date/location capture
+                                    </li>
                                 </ol>
                             </div>
                             <div class="col-md-6">
@@ -559,4 +657,5 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>

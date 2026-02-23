@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,28 +24,46 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <style>
-        /* Invenio-Tek - Official Color Scheme */
+        /* RPS Branding - Official Color Scheme */
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6,
+        .card-title,
+        .lead {
+            color: var(--text-dark) !important;
+        }
+
         :root {
-            --primary-charcoal: #2d2d2d;   /* Dark charcoal - main brand color */
-            --primary-dark: #2a2a2a;       /* Darker charcoal */
-            --primary-darker: #1a1a1a;     /* Darkest charcoal */
-            --accent-gold: #d4b896;        /* Invenio-Tek Gold - signature brand color */
-            --accent-gold-light: #e2cdb3;  /* Lighter gold */
-            --accent-gold-dark: #c4a57a;   /* Darker gold */
+            --primary-charcoal: #3a3a3a;
+            /* Dark charcoal - main brand color */
+            --primary-dark: #2a2a2a;
+            /* Darker charcoal */
+            --primary-darker: #1a1a1a;
+            /* Darkest charcoal */
+            --lime-green: #2563EB;
+            /* RPS Branding Gold - signature brand color */
+            --lime-green-light: #a8d45f;
+            /* Lighter gold */
+            --lime-green-dark: #7ab82d;
+            /* Darker gold */
             --white: #ffffff;
-            --off-white: #f5f0eb;
+            --off-white: #F8FAFC;
             --light-gray: #e8e8e8;
             --medium-gray: #cccccc;
             --dark-gray: #666666;
             --text-dark: #333333;
-            --success-green: #4a9e6e;      /* Success green */
+            --success-green: #2563EB;
+            /* Success green */
             --warning-orange: #f5a623;
             --danger-red: #d0021b;
             --info-blue: #4a90e2;
         }
 
         body {
-            background-color: var(--off-white);
+            background-color: #F8FAFC;
             font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif;
             color: var(--text-dark);
             line-height: 1.6;
@@ -56,12 +75,12 @@
 
         .metric-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
         }
 
         .navbar {
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            background-color: var(--primary-charcoal) !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            background-color: var(--navbar-bg) !important;
             padding: 1rem 0;
         }
 
@@ -85,14 +104,14 @@
         }
 
         .navbar-nav .nav-link {
-            color: var(--white) !important;
+            color: var(--navbar-text) !important;
             transition: all 0.3s ease;
             font-weight: 500;
             padding: 0.5rem 1rem;
         }
 
         .navbar-nav .nav-link:hover {
-            color: var(--accent-gold) !important;
+            color: var(--lime-green) !important;
         }
 
         .chart-container {
@@ -122,14 +141,16 @@
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         .nav-pills .nav-link {
             color: var(--dark-gray);
-            border-radius: 8px;
+            border-radius: 12px;
             font-weight: 500;
-            padding: 0.75rem 1.5rem;
+            padding: 0.6rem 1.25rem;
             transition: all 0.3s ease;
             border: 2px solid transparent;
         }
@@ -137,25 +158,26 @@
         .nav-pills .nav-link:hover {
             background-color: var(--light-gray);
             color: var(--accent-gold-dark);
-            border-color: var(--accent-gold);
+            border-color: var(--lime-green);
         }
 
         .nav-pills .nav-link.active {
-            background-color: var(--accent-gold);
+            background-color: var(--lime-green);
             color: var(--white);
-            border-color: var(--accent-gold);
-            box-shadow: 0 4px 12px rgba(212, 184, 150, 0.3);
+            border-color: var(--lime-green);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
         }
 
         .card {
-            border: 1px solid var(--light-gray);
-            border-radius: 8px;
+            border: none;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            border-radius: 12px;
             transition: all 0.3s ease;
             background: var(--white);
         }
 
         .card-header {
-            border-bottom: 3px solid var(--accent-gold);
+            border-bottom: 3px solid var(--lime-green);
             font-weight: 600;
             padding: 1.25rem 1.5rem;
             background-color: var(--white);
@@ -166,29 +188,29 @@
         }
 
         .btn-primary {
-            background-color: var(--accent-gold);
+            background-color: var(--lime-green);
             border: none;
             transition: all 0.3s ease;
             font-weight: 500;
             padding: 0.5rem 1.25rem;
-            border-radius: 6px;
+            border-radius: 10px;
             color: var(--white);
         }
 
         .btn-primary:hover {
             background-color: var(--accent-gold-dark);
             transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(212, 184, 150, 0.4);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
         }
 
         .btn-light {
             background-color: var(--white);
-            border: 2px solid var(--accent-gold);
-            color: var(--accent-gold);
+            border: 2px solid var(--lime-green);
+            color: var(--lime-green);
         }
 
         .btn-light:hover {
-            background-color: var(--accent-gold);
+            background-color: var(--lime-green);
             color: var(--white);
         }
 
@@ -210,35 +232,27 @@
         }
 
         .table-hover tbody tr:hover {
-            background-color: rgba(212, 184, 150, 0.1);
+            background-color: rgba(37, 99, 235, 0.1);
         }
 
         /* KPI Card Icon Backgrounds */
-        .kpi-icon-accent {
-            background-color: var(--accent-gold);
-        }
-
-        .kpi-icon-charcoal {
-            background-color: var(--primary-charcoal);
-        }
-
-        .kpi-icon-green {
-            background-color: var(--accent-gold-dark);
-        }
-
+        .kpi-icon-accent,
+        .kpi-icon-charcoal,
+        .kpi-icon-green,
         .kpi-icon-gray {
-            background-color: var(--dark-gray);
+            background-color: rgba(37, 99, 235, 0.1);
+            /* Light blue tint matching the IA app */
         }
 
         /* Badge Styling */
         .badge {
             font-weight: 500;
             padding: 0.4rem 0.8rem;
-            border-radius: 4px;
+            border-radius: 8px;
         }
 
         .bg-success {
-            background-color: var(--accent-gold) !important;
+            background-color: var(--lime-green) !important;
         }
 
         .bg-warning {
@@ -256,59 +270,175 @@
         .bg-secondary {
             background-color: var(--medium-gray) !important;
         }
+
+        /* IA Draft 1 App Styling Overrides */
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6,
+        .card-title,
+        .lead {
+            color: var(--text-dark) !important;
+        }
+
+        :root {
+            --primary-blue: #2563EB;
+            --navbar-bg: #FFFFFF;
+            --navbar-text: #64748B;
+            --navbar-active: #2563EB;
+            --border-light: #E2E8F0;
+            --text-dark: #334155;
+            /* Replace lime green with blue seamlessly */
+            --lime-green: var(--primary-blue);
+            --success-green: #10B981;
+            /* actual green for success states */
+        }
+
+        .navbar {
+            background-color: var(--navbar-bg) !important;
+            border-bottom: 1px solid var(--border-light);
+            box-shadow: none !important;
+            padding: 0.5rem 0.5rem !important;
+            /* tighter vertical padding */
+        }
+
+        .navbar-brand span {
+            color: var(--text-dark) !important;
+        }
+
+        /* Stacked Mobile-App Style Nav Links */
+        .navbar-nav {
+            gap: 0.5rem;
+            align-items: flex-end;
+            /* right align mostly */
+        }
+
+        .navbar-nav .nav-link {
+            color: var(--navbar-text) !important;
+            font-size: 0.70rem !important;
+            font-weight: 500;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0.25rem 0.75rem !important;
+            transition: all 0.2s ease;
+        }
+
+        .navbar-nav .nav-link i {
+            font-size: 1.35rem;
+            /* large icon */
+            margin-bottom: 4px;
+            margin-right: 0 !important;
+            /* override me-1 */
+            margin-left: 0 !important;
+
+            margin-right: 0 !important;
+            margin-left: 0 !important;
+        }
+
+        .navbar-nav .nav-link:hover,
+        .navbar-nav .nav-link.active {
+            color: var(--navbar-active) !important;
+        }
     </style>
 </head>
+
 <body>
     <!-- Navigation Bar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="#">
-                <img src="favicon-96x96.png" alt="Invenio-Tek Logo" onerror="this.style.display='none'">
-                <span>MSR Dashboard</span>
+    <!-- Standardized Navigation Bar -->
+    <nav class="navbar navbar-expand-lg border-b border-[var(--border-light)]"
+        style="padding: 0 !important; min-height: 64px; background: var(--navbar-bg);">
+        <div class="container-fluid"
+            style="padding-top: 0 !important; padding-bottom: 0 !important; padding-left: 1.5rem !important; padding-right: 1.5rem !important; margin-top: 0 !important; margin-bottom: 0 !important;">
+            <a class="navbar-brand m-0" href="index.html"
+                style="display: flex; align-items: center; gap: 12px; text-decoration: none; min-width: 240px; padding: 0.5rem 0;">
+                <img src="favicon-96x96.png" alt="RPS Branding Logo"
+                    style="height: 40px; width: auto; object-fit: contain;">
+                <span
+                    style="font-size: 1.25rem; font-weight: 600; color: var(--text-dark); letter-spacing: -0.02em;">MSR
+                    Dashboard</span>
             </a>
+
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-toggle="collapse"
+                data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
             <div class="navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav ms-auto" style="gap: 4px;">
                     <li class="nav-item">
-                        <a class="nav-link text-white" href="index.html">
-                            <i class="fas fa-chart-line me-1"></i> Dashboard
+                        <a class="nav-link active" href="index.html">
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-tachometer-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Dashboard</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white" href="gap-analysis.html">
-                            <i class="fas fa-chart-bar me-1"></i> Gap Analysis
+                        <a class="nav-link" href="gap-analysis.html">
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-clipboard-check" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Gap
+                                    Analysis</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white" href="material-tracking.html">
-                            <i class="fas fa-link me-1"></i> Material Tracking
+                        <a class="nav-link" href="material-tracking.html">
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-cubes" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Materials</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white" href="delivery-dates.html">
-                            <i class="fas fa-truck me-1"></i> Delivery Dates
+                        <a class="nav-link" href="delivery-dates.html">
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-truck" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Deliveries</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white" href="project-schedule.html">
-                            <i class="fas fa-calendar-alt me-1"></i> Project Schedule
+                        <a class="nav-link" href="project-schedule.html">
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-history" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Schedule</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link text-white" href="samsara-tracking.html">
-                            <i class="fas fa-map-marker-alt me-1"></i> GPS Trackers
+                        <a class="nav-link" href="samsara-tracking.html">
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-map-marker-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">GPS</span>
+                            </div>
                         </a>
                     </li>
-                    <li class="nav-item ms-3">
-                        <span class="navbar-text text-white">
-                            <i class="fas fa-clock me-2"></i>
-                            Last Updated: <span id="lastUpdated">Loading...</span>
-                        </span>
-                    </li>
-                    <li class="nav-item ms-3">
-                        <button class="btn btn-light btn-sm" onclick="refreshData()">
-                            <i class="fas fa-sync-alt me-1"></i>
-                            Refresh
-                        </button>
+                    <li class="nav-item">
+                        <a class="nav-link" href="site-plan.html">
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-drafting-compass" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Site
+                                    Plan</span>
+                            </div>
+                        </a>
                     </li>
                 </ul>
             </div>
@@ -326,8 +456,10 @@
                             <i class="fas fa-industry text-primary me-2"></i>
                             Greenfield LNG Terminal - Material Status Report
                         </h2>
-                        <p class="text-gray-600 mb-0">
-                            Comprehensive tracking of procurement, shipments, and installation progress
+                        <p class="text-[#475569] mb-0 d-flex justify-content-between align-items-center">
+                            <span>Comprehensive tracking of procurement, shipments, and installation progress</span>
+                            <small class="text-muted"><i class="far fa-clock me-1"></i>Last Updated: <span
+                                    id="lastUpdated">--</span></small>
                         </p>
                     </div>
                 </div>
@@ -337,22 +469,26 @@
         <!-- Tab Navigation -->
         <ul class="nav nav-pills mb-4" id="dashboardTabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="overview-tab" data-bs-toggle="pill" data-bs-target="#overview" type="button">
+                <button class="nav-link active" id="overview-tab" data-bs-toggle="pill" data-bs-target="#overview"
+                    type="button">
                     <i class="fas fa-home me-2"></i>Overview
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="procurement-tab" data-bs-toggle="pill" data-bs-target="#procurement" type="button">
+                <button class="nav-link" id="procurement-tab" data-bs-toggle="pill" data-bs-target="#procurement"
+                    type="button">
                     <i class="fas fa-shopping-cart me-2"></i>Procurement
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="shipments-tab" data-bs-toggle="pill" data-bs-target="#shipments" type="button">
+                <button class="nav-link" id="shipments-tab" data-bs-toggle="pill" data-bs-target="#shipments"
+                    type="button">
                     <i class="fas fa-truck me-2"></i>Shipments
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="installation-tab" data-bs-toggle="pill" data-bs-target="#installation" type="button">
+                <button class="nav-link" id="installation-tab" data-bs-toggle="pill" data-bs-target="#installation"
+                    type="button">
                     <i class="fas fa-tools me-2"></i>Installation
                 </button>
             </li>
@@ -365,20 +501,23 @@
                 <!-- KPI Cards -->
                 <div class="row g-4 mb-4" id="kpiCards">
                     <div class="col-md-3">
-                        <div class="card metric-card shadow-sm border-0">
-                            <div class="card-body">
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <p class="text-sm text-gray-600 mb-1">Total POs</p>
-                                        <h3 class="text-3xl font-bold text-gray-900" id="totalPOs">
-                                            <span class="loading-spinner"></span>
-                                        </h3>
-                                    </div>
-                                    <div class="p-3 kpi-icon-accent rounded-full">
-                                        <i class="fas fa-file-invoice text-white text-xl"></i>
-                                    </div>
-                                </div>
-                                <p class="text-sm text-gray-500 mt-2">Purchase Orders</p>
+                        <div
+                            class="kpi-card bg-white rounded-xl shadow-sm border-0 p-4 h-100 transition-all d-flex align-items-center justify-content-between">
+                            <div class="d-flex flex-column h-100">
+                                <span class="text-uppercase fw-semibold"
+                                    style="font-size: 0.75rem; letter-spacing: 0.05em; color: var(--navbar-text); margin-bottom: 0.5rem;">Total
+                                    POs</span>
+                                <span id="totalPOs"
+                                    style="font-size: 2.25rem; font-weight: 700; color: var(--text-dark); line-height: 1.1;"><span
+                                        class="loading-spinner"></span></span>
+                                <span
+                                    style="font-size: 0.85rem; color: var(--navbar-text); margin-top: 0.5rem;">Purchase
+                                    Orders</span>
+                            </div>
+                            <div class="header-icon-box"
+                                style="width: 48px; height: 48px; min-width: 48px; border-radius: 12px; background: rgba(37,99,235,0.1); display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-file-invoice"
+                                    style="font-size: 1.5rem; color: var(--primary-blue);"></i>
                             </div>
                         </div>
                     </div>
@@ -388,16 +527,16 @@
                             <div class="card-body">
                                 <div class="flex justify-between items-start">
                                     <div>
-                                        <p class="text-sm text-gray-600 mb-1">Total Value</p>
-                                        <h3 class="text-3xl font-bold text-gray-900" id="totalValue">
+                                        <p class="text-sm text-[#475569] mb-1">Total Value</p>
+                                        <h3 class="text-3xl font-bold text-[#475569]" id="totalValue">
                                             <span class="loading-spinner"></span>
                                         </h3>
                                     </div>
                                     <div class="p-3 kpi-icon-charcoal rounded-full">
-                                        <i class="fas fa-dollar-sign text-white text-xl"></i>
+                                        <i class="fas fa-dollar-sign text-[var(--primary-blue)] text-xl"></i>
                                     </div>
                                 </div>
-                                <p class="text-sm text-gray-500 mt-2">PO Value</p>
+                                <p class="text-sm text-[#64748B] mt-2">PO Value</p>
                             </div>
                         </div>
                     </div>
@@ -407,16 +546,16 @@
                             <div class="card-body">
                                 <div class="flex justify-between items-start">
                                     <div>
-                                        <p class="text-sm text-gray-600 mb-1">Shipments</p>
-                                        <h3 class="text-3xl font-bold text-gray-900" id="totalShipments">
+                                        <p class="text-sm text-[#475569] mb-1">Shipments</p>
+                                        <h3 class="text-3xl font-bold text-[#475569]" id="totalShipments">
                                             <span class="loading-spinner"></span>
                                         </h3>
                                     </div>
                                     <div class="p-3 kpi-icon-green rounded-full">
-                                        <i class="fas fa-shipping-fast text-white text-xl"></i>
+                                        <i class="fas fa-shipping-fast text-[var(--primary-blue)] text-xl"></i>
                                     </div>
                                 </div>
-                                <p class="text-sm text-gray-500 mt-2">
+                                <p class="text-sm text-[#64748B] mt-2">
                                     <span id="deliveredShipments">-</span> Delivered
                                 </p>
                             </div>
@@ -428,16 +567,16 @@
                             <div class="card-body">
                                 <div class="flex justify-between items-start">
                                     <div>
-                                        <p class="text-sm text-gray-600 mb-1">Install Items</p>
-                                        <h3 class="text-3xl font-bold text-gray-900" id="totalInstallItems">
+                                        <p class="text-sm text-[#475569] mb-1">Install Items</p>
+                                        <h3 class="text-3xl font-bold text-[#475569]" id="totalInstallItems">
                                             <span class="loading-spinner"></span>
                                         </h3>
                                     </div>
                                     <div class="p-3 kpi-icon-gray rounded-full">
-                                        <i class="fas fa-hard-hat text-white text-xl"></i>
+                                        <i class="fas fa-hard-hat text-[var(--primary-blue)] text-xl"></i>
                                     </div>
                                 </div>
-                                <p class="text-sm text-gray-500 mt-2">5 Disciplines</p>
+                                <p class="text-sm text-[#64748B] mt-2">5 Disciplines</p>
                             </div>
                         </div>
                     </div>
@@ -465,7 +604,7 @@
                         <div class="card shadow-sm">
                             <div class="card-header bg-white">
                                 <h5 class="mb-0">
-                                    <i class="fas fa-chart-bar text-primary me-2"></i>
+                                    <i class="far fa-chart-bar text-primary me-2"></i>
                                     Shipment Status
                                 </h5>
                             </div>
@@ -503,7 +642,7 @@
                         <div class="card shadow-sm">
                             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                                 <h5 class="mb-0">
-                                    <i class="fas fa-flag-checkered text-primary me-2"></i>
+                                    <i class="far fa-flag-checkered text-primary me-2"></i>
                                     Upcoming Milestones
                                 </h5>
                                 <a href="project-schedule.html" class="btn btn-sm btn-outline-primary">
@@ -516,7 +655,7 @@
                                         <div class="spinner-border text-primary" role="status">
                                             <span class="visually-hidden">Loading...</span>
                                         </div>
-                                        <p class="mt-2 mb-0 text-muted">Loading milestones...</p>
+                                        <p class="mt-2 mb-0 text-[#64748B]">Loading milestones...</p>
                                     </div>
                                 </div>
                             </div>
@@ -559,7 +698,7 @@
                                     <tr>
                                         <td colspan="7" class="text-center py-5">
                                             <span class="loading-spinner"></span>
-                                            <p class="mt-2 text-muted">Loading purchase orders...</p>
+                                            <p class="mt-2 text-[#64748B]">Loading purchase orders...</p>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -611,7 +750,7 @@
                                     <tr>
                                         <td colspan="9" class="text-center py-5">
                                             <span class="loading-spinner"></span>
-                                            <p class="mt-2 text-muted">Loading shipments...</p>
+                                            <p class="mt-2 text-[#64748B]">Loading shipments...</p>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -628,7 +767,7 @@
                         <div class="card shadow-sm">
                             <div class="card-header bg-white">
                                 <h5 class="mb-0">
-                                    <i class="fas fa-tasks text-primary me-2"></i>
+                                    <i class="fas fa-history text-primary me-2"></i>
                                     Installation Progress Summary
                                 </h5>
                             </div>
@@ -636,7 +775,7 @@
                                 <div id="disciplineCards" class="row g-3">
                                     <div class="col-12 text-center py-5">
                                         <span class="loading-spinner"></span>
-                                        <p class="mt-2 text-muted">Loading installation data...</p>
+                                        <p class="mt-2 text-[#64748B]">Loading installation data...</p>
                                     </div>
                                 </div>
                             </div>
@@ -651,7 +790,7 @@
                                 <div class="row align-items-center">
                                     <div class="col">
                                         <h5 class="mb-0">
-                                            <i class="fas fa-clipboard-list text-primary me-2"></i>
+                                            <i class="far fa-clipboard-list text-primary me-2"></i>
                                             Installation Items
                                         </h5>
                                     </div>
@@ -685,7 +824,7 @@
                                             <tr>
                                                 <td colspan="7" class="text-center py-5">
                                                     <span class="loading-spinner"></span>
-                                                    <p class="mt-2 text-muted">Loading installation items...</p>
+                                                    <p class="mt-2 text-[#64748B]">Loading installation items...</p>
                                                 </td>
                                             </tr>
                                         </tbody>
@@ -715,4 +854,5 @@
     <!-- Dashboard JavaScript -->
     <script src="dashboard.js?v=5"></script>
 </body>
+
 </html>

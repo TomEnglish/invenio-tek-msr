@@ -323,7 +323,7 @@ function renderTimeline() {
         'Installation': '#50e3c2',
         'Testing/Commissioning': '#bd10e0',
         'Startup': '#d0021b',
-        'Milestone': '#d4b896',
+        'Milestone': '#2563EB',
         'Other': '#9b9b9b'
     };
 
@@ -838,7 +838,7 @@ function renderCategoryChart() {
 
     const colors = [
         '#4a90e2', '#f5a623', '#7ed321', '#9013fe',
-        '#50e3c2', '#bd10e0', '#d0021b', '#d4b896', '#9b9b9b'
+        '#50e3c2', '#bd10e0', '#d0021b', '#2563EB', '#9b9b9b'
     ];
 
     new Chart(ctx, {

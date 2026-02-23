@@ -55,7 +55,7 @@ function initializeMap() {
     // Add site marker
     const siteIcon = L.divIcon({
         className: 'site-marker',
-        html: '<div style="background-color: #d4b896; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>',
+        html: '<div style="background-color: #2563EB; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>',
         iconSize: [20, 20],
         iconAnchor: [10, 10]
     });
@@ -66,8 +66,8 @@ function initializeMap() {
 
     // Add site radius circle (500m)
     L.circle([SITE_LAT, SITE_LON], {
-        color: '#d4b896',
-        fillColor: '#d4b896',
+        color: '#2563EB',
+        fillColor: '#2563EB',
         fillOpacity: 0.1,
         radius: SITE_RADIUS_M  // 500m in meters
     }).addTo(state.map);
@@ -167,7 +167,7 @@ function updateMap() {
 function addTrackerMarker(tracker) {
     // Determine marker color based on status
     let color = '#666';  // Gray for no data
-    if (tracker.status === 'On Site') color = '#d4b896';  // Tan/gold accent
+    if (tracker.status === 'On Site') color = '#2563EB';  // Tan/gold accent
     else if (tracker.status === 'In Transit') color = '#f5a623';  // Orange
     else if (tracker.status === 'Stale') color = '#d0021b';  // Red
 

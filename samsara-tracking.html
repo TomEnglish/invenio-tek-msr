@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -26,32 +27,35 @@
     <script src="supabase-config.js"></script>
 
     <style>
+        h1, h2, h3, h4, h5, h6, .card-title, .lead { color: var(--text-dark) !important; }
         :root {
-            --primary-charcoal: #2d2d2d;
-            --accent-gold: #d4b896;
-            --accent-gold-dark: #c4a57a;
+            --primary-charcoal: #3a3a3a;
+            --lime-green: #2563EB;
+            --lime-green-dark: #7ab82d;
             --white: #ffffff;
-            --off-white: #f5f0eb;
+            --off-white: #F8FAFC;
             --light-gray: #e8e8e8;
             --medium-gray: #cccccc;
             --dark-gray: #666666;
         }
 
         body {
+            color: var(--text-dark) !important;
+
             font-family: Arial, Helvetica, sans-serif;
-            background-color: var(--off-white);
+            background-color: #F8FAFC;
             margin: 0;
             padding: 0;
         }
 
         /* Navbar */
         .navbar {
-            background-color: var(--primary-charcoal) !important;
+            background-color: var(--navbar-bg) !important;
             padding: 1rem 2rem;
         }
 
         .navbar-brand {
-            color: var(--white) !important;
+            color: var(--navbar-text) !important;
             font-size: 1.5rem;
             font-weight: 600;
             display: flex;
@@ -64,36 +68,36 @@
         }
 
         .nav-link {
-            color: var(--white) !important;
+            color: var(--navbar-text) !important;
             margin: 0 0.5rem;
             transition: color 0.3s;
         }
 
         .nav-link:hover {
-            color: var(--accent-gold) !important;
+            color: var(--lime-green) !important;
         }
 
         /* Map Container */
         #map {
             height: 500px;
             width: 100%;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         /* Stats Cards */
         .stat-card {
             background: white;
-            border-radius: 8px;
+            border-radius: 12px;
             padding: 1.5rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            border-left: 4px solid var(--accent-gold);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid var(--lime-green);
             transition: transform 0.2s;
         }
 
         .stat-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(212, 184, 150, 0.3);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
         }
 
         .stat-value {
@@ -111,9 +115,9 @@
         /* Tracker Table */
         .tracker-table {
             background: white;
-            border-radius: 8px;
+            border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         .tracker-table thead {
@@ -122,12 +126,12 @@
         }
 
         .tracker-table tbody tr:hover {
-            background-color: rgba(212, 184, 150, 0.1);
+            background-color: rgba(37, 99, 235, 0.1);
         }
 
         /* Status Badges */
         .badge-on-site {
-            background-color: var(--accent-gold);
+            background-color: var(--lime-green);
             color: white;
         }
 
@@ -137,7 +141,7 @@
         }
 
         .badge-no-data {
-            background-color: var(--medium-gray);
+            background-color: var(--navbar-text);
             color: white;
         }
 
@@ -148,31 +152,31 @@
 
         /* Buttons */
         .btn-lime {
-            background-color: var(--accent-gold);
+            background-color: var(--lime-green);
             color: white;
             border: none;
             padding: 0.5rem 1.5rem;
-            border-radius: 6px;
+            border-radius: 10px;
             transition: all 0.3s;
         }
 
         .btn-lime:hover {
-            background-color: #c4a57a;
+            background-color: #7ab82d;
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(212, 184, 150, 0.4);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
         }
 
         .btn-outline-lime {
             background-color: transparent;
-            color: var(--accent-gold);
-            border: 2px solid var(--accent-gold);
+            color: var(--lime-green);
+            border: 2px solid var(--lime-green);
             padding: 0.5rem 1.5rem;
-            border-radius: 6px;
+            border-radius: 10px;
             transition: all 0.3s;
         }
 
         .btn-outline-lime:hover {
-            background-color: var(--accent-gold);
+            background-color: var(--lime-green);
             color: white;
         }
 
@@ -180,9 +184,9 @@
         .filter-section {
             background: white;
             padding: 1.5rem;
-            border-radius: 8px;
+            border-radius: 12px;
             margin-bottom: 1.5rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         /* Loading */
@@ -193,13 +197,13 @@
         }
 
         .spinner-border {
-            color: var(--accent-gold);
+            color: var(--lime-green);
         }
 
         /* Alert */
         .alert-lime {
-            background-color: rgba(212, 184, 150, 0.1);
-            border-left: 4px solid var(--accent-gold);
+            background-color: rgba(37, 99, 235, 0.1);
+            border-left: 4px solid var(--lime-green);
             color: var(--primary-charcoal);
         }
 
@@ -207,64 +211,164 @@
         .tracker-label {
             background: rgba(58, 58, 58, 0.85);
             border: none;
-            border-radius: 4px;
+            border-radius: 8px;
             padding: 2px 6px;
             font-size: 11px;
             font-weight: 600;
             color: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
             white-space: nowrap;
         }
 
         .tracker-label::before {
-            display: none; /* Remove arrow */
+            display: none;
+            /* Remove arrow */
         }
+    
+        /* IA Draft 1 App Styling Overrides */
+        h1, h2, h3, h4, h5, h6, .card-title, .lead { color: var(--text-dark) !important; }
+        :root {
+            --primary-blue: #2563EB;
+            --navbar-bg: #FFFFFF;
+            --navbar-text: #64748B;
+            --navbar-active: #2563EB;
+            --border-light: #E2E8F0;
+            --text-dark: #334155;
+            /* Replace lime green with blue seamlessly */
+            --lime-green: var(--primary-blue); 
+            --success-green: #10B981; /* actual green for success states */
+        }
+        
+        .navbar {
+            background-color: var(--navbar-bg) !important;
+            border-bottom: 1px solid var(--border-light);
+            box-shadow: none !important;
+            padding: 0.5rem 0.5rem !important; /* tighter vertical padding */
+        }
+
+        .navbar-brand span {
+            color: var(--text-dark) !important;
+        }
+
+        /* Stacked Mobile-App Style Nav Links */
+        .navbar-nav {
+            gap: 0.5rem;
+            align-items: flex-end; /* right align mostly */
+        }
+        
+        .navbar-nav .nav-link {
+            color: var(--navbar-text) !important;
+            font-size: 0.70rem !important;
+            font-weight: 500;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0.25rem 0.75rem !important;
+            transition: all 0.2s ease;
+        }
+
+        .navbar-nav .nav-link i {
+            font-size: 1.35rem; /* large icon */
+            margin-bottom: 4px;
+            margin-right: 0 !important; /* override me-1 */
+            margin-left: 0 !important;
+        }
+
+        .navbar-nav .nav-link:hover, .navbar-nav .nav-link.active {
+            color: var(--navbar-active) !important;
+        }
+
     </style>
 </head>
+
 <body>
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="index.html">
-                <img src="favicon-96x96.png" alt="Invenio-Tek Logo">
-                MSR Dashboard - GPS Tracker Locations
+    <!-- Standardized Navigation Bar -->
+    <nav class="navbar navbar-expand-lg border-b border-[var(--border-light)]" style="padding: 0 !important; min-height: 64px; background: var(--navbar-bg);">
+        <div class="container-fluid" style="padding-top: 0 !important; padding-bottom: 0 !important; padding-left: 1.5rem !important; padding-right: 1.5rem !important; margin-top: 0 !important; margin-bottom: 0 !important;">
+            <a class="navbar-brand m-0" href="index.html" style="display: flex; align-items: center; gap: 12px; text-decoration: none; min-width: 240px; padding: 0.5rem 0;">
+                <img src="favicon-96x96.png" alt="RPS Branding Logo" style="height: 40px; width: auto; object-fit: contain;">
+                <span style="font-size: 1.25rem; font-weight: 600; color: var(--text-dark); letter-spacing: -0.02em;">MSR Dashboard</span>
             </a>
+            
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
             <div class="navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav ms-auto" style="gap: 4px;">
                     <li class="nav-item">
                         <a class="nav-link" href="index.html">
-                            <i class="fas fa-chart-line me-1"></i> Dashboard
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-tachometer-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Dashboard</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="gap-analysis.html">
-                            <i class="fas fa-chart-bar me-1"></i> Gap Analysis
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-clipboard-check" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Gap Analysis</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="material-tracking.html">
-                            <i class="fas fa-link me-1"></i> Material Tracking
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-cubes" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Materials</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="delivery-dates.html">
-                            <i class="fas fa-truck me-1"></i> Delivery Dates
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-truck" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Deliveries</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="project-schedule.html">
-                            <i class="fas fa-calendar-alt me-1"></i> Project Schedule
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-history" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Schedule</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link active" href="samsara-tracking.html">
-                            <i class="fas fa-map-marker-alt me-1"></i> GPS Trackers
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-map-marker-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">GPS</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="site-plan.html">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-drafting-compass" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Site Plan</span>
+                            </div>
                         </a>
                     </li>
                 </ul>
             </div>
         </div>
     </nav>
+<!-- Standardized Page Header -->
+    <div class="page-header bg-white" style="border-bottom: 1px solid var(--border-light); padding: 1.5rem 2rem; margin-bottom: 2rem;">
+        <div class="container-fluid d-flex align-items-center" style="max-width: 1800px; margin: 0 auto; padding: 0;">
+            <div class="header-icon-box me-3" style="width: 48px; height: 48px; min-width: 48px; border-radius: 12px; background: rgba(37,99,235,0.1); display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-map-marker-alt" style="font-size: 1.5rem; color: var(--primary-blue);"></i>
+            </div>
+            <div>
+                <h1 style="font-size: 1.5rem; font-weight: 600; color: var(--text-dark); margin: 0 0 4px 0; line-height: 1.2;">GPS Tracker Locations</h1>
+                <p style="font-size: 0.9rem; color: var(--navbar-text); margin: 0;">Live tracking of shipments and materials currently in transit or on site</p>
+            </div>
+        </div>
+    </div>
 
     <!-- Main Content -->
     <div class="container-fluid mt-4">
@@ -344,8 +448,10 @@
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
-                    <div class="card-header" style="background-color: var(--primary-charcoal); color: white;">
-                        <h5 class="mb-0"><i class="fas fa-map me-2"></i>Tracker Locations</h5>
+                    <div class="card-header" >
+                        <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
+                                    <i class="far fa-map text-[var(--primary-blue)] me-2"></i> Tracker Locations
+                                </h5>
                     </div>
                     <div class="card-body p-0">
                         <div id="map"></div>
@@ -411,4 +517,5 @@
     <!-- Main App Script -->
     <script src="samsara-tracking.js?v=3"></script>
 </body>
+
 </html>

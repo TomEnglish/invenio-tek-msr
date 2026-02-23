@@ -153,7 +153,7 @@ function createPOStatusChart() {
             datasets: [{
                 data: data,
                 backgroundColor: [
-                    '#d4b896', // Invenio-Tek tan/gold accent
+                    '#2563EB', // RPS lime green
                     '#f5a623', // warning orange
                     '#d0021b', // danger red
                     '#4a90e2', // info blue
@@ -214,7 +214,7 @@ function createShipmentStatusChart() {
                 label: 'Shipments',
                 data: data,
                 backgroundColor: [
-                    '#d4b896',  // Invenio-Tek tan/gold accent
+                    '#2563EB',  // RPS lime green
                     '#f5a623',  // warning orange
                     '#d0021b',  // danger red
                     '#4a90e2',  // info blue
@@ -272,7 +272,7 @@ function createDisciplineChart() {
                 {
                     label: 'Total Items',
                     data: items,
-                    backgroundColor: '#d4b896',  // Invenio-Tek tan/gold accent
+                    backgroundColor: '#2563EB',  // RPS lime green
                     borderRadius: 8,
                     yAxisID: 'y'
                 },

@@ -22,15 +22,15 @@ const TIMEFRAMES = {
     TIMELINE_LOOK_FORWARD: 56
 };
 
-// Invenio-Tek Brand Colors
+// RPS Brand Colors
 const COLORS = {
     // Primary brand colors
     CHARCOAL: '#2d2d2d',
-    ACCENT: '#d4b896',
+    ACCENT: '#2563EB',
     WHITE: '#ffffff',
 
     // Status colors
-    SUCCESS: '#4a9e6e',      // Muted green
+    SUCCESS: '#2563EB',      // Muted green
     WARNING: '#d4a039',      // Gold
     ERROR: '#c0392b',        // Red
     INFO: '#4a90e2',         // Blue
@@ -51,7 +51,7 @@ const CATEGORY_COLORS = {
     'Installation': '#50e3c2',
     'Testing/Commissioning': '#bd10e0',
     'Startup': '#d0021b',
-    'Milestone': '#d4b896',
+    'Milestone': '#2563EB',
     'Other': '#9b9b9b'
 };
 

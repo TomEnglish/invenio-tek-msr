@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -18,42 +19,187 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Custom Styles -->
     <link rel="stylesheet" href="styles.css">
+
+    <style>
+        /* IA Draft 1 App Styling Overrides */
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6,
+        .card-title,
+        .lead {
+            color: var(--text-dark) !important;
+        }
+
+        :root {
+            --primary-blue: #2563EB;
+            --navbar-bg: #FFFFFF;
+            --navbar-text: #64748B;
+            /* Dark grey for nav text */
+            --navbar-active: #2563EB;
+            --border-light: #E2E8F0;
+            --text-dark: #334155;
+            /* Dark grey for body text */
+            --lime-green: var(--primary-blue);
+            --success-green: #10B981;
+        }
+
+        body {
+            background-color: #F8FAFC;
+            color: var(--text-dark);
+        }
+
+        .navbar {
+            background-color: var(--navbar-bg) !important;
+            border-bottom: 1px solid var(--border-light);
+            box-shadow: none !important;
+            padding: 0.5rem 0.5rem !important;
+        }
+
+        .navbar-brand {
+            color: var(--text-dark) !important;
+        }
+
+        .navbar-nav {
+            gap: 0.5rem;
+            align-items: flex-end;
+        }
+
+        .navbar-nav .nav-link {
+            color: var(--navbar-text) !important;
+            font-size: 0.70rem !important;
+            font-weight: 500;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0.25rem 0.75rem !important;
+            transition: all 0.2s ease;
+        }
+
+        .navbar-nav .nav-link i {
+            font-size: 1.35rem;
+            margin-bottom: 4px;
+            margin-right: 0 !important;
+            margin-left: 0 !important;
+        }
+
+        .navbar-nav .nav-link:hover,
+        .navbar-nav .nav-link.active {
+            color: var(--navbar-active) !important;
+        }
+
+        .card {
+            border-radius: 12px;
+            border: none;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            background: #FFFFFF;
+        }
+
+        .card-header {
+            background: #FFFFFF;
+            border-bottom: 1px solid var(--border-light);
+            border-radius: 12px 12px 0 0 !important;
+            color: var(--text-dark);
+        }
+    </style>
 </head>
+
+
 <body>
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="index.html">
-                <i class="fas fa-chart-line me-2"></i>MSR Dashboard
+    <!-- Standardized Navigation Bar -->
+    <nav class="navbar navbar-expand-lg border-b border-[var(--border-light)]"
+        style="padding: 0 !important; min-height: 64px; background: var(--navbar-bg);">
+        <div class="container-fluid"
+            style="padding-top: 0 !important; padding-bottom: 0 !important; padding-left: 1.5rem !important; padding-right: 1.5rem !important; margin-top: 0 !important; margin-bottom: 0 !important;">
+            <a class="navbar-brand m-0" href="index.html"
+                style="display: flex; align-items: center; gap: 12px; text-decoration: none; min-width: 240px; padding: 0.5rem 0;">
+                <img src="favicon-96x96.png" alt="RPS Branding Logo"
+                    style="height: 40px; width: auto; object-fit: contain;">
+                <span
+                    style="font-size: 1.25rem; font-weight: 600; color: var(--text-dark); letter-spacing: -0.02em;">MSR
+                    Dashboard</span>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-toggle="collapse"
+                data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
+            <div class="navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto" style="gap: 4px;">
                     <li class="nav-item">
                         <a class="nav-link" href="index.html">
-                            <i class="fas fa-home me-1"></i>Overview
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-tachometer-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Dashboard</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="gap-analysis.html">
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-clipboard-check" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Gap
+                                    Analysis</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="material-tracking.html">
-                            <i class="fas fa-boxes me-1"></i>Material Tracking
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-cubes" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Materials</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="delivery-dates.html">
-                            <i class="fas fa-truck me-1"></i>Ready to Ship Dates
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-truck" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Deliveries</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link active" href="project-schedule.html">
-                            <i class="fas fa-calendar-alt me-1"></i>Project Schedule
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-history" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Schedule</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="samsara-tracking.html">
-                            <i class="fas fa-map-marker-alt me-1"></i>GPS Tracking
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-map-marker-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">GPS</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="site-plan.html">
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-drafting-compass" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Site
+                                    Plan</span>
+                            </div>
                         </a>
                     </li>
                 </ul>
@@ -67,74 +213,78 @@
         <div class="row mb-4">
             <div class="col-12">
                 <h1 class="display-5">
-                    <i class="fas fa-calendar-alt me-2"></i>Project Schedule
+                    <i class="far fa-calendar-alt me-2"></i>Project Schedule
                 </h1>
-                <p class="text-muted">Track project activities, milestones, and critical path</p>
+                <p class="text-[#64748B]">Track project activities, milestones, and critical path</p>
             </div>
         </div>
 
         <!-- Statistics Cards -->
         <div class="row mb-4">
             <div class="col-md-3 mb-3">
-                <div class="card stat-card">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="card-subtitle mb-2 text-muted">Total Activities</h6>
-                                <h2 class="card-title mb-0" id="totalActivities">0</h2>
-                            </div>
-                            <div class="stat-icon bg-primary">
-                                <i class="fas fa-tasks"></i>
-                            </div>
-                        </div>
+                <div
+                    class="kpi-card bg-white rounded-xl shadow-sm border-0 p-4 h-100 transition-all d-flex align-items-center justify-content-between">
+                    <div class="d-flex flex-column h-100">
+                        <span class="text-uppercase fw-semibold"
+                            style="font-size: 0.75rem; letter-spacing: 0.05em; color: var(--navbar-text); margin-bottom: 0.5rem;">Total
+                            Activities</span>
+                        <span id="totalActivities"
+                            style="font-size: 2.25rem; font-weight: 700; color: var(--text-dark); line-height: 1.1;">0</span>
+                    </div>
+                    <div class="header-icon-box"
+                        style="width: 48px; height: 48px; min-width: 48px; border-radius: 12px; background: rgba(37,99,235,0.1); display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-history" style="font-size: 1.5rem; color: var(--primary-blue);"></i>
                     </div>
                 </div>
             </div>
 
             <div class="col-md-3 mb-3">
-                <div class="card stat-card">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="card-subtitle mb-2 text-muted">Milestones</h6>
-                                <h2 class="card-title mb-0" id="totalMilestones">0</h2>
-                            </div>
-                            <div class="stat-icon bg-success">
-                                <i class="fas fa-flag-checkered"></i>
-                            </div>
-                        </div>
+                <div
+                    class="kpi-card bg-white rounded-xl shadow-sm border-0 p-4 h-100 transition-all d-flex align-items-center justify-content-between">
+                    <div class="d-flex flex-column h-100">
+                        <span class="text-uppercase fw-semibold"
+                            style="font-size: 0.75rem; letter-spacing: 0.05em; color: var(--navbar-text); margin-bottom: 0.5rem;">Milestones</span>
+                        <span id="totalMilestones"
+                            style="font-size: 2.25rem; font-weight: 700; color: var(--text-dark); line-height: 1.1;">0</span>
+                    </div>
+                    <div class="header-icon-box"
+                        style="width: 48px; height: 48px; min-width: 48px; border-radius: 12px; background: rgba(37,99,235,0.1); display: flex; align-items: center; justify-content: center;">
+                        <i class="far fa-flag-checkered" style="font-size: 1.5rem; color: var(--primary-blue);"></i>
                     </div>
                 </div>
             </div>
 
             <div class="col-md-3 mb-3">
-                <div class="card stat-card">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="card-subtitle mb-2 text-muted">Upcoming (30 days)</h6>
-                                <h2 class="card-title mb-0" id="upcomingActivities">0</h2>
-                            </div>
-                            <div class="stat-icon bg-warning">
-                                <i class="fas fa-clock"></i>
-                            </div>
-                        </div>
+                <div
+                    class="kpi-card bg-white rounded-xl shadow-sm border-0 p-4 h-100 transition-all d-flex align-items-center justify-content-between">
+                    <div class="d-flex flex-column h-100">
+                        <span class="text-uppercase fw-semibold"
+                            style="font-size: 0.75rem; letter-spacing: 0.05em; color: var(--navbar-text); margin-bottom: 0.5rem;">Upcoming
+                            (30 days)</span>
+                        <span id="upcomingActivities"
+                            style="font-size: 2.25rem; font-weight: 700; color: var(--text-dark); line-height: 1.1;">0</span>
+                    </div>
+                    <div class="header-icon-box"
+                        style="width: 48px; height: 48px; min-width: 48px; border-radius: 12px; background: rgba(37,99,235,0.1); display: flex; align-items: center; justify-content: center;">
+                        <i class="far fa-clock" style="font-size: 1.5rem; color: var(--primary-blue);"></i>
                     </div>
                 </div>
             </div>
 
             <div class="col-md-3 mb-3">
-                <div class="card stat-card">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="card-subtitle mb-2 text-muted">Critical Path</h6>
-                                <h2 class="card-title mb-0" id="criticalActivities">0</h2>
-                            </div>
-                            <div class="stat-icon bg-danger">
-                                <i class="fas fa-exclamation-triangle"></i>
-                            </div>
-                        </div>
+                <div
+                    class="kpi-card bg-white rounded-xl shadow-sm border-0 p-4 h-100 transition-all d-flex align-items-center justify-content-between">
+                    <div class="d-flex flex-column h-100">
+                        <span class="text-uppercase fw-semibold"
+                            style="font-size: 0.75rem; letter-spacing: 0.05em; color: var(--navbar-text); margin-bottom: 0.5rem;">Critical
+                            Path</span>
+                        <span id="criticalActivities"
+                            style="font-size: 2.25rem; font-weight: 700; color: var(--text-dark); line-height: 1.1;">0</span>
+                    </div>
+                    <div class="header-icon-box"
+                        style="width: 48px; height: 48px; min-width: 48px; border-radius: 12px; background: rgba(37,99,235,0.1); display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-exclamation-triangle"
+                            style="font-size: 1.5rem; color: var(--primary-blue);"></i>
                     </div>
                 </div>
             </div>
@@ -198,13 +348,13 @@
 
                 <!-- Result Count and View Toggle -->
                 <div class="mt-3 d-flex justify-content-between align-items-center">
-                    <span class="text-muted">Showing <strong id="resultCount">0</strong> activities</span>
+                    <span class="text-[#64748B]">Showing <strong id="resultCount">0</strong> activities</span>
                     <div class="btn-group" role="group">
                         <button type="button" class="btn btn-outline-primary active" id="btnTableView">
                             <i class="fas fa-table me-1"></i>Table
                         </button>
                         <button type="button" class="btn btn-outline-primary" id="btnTimelineView">
-                            <i class="fas fa-chart-bar me-1"></i>Timeline
+                            <i class="far fa-chart-bar me-1"></i>Timeline
                         </button>
                     </div>
                 </div>
@@ -214,8 +364,8 @@
         <!-- Timeline View -->
         <div class="card mb-4" id="timelineView" style="display: none;">
             <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-chart-bar me-2"></i>Schedule Timeline
+                <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
+                    <i class="far fa-chart-bar text-[var(--primary-blue)] me-2"></i> Schedule Timeline
                 </h5>
             </div>
             <div class="card-body">
@@ -233,8 +383,8 @@
         <!-- Schedule Table -->
         <div class="card mb-4" id="tableView">
             <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-list me-2"></i>Project Activities
+                <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
+                    <i class="fas fa-list text-[var(--primary-blue)] me-2"></i> Project Activities
                 </h5>
             </div>
             <div class="card-body p-0">
@@ -273,9 +423,10 @@
             <!-- Key Activities -->
             <div class="col-md-6">
                 <div class="card h-100">
-                    <div class="card-header bg-danger text-white">
-                        <h5 class="mb-0">
-                            <i class="fas fa-star me-2"></i>Key Activities (Next 30 Days)
+                    <div class="card-header bg-white text-danger border-danger border">
+                        <h5 class="card-title mb-0"
+                            style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
+                            <i class="far fa-star text-[var(--primary-blue)] me-2"></i> Key Activities (Next 30 Days)
                         </h5>
                     </div>
                     <div class="card-body">
@@ -293,9 +444,10 @@
             <!-- Schedule Health Metrics -->
             <div class="col-md-6">
                 <div class="card h-100">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">
-                            <i class="fas fa-chart-line me-2"></i>Schedule Health
+                    <div class="card-header bg-white text-[var(--primary-blue)] border-primary border">
+                        <h5 class="card-title mb-0"
+                            style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
+                            <i class="fas fa-chart-line text-[var(--primary-blue)] me-2"></i> Schedule Health
                         </h5>
                     </div>
                     <div class="card-body">
@@ -314,8 +466,8 @@
         <!-- Upcoming Milestones Section -->
         <div class="card mt-4">
             <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-flag-checkered me-2"></i>Upcoming Milestones
+                <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
+                    <i class="far fa-flag-checkered text-[var(--primary-blue)] me-2"></i> Upcoming Milestones
                 </h5>
             </div>
             <div class="card-body">
@@ -332,8 +484,8 @@
         <!-- Activities by Category Chart -->
         <div class="card mt-4">
             <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-chart-pie me-2"></i>Activities by Category
+                <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
+                    <i class="fas fa-chart-pie text-[var(--primary-blue)] me-2"></i> Activities by Category
                 </h5>
             </div>
             <div class="card-body">
@@ -343,9 +495,9 @@
 
         <!-- Integration Insights -->
         <div class="card mt-4">
-            <div class="card-header bg-info text-white">
-                <h5 class="mb-0">
-                    <i class="fas fa-link me-2"></i>Integration Insights
+            <div class="card-header bg-white text-info border-info border">
+                <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
+                    <i class="fas fa-link text-[var(--primary-blue)] me-2"></i> Integration Insights
                 </h5>
             </div>
             <div class="card-body">
@@ -413,4 +565,5 @@
     <!-- Dashboard Script -->
     <script src="project-schedule.js?v=6"></script>
 </body>
+
 </html>

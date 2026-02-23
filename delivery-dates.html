@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,10 +18,21 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6,
+        .card-title,
+        .lead {
+            color: var(--text-dark) !important;
+        }
+
         :root {
-            --primary-charcoal: #2d2d2d;
-            --accent-gold: #d4b896;
-            --accent-gold-dark: #c4a57a;
+            --primary-charcoal: #3a3a3a;
+            --lime-green: #2563EB;
+            --lime-green-dark: #7ab82d;
             --white: #ffffff;
             --light-gray: #f5f5f5;
             --medium-gray: #e0e0e0;
@@ -45,16 +57,12 @@
         }
 
         /* Navbar Styles */
-        .navbar {
-            background: linear-gradient(135deg, var(--primary-charcoal) 0%, #2a2a2a 100%);
-            padding: 1rem 2rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        }
+
 
         .navbar-brand {
             display: flex;
             align-items: center;
-            color: var(--white) !important;
+            color: var(--navbar-text) !important;
             font-weight: 600;
             font-size: 1.3rem;
             text-decoration: none;
@@ -66,45 +74,48 @@
         }
 
         .navbar-nav .nav-link {
-            color: var(--white) !important;
+            color: var(--navbar-text) !important;
             margin: 0 10px;
             transition: color 0.3s ease;
             font-weight: 500;
         }
 
         .navbar-nav .nav-link:hover {
-            color: var(--accent-gold) !important;
+            color: var(--lime-green) !important;
         }
 
         .navbar-nav .nav-link.active {
-            color: var(--accent-gold) !important;
-            border-bottom: 2px solid var(--accent-gold);
+            color: var(--lime-green) !important;
+            border-bottom: 2px solid var(--lime-green);
         }
 
         /* Main Container */
         .container-fluid {
-            padding: 2rem;
+            padding: 0 2rem;
             max-width: 1800px;
             margin: 0 auto;
         }
 
         .page-header {
-            background: linear-gradient(135deg, var(--primary-charcoal) 0%, #2a2a2a 100%);
-            color: var(--white);
+            background: var(--navbar-bg);
+            color: var(--text-dark);
             padding: 2rem;
             border-radius: 12px;
             margin-bottom: 2rem;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            /* softer shadow */
+            border: 1px solid var(--border-light);
         }
 
         .page-header h1 {
             font-size: 2rem;
             font-weight: 600;
             margin-bottom: 0.5rem;
+            color: var(--text-dark);
         }
 
         .page-header p {
-            color: var(--medium-gray);
+            color: var(--navbar-text);
             font-size: 1rem;
             margin-bottom: 0;
         }
@@ -114,13 +125,13 @@
             background: var(--white);
             border-radius: 12px;
             padding: 1.5rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             transition: transform 0.2s ease;
         }
 
         .stats-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
 
         .stats-card h3 {
@@ -140,16 +151,27 @@
             margin-bottom: 1rem;
         }
 
-        .icon-upcoming { color: var(--info-blue); }
-        .icon-week { color: var(--warning-orange); }
-        .icon-overdue { color: var(--danger-red); }
-        .icon-total { color: var(--accent-gold); }
+        .icon-upcoming {
+            color: var(--info-blue);
+        }
+
+        .icon-week {
+            color: var(--warning-orange);
+        }
+
+        .icon-overdue {
+            color: var(--danger-red);
+        }
+
+        .icon-total {
+            color: var(--lime-green);
+        }
 
         /* Card Styles */
         .card {
             border: none;
             border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         .card-header {
@@ -176,11 +198,12 @@
         }
 
         .table thead {
-            background-color: var(--primary-charcoal);
-            color: var(--white);
+            background-color: var(--off-white);
+            color: var(--text-dark);
             position: sticky;
             top: 0;
             z-index: 10;
+            border-bottom: 2px solid var(--border-light);
         }
 
         .table thead th {
@@ -197,7 +220,7 @@
         }
 
         .table tbody tr:hover {
-            background-color: rgba(212, 184, 150, 0.1);
+            background-color: rgba(37, 99, 235, 0.1);
         }
 
         .table td {
@@ -209,7 +232,7 @@
         .badge {
             font-weight: 500;
             padding: 0.4rem 0.8rem;
-            border-radius: 4px;
+            border-radius: 8px;
             font-size: 0.85rem;
         }
 
@@ -230,17 +253,17 @@
         }
 
         .badge-ready {
-            background-color: var(--accent-gold);
+            background-color: var(--lime-green);
             color: var(--white);
         }
 
         .badge-delivered {
-            background-color: var(--accent-gold);
+            background-color: var(--lime-green);
             color: var(--white);
         }
 
         .badge-secondary {
-            background-color: var(--medium-gray);
+            background-color: var(--navbar-text);
             color: var(--dark-gray);
         }
 
@@ -248,29 +271,29 @@
         .filter-section {
             background: var(--white);
             padding: 1.5rem;
-            border-radius: 8px;
+            border-radius: 12px;
             margin-bottom: 1.5rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         .filter-section .form-control,
         .filter-section .form-select {
             border: 2px solid var(--border-gray);
-            border-radius: 6px;
+            border-radius: 10px;
             padding: 0.5rem 1rem;
         }
 
         .filter-section .form-control:focus,
         .filter-section .form-select:focus {
-            border-color: var(--accent-gold);
-            box-shadow: 0 0 0 0.2rem rgba(212, 184, 150, 0.25);
+            border-color: var(--lime-green);
+            box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
         }
 
         .btn-primary {
-            background-color: var(--accent-gold);
+            background-color: var(--lime-green);
             border: none;
             padding: 0.5rem 1.5rem;
-            border-radius: 6px;
+            border-radius: 10px;
             font-weight: 600;
             transition: all 0.3s ease;
         }
@@ -278,14 +301,14 @@
         .btn-primary:hover {
             background-color: var(--accent-gold-dark);
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
 
         .btn-outline-secondary {
             border: 2px solid var(--border-gray);
             color: var(--text-gray);
             padding: 0.5rem 1.5rem;
-            border-radius: 6px;
+            border-radius: 10px;
             font-weight: 600;
             transition: all 0.3s ease;
         }
@@ -303,12 +326,14 @@
             height: 40px;
             border: 4px solid var(--light-gray);
             border-radius: 50%;
-            border-top-color: var(--accent-gold);
+            border-top-color: var(--lime-green);
             animation: spin 1s ease-in-out infinite;
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         /* View Toggle */
@@ -322,9 +347,9 @@
         }
 
         .view-toggle .btn.active {
-            background-color: var(--accent-gold);
+            background-color: var(--lime-green);
             color: var(--white);
-            border-color: var(--accent-gold);
+            border-color: var(--lime-green);
         }
 
         /* Calendar View */
@@ -338,7 +363,7 @@
         .calendar-day {
             background: var(--white);
             border: 1px solid var(--border-gray);
-            border-radius: 8px;
+            border-radius: 12px;
             padding: 1rem;
             min-height: 120px;
         }
@@ -353,57 +378,174 @@
             font-size: 0.75rem;
             padding: 0.25rem 0.5rem;
             margin-bottom: 0.25rem;
-            border-radius: 4px;
+            border-radius: 8px;
             background-color: var(--light-gray);
+        }
+
+        /* IA Draft 1 App Styling Overrides */
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6,
+        .card-title,
+        .lead {
+            color: var(--text-dark) !important;
+        }
+
+        :root {
+            --primary-blue: #2563EB;
+            --navbar-bg: #FFFFFF;
+            --navbar-text: #64748B;
+            --navbar-active: #2563EB;
+            --border-light: #E2E8F0;
+            --text-dark: #334155;
+            /* Replace lime green with blue seamlessly */
+            --lime-green: var(--primary-blue);
+            --success-green: #10B981;
+            /* actual green for success states */
+        }
+
+        .navbar {
+            background-color: var(--navbar-bg) !important;
+            border-bottom: 1px solid var(--border-light);
+            box-shadow: none !important;
+            padding: 0.5rem 0.5rem !important;
+            /* tighter vertical padding */
+        }
+
+        .navbar-brand span {
+            color: var(--text-dark) !important;
+        }
+
+        /* Stacked Mobile-App Style Nav Links */
+        .navbar-nav {
+            gap: 0.5rem;
+            align-items: flex-end;
+            /* right align mostly */
+        }
+
+        .navbar-nav .nav-link {
+            color: var(--navbar-text) !important;
+            font-size: 0.70rem !important;
+            font-weight: 500;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0.25rem 0.75rem !important;
+            transition: all 0.2s ease;
+        }
+
+        .navbar-nav .nav-link i {
+            font-size: 1.35rem;
+            /* large icon */
+            margin-bottom: 4px;
+            margin-right: 0 !important;
+            /* override me-1 */
+            margin-left: 0 !important;
+        }
+
+        .navbar-nav .nav-link:hover,
+        .navbar-nav .nav-link.active {
+            color: var(--navbar-active) !important;
         }
     </style>
 </head>
+
 <body>
     <!-- Navigation Bar -->
-    <nav class="navbar navbar-expand-lg navbar-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="index.html">
-                <img src="favicon-96x96.png" alt="Invenio-Tek Logo">
-                MSR Dashboard - Delivery Dates
+    <!-- Standardized Navigation Bar -->
+    <nav class="navbar navbar-expand-lg border-b border-[var(--border-light)]"
+        style="padding: 0 !important; min-height: 64px; background: var(--navbar-bg);">
+        <div class="container-fluid"
+            style="padding-top: 0 !important; padding-bottom: 0 !important; padding-left: 1.5rem !important; padding-right: 1.5rem !important; margin-top: 0 !important; margin-bottom: 0 !important;">
+            <a class="navbar-brand m-0" href="index.html"
+                style="display: flex; align-items: center; gap: 12px; text-decoration: none; min-width: 240px; padding: 0.5rem 0;">
+                <img src="favicon-96x96.png" alt="RPS Branding Logo"
+                    style="height: 40px; width: auto; object-fit: contain;">
+                <span
+                    style="font-size: 1.25rem; font-weight: 600; color: var(--text-dark); letter-spacing: -0.02em;">MSR
+                    Dashboard</span>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-toggle="collapse"
+                data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
+            <div class="navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto" style="gap: 4px;">
                     <li class="nav-item">
                         <a class="nav-link" href="index.html">
-                            <i class="fas fa-home me-1"></i> Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="samsara-tracking.html">
-                            <i class="fas fa-map-marker-alt me-1"></i> GPS Trackers
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-tachometer-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Dashboard</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="gap-analysis.html">
-                            <i class="fas fa-chart-line me-1"></i> Gap Analysis
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-clipboard-check" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Gap
+                                    Analysis</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="material-tracking.html">
-                            <i class="fas fa-boxes me-1"></i> Material Tracking
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-cubes" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Materials</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link active" href="delivery-dates.html">
-                            <i class="fas fa-truck me-1"></i> Delivery Dates
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-truck" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Deliveries</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="project-schedule.html">
-                            <i class="fas fa-calendar-alt me-1"></i> Project Schedule
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-history" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Schedule</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="samsara-tracking.html">
-                            <i class="fas fa-map-marker-alt me-1"></i> GPS Tracking
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-map-marker-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">GPS</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="site-plan.html">
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-drafting-compass" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Site
+                                    Plan</span>
+                            </div>
                         </a>
                     </li>
                 </ul>
@@ -412,49 +554,75 @@
     </nav>
 
     <!-- Main Content -->
-    <div class="container-fluid">
+    <div class="container-fluid mt-4">
         <!-- Page Header -->
-        <div class="page-header">
-            <h1><i class="fas fa-truck me-2"></i> Ready to Ship Dates</h1>
-            <p>Track expected ready-to-ship dates for installation materials and equipment (76 items with dates, 32 TBD)</p>
+        <!-- Standardized Page Header -->
+        <div class="page-header bg-white"
+            style="border-bottom: 1px solid var(--border-light); padding: 1.5rem 2rem; margin-bottom: 2rem;">
+            <div class="container-fluid d-flex align-items-center"
+                style="max-width: 1800px; margin: 0 auto; padding: 0;">
+                <div class="header-icon-box me-3"
+                    style="width: 48px; height: 48px; min-width: 48px; border-radius: 12px; background: rgba(37,99,235,0.1); display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-truck" style="font-size: 1.5rem; color: var(--primary-blue);"></i>
+                </div>
+                <div>
+                    <h1
+                        style="font-size: 1.5rem; font-weight: 600; color: var(--text-dark); margin: 0 0 4px 0; line-height: 1.2;">
+                        Ready to Ship Dates</h1>
+                    <p style="font-size: 0.9rem; color: var(--navbar-text); margin: 0;">Track expected ready-to-ship
+                        dates for installation materials and equipment</p>
+                </div>
+            </div>
         </div>
-
-        <!-- Statistics Cards -->
+        <!-- KPI Cards -->
         <div class="row g-4 mb-4">
             <div class="col-md-3">
-                <div class="stats-card">
-                    <div class="icon icon-total">
-                        <i class="fas fa-calendar-alt"></i>
+                <div
+                    class="kpi-card bg-white rounded-xl shadow-sm border-0 p-4 h-100 transition-all d-flex align-items-center justify-content-between">
+                    <div class="d-flex flex-column h-100 text-start">
+                        <span class="text-uppercase fw-semibold"
+                            style="font-size: 0.75rem; letter-spacing: 0.05em; color: var(--navbar-text); margin-bottom: 0.5rem;">Ready
+                            Next 30 Days</span>
+                        <span id="upcomingDeliveries"
+                            style="font-size: 2.25rem; font-weight: 700; color: var(--text-dark); line-height: 1.1;">0</span>
                     </div>
-                    <h3 id="totalDeliveries">0</h3>
-                    <p>Total Items</p>
+                    <div class="header-icon-box"
+                        style="width: 48px; height: 48px; min-width: 48px; border-radius: 12px; background: rgba(37,99,235,0.1); display: flex; align-items: center; justify-content: center;">
+                        <i class="far fa-clock" style="font-size: 1.5rem; color: var(--primary-blue);"></i>
+                    </div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="stats-card">
-                    <div class="icon icon-upcoming">
-                        <i class="fas fa-clock"></i>
+                <div
+                    class="kpi-card bg-white rounded-xl shadow-sm border-0 p-4 h-100 transition-all d-flex align-items-center justify-content-between">
+                    <div class="d-flex flex-column h-100 text-start">
+                        <span class="text-uppercase fw-semibold"
+                            style="font-size: 0.75rem; letter-spacing: 0.05em; color: var(--navbar-text); margin-bottom: 0.5rem;">Ready
+                            This Week</span>
+                        <span id="weekDeliveries"
+                            style="font-size: 2.25rem; font-weight: 700; color: var(--text-dark); line-height: 1.1;">0</span>
                     </div>
-                    <h3 id="upcomingDeliveries">0</h3>
-                    <p>Ready Next 30 Days</p>
+                    <div class="header-icon-box"
+                        style="width: 48px; height: 48px; min-width: 48px; border-radius: 12px; background: rgba(37,99,235,0.1); display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-exclamation-triangle"
+                            style="font-size: 1.5rem; color: var(--primary-blue);"></i>
+                    </div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="stats-card">
-                    <div class="icon icon-week">
-                        <i class="fas fa-exclamation-triangle"></i>
+                <div
+                    class="kpi-card bg-white rounded-xl shadow-sm border-0 p-4 h-100 transition-all d-flex align-items-center justify-content-between">
+                    <div class="d-flex flex-column h-100 text-start">
+                        <span class="text-uppercase fw-semibold"
+                            style="font-size: 0.75rem; letter-spacing: 0.05em; color: var(--navbar-text); margin-bottom: 0.5rem;">Ready
+                            Now</span>
+                        <span id="overdueDeliveries"
+                            style="font-size: 2.25rem; font-weight: 700; color: var(--text-dark); line-height: 1.1;">0</span>
                     </div>
-                    <h3 id="weekDeliveries">0</h3>
-                    <p>Ready This Week</p>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stats-card">
-                    <div class="icon icon-overdue">
-                        <i class="fas fa-times-circle"></i>
+                    <div class="header-icon-box"
+                        style="width: 48px; height: 48px; min-width: 48px; border-radius: 12px; background: rgba(37,99,235,0.1); display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-times-circle" style="font-size: 1.5rem; color: var(--primary-blue);"></i>
                     </div>
-                    <h3 id="overdueDeliveries">0</h3>
-                    <p>Ready Now</p>
                 </div>
             </div>
         </div>
@@ -463,7 +631,8 @@
         <div class="filter-section">
             <div class="row g-3">
                 <div class="col-md-3">
-                    <input type="text" class="form-control" id="searchInput" placeholder="Search PO, Package, Supplier...">
+                    <input type="text" class="form-control" id="searchInput"
+                        placeholder="Search PO, Package, Supplier...">
                 </div>
                 <div class="col-md-2">
                     <select class="form-select" id="filterStatus">
@@ -502,7 +671,7 @@
                                 <i class="fas fa-list me-1"></i> List View
                             </button>
                             <button class="btn btn-outline-secondary" id="btnCalendarView">
-                                <i class="fas fa-calendar me-1"></i> Calendar View
+                                <i class="far fa-calendar me-1"></i> Calendar View
                             </button>
                         </div>
                         <button class="btn btn-primary" id="btnExport">
@@ -517,7 +686,8 @@
         <div id="listView">
             <div class="card">
                 <div class="card-header">
-                    <h5><i class="fas fa-list me-2"></i> Ready to Ship Schedule (<span id="resultCount">0</span> items)</h5>
+                    <h5><i class="fas fa-list me-2"></i> Ready to Ship Schedule (<span id="resultCount">0</span> items)
+                    </h5>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-container">
@@ -538,7 +708,7 @@
                                 <tr>
                                     <td colspan="8" class="text-center py-5">
                                         <span class="loading-spinner"></span>
-                                        <p class="mt-2 text-muted">Loading delivery dates...</p>
+                                        <p class="mt-2 text-[#64748B]">Loading delivery dates...</p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -553,7 +723,7 @@
             <div class="card">
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5><i class="fas fa-calendar me-2"></i> Calendar View</h5>
+                        <h5><i class="far fa-calendar me-2"></i> Calendar View</h5>
                         <div>
                             <button class="btn btn-sm btn-outline-secondary" id="btnPrevMonth">
                                 <i class="fas fa-chevron-left"></i>
@@ -590,4 +760,5 @@
     <!-- Delivery Dates JavaScript -->
     <script src="delivery-dates.js?v=3"></script>
 </body>
+
 </html>

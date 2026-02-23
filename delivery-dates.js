@@ -350,7 +350,7 @@ function renderCalendarView() {
         const isToday = currentDate.getTime() === today.getTime();
 
         grid.innerHTML += `
-            <div class="calendar-day" style="${isToday ? 'border: 2px solid #d4b896;' : ''}">
+            <div class="calendar-day" style="${isToday ? 'border: 2px solid #2563EB;' : ''}">
                 ${dayContent}
             </div>
         `;

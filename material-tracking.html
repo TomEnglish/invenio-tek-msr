@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,10 +18,21 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6,
+        .card-title,
+        .lead {
+            color: var(--text-dark) !important;
+        }
+
         :root {
-            --primary-charcoal: #2d2d2d;
-            --accent-gold: #d4b896;
-            --accent-gold-dark: #c4a57a;
+            --primary-charcoal: #3a3a3a;
+            --lime-green: #2563EB;
+            --lime-green-dark: #7ab82d;
             --white: #ffffff;
             --light-gray: #f5f5f5;
             --medium-gray: #e0e0e0;
@@ -41,16 +53,12 @@
         }
 
         /* Navbar Styles */
-        .navbar {
-            background: linear-gradient(135deg, var(--primary-charcoal) 0%, #2a2a2a 100%);
-            padding: 1rem 2rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        }
+
 
         .navbar-brand {
             display: flex;
             align-items: center;
-            color: var(--white) !important;
+            color: var(--navbar-text) !important;
             font-weight: 600;
             font-size: 1.3rem;
             text-decoration: none;
@@ -62,45 +70,48 @@
         }
 
         .navbar-nav .nav-link {
-            color: var(--white) !important;
+            color: var(--navbar-text) !important;
             margin: 0 10px;
             transition: color 0.3s ease;
             font-weight: 500;
         }
 
         .navbar-nav .nav-link:hover {
-            color: var(--accent-gold) !important;
+            color: var(--lime-green) !important;
         }
 
         .navbar-nav .nav-link.active {
-            color: var(--accent-gold) !important;
-            border-bottom: 2px solid var(--accent-gold);
+            color: var(--lime-green) !important;
+            border-bottom: 2px solid var(--lime-green);
         }
 
         /* Main Container */
         .container-fluid {
-            padding: 2rem;
+            padding: 0 2rem;
             max-width: 1800px;
             margin: 0 auto;
         }
 
         .page-header {
-            background: linear-gradient(135deg, var(--primary-charcoal) 0%, #2a2a2a 100%);
-            color: var(--white);
+            background: var(--navbar-bg);
+            color: var(--text-dark);
             padding: 2rem;
             border-radius: 12px;
             margin-bottom: 2rem;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            /* softer shadow */
+            border: 1px solid var(--border-light);
         }
 
         .page-header h1 {
             font-size: 2rem;
             font-weight: 600;
             margin-bottom: 0.5rem;
+            color: var(--text-dark);
         }
 
         .page-header p {
-            color: var(--medium-gray);
+            color: var(--navbar-text);
             font-size: 1rem;
             margin-bottom: 0;
         }
@@ -111,7 +122,7 @@
         }
 
         .alert {
-            border-radius: 8px;
+            border-radius: 12px;
             border: none;
         }
 
@@ -137,7 +148,7 @@
             background: var(--white);
             border-radius: 12px;
             padding: 1.5rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
         }
 
         .panel-header {
@@ -146,7 +157,7 @@
             align-items: center;
             margin-bottom: 1rem;
             padding-bottom: 1rem;
-            border-bottom: 2px solid var(--accent-gold);
+            border-bottom: 2px solid var(--lime-green);
         }
 
         .panel-header h3 {
@@ -157,7 +168,7 @@
         }
 
         .panel-header .badge {
-            background-color: var(--accent-gold);
+            background-color: var(--lime-green);
             color: var(--primary-charcoal);
             font-size: 0.9rem;
             padding: 0.4rem 0.8rem;
@@ -173,15 +184,15 @@
             width: 100%;
             padding: 0.75rem 2.5rem 0.75rem 1rem;
             border: 2px solid var(--medium-gray);
-            border-radius: 8px;
+            border-radius: 12px;
             font-size: 0.95rem;
             transition: all 0.3s ease;
         }
 
         .search-box input:focus {
             outline: none;
-            border-color: var(--accent-gold);
-            box-shadow: 0 0 0 3px rgba(212, 184, 150, 0.1);
+            border-color: var(--lime-green);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
         }
 
         .search-box i {
@@ -196,8 +207,9 @@
         .selection-list {
             max-height: 400px;
             overflow-y: auto;
-            border: 1px solid var(--medium-gray);
-            border-radius: 8px;
+            border: 1px solid #E2E8F0;
+            background-color: #F8FAFC;
+            border-radius: 12px;
         }
 
         .selection-item {
@@ -216,8 +228,8 @@
         }
 
         .selection-item.selected {
-            background-color: rgba(212, 184, 150, 0.1);
-            border-left: 4px solid var(--accent-gold);
+            background-color: rgba(37, 99, 235, 0.1);
+            border-left: 4px solid var(--lime-green);
         }
 
         .item-title {
@@ -237,7 +249,7 @@
             background-color: var(--light-gray);
             color: var(--primary-charcoal);
             padding: 0.2rem 0.6rem;
-            border-radius: 4px;
+            border-radius: 8px;
             font-size: 0.75rem;
             margin-right: 0.5rem;
             margin-top: 0.3rem;
@@ -252,12 +264,7 @@
 
         /* Create Link Section */
         .link-creation {
-            background: linear-gradient(135deg, var(--accent-gold) 0%, var(--accent-gold-dark) 100%);
-            color: var(--white);
-            padding: 1.5rem;
-            border-radius: 12px;
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 15px rgba(212, 184, 150, 0.3);
+            background: var(--navbar-bg);
         }
 
         .link-creation h4 {
@@ -277,7 +284,7 @@
         .selected-display {
             background: rgba(255, 255, 255, 0.2);
             padding: 1rem;
-            border-radius: 8px;
+            border-radius: 12px;
             min-height: 80px;
         }
 
@@ -310,7 +317,7 @@
             width: 100%;
             padding: 0.75rem;
             border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 8px;
+            border-radius: 12px;
             background: rgba(255, 255, 255, 0.9);
             font-size: 0.9rem;
         }
@@ -327,7 +334,7 @@
             color: var(--white);
             border: none;
             padding: 0.75rem 2rem;
-            border-radius: 8px;
+            border-radius: 12px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -336,7 +343,7 @@
         .btn-create-link:hover {
             background-color: #2a2a2a;
             transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
         }
 
         .btn-create-link:disabled {
@@ -350,7 +357,7 @@
             background: var(--white);
             border-radius: 12px;
             padding: 1.5rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
         }
 
         .links-table-container h3 {
@@ -359,7 +366,7 @@
             font-weight: 600;
             margin-bottom: 1rem;
             padding-bottom: 1rem;
-            border-bottom: 2px solid var(--accent-gold);
+            border-bottom: 2px solid var(--lime-green);
         }
 
         .table-controls {
@@ -377,17 +384,17 @@
         .filter-group select {
             padding: 0.5rem 1rem;
             border: 2px solid var(--medium-gray);
-            border-radius: 8px;
+            border-radius: 12px;
             background-color: var(--white);
             cursor: pointer;
         }
 
         .btn-export {
-            background-color: var(--accent-gold);
+            background-color: var(--lime-green);
             color: var(--primary-charcoal);
             border: none;
             padding: 0.5rem 1.5rem;
-            border-radius: 8px;
+            border-radius: 12px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -464,14 +471,14 @@
         .btn-action {
             padding: 0.4rem 0.8rem;
             border: none;
-            border-radius: 6px;
+            border-radius: 10px;
             cursor: pointer;
             font-size: 0.85rem;
             transition: all 0.2s ease;
         }
 
         .btn-update {
-            background-color: var(--accent-gold);
+            background-color: var(--lime-green);
             color: var(--primary-charcoal);
         }
 
@@ -532,46 +539,171 @@
                 overflow-x: auto;
             }
         }
+
+        /* IA Draft 1 App Styling Overrides */
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6,
+        .card-title,
+        .lead {
+            color: var(--text-dark) !important;
+        }
+
+        :root {
+            --primary-blue: #2563EB;
+            --navbar-bg: #FFFFFF;
+            --navbar-text: #64748B;
+            --navbar-active: #2563EB;
+            --border-light: #E2E8F0;
+            --text-dark: #334155;
+            /* Replace lime green with blue seamlessly */
+            --lime-green: var(--primary-blue);
+            --success-green: #10B981;
+            /* actual green for success states */
+        }
+
+        .navbar {
+            background-color: var(--navbar-bg) !important;
+            border-bottom: 1px solid var(--border-light);
+            box-shadow: none !important;
+            padding: 0.5rem 0.5rem !important;
+            /* tighter vertical padding */
+        }
+
+        .navbar-brand span {
+            color: var(--text-dark) !important;
+        }
+
+        /* Stacked Mobile-App Style Nav Links */
+        .navbar-nav {
+            gap: 0.5rem;
+            align-items: flex-end;
+            /* right align mostly */
+        }
+
+        .navbar-nav .nav-link {
+            color: var(--navbar-text) !important;
+            font-size: 0.70rem !important;
+            font-weight: 500;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0.25rem 0.75rem !important;
+            transition: all 0.2s ease;
+        }
+
+        .navbar-nav .nav-link i {
+            font-size: 1.35rem;
+            /* large icon */
+            margin-bottom: 4px;
+            margin-right: 0 !important;
+            /* override me-1 */
+            margin-left: 0 !important;
+        }
+
+        .navbar-nav .nav-link:hover,
+        .navbar-nav .nav-link.active {
+            color: var(--navbar-active) !important;
+        }
     </style>
 </head>
+
 <body>
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="index.html">
-                <img src="favicon-96x96.png" alt="Invenio-Tek Logo">
-                <span>MSR Dashboard</span>
+    <!-- Standardized Navigation Bar -->
+    <nav class="navbar navbar-expand-lg border-b border-[var(--border-light)]"
+        style="padding: 0 !important; min-height: 64px; background: var(--navbar-bg);">
+        <div class="container-fluid"
+            style="padding-top: 0 !important; padding-bottom: 0 !important; padding-left: 1.5rem !important; padding-right: 1.5rem !important; margin-top: 0 !important; margin-bottom: 0 !important;">
+            <a class="navbar-brand m-0" href="index.html"
+                style="display: flex; align-items: center; gap: 12px; text-decoration: none; min-width: 240px; padding: 0.5rem 0;">
+                <img src="favicon-96x96.png" alt="RPS Branding Logo"
+                    style="height: 40px; width: auto; object-fit: contain;">
+                <span
+                    style="font-size: 1.25rem; font-weight: 600; color: var(--text-dark); letter-spacing: -0.02em;">MSR
+                    Dashboard</span>
             </a>
+
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-toggle="collapse"
+                data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
             <div class="navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav ms-auto" style="gap: 4px;">
                     <li class="nav-item">
                         <a class="nav-link" href="index.html">
-                            <i class="fas fa-home me-1"></i> Dashboard
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-tachometer-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Dashboard</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="gap-analysis.html">
-                            <i class="fas fa-chart-bar me-1"></i> Gap Analysis
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-clipboard-check" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Gap
+                                    Analysis</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link active" href="material-tracking.html">
-                            <i class="fas fa-link me-1"></i> Material Tracking
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-cubes" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Materials</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="delivery-dates.html">
-                            <i class="fas fa-truck me-1"></i> Delivery Dates
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-truck" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Deliveries</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="project-schedule.html">
-                            <i class="fas fa-calendar-alt me-1"></i> Project Schedule
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-history" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Schedule</span>
+                            </div>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="samsara-tracking.html">
-                            <i class="fas fa-map-marker-alt me-1"></i> GPS Trackers
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-map-marker-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">GPS</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="site-plan.html">
+                            <div
+                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-min-width: 72px; white-space: nowrap; white-space: nowrap;">
+                                <i class="fas fa-drafting-compass" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Site
+                                    Plan</span>
+                            </div>
                         </a>
                     </li>
                 </ul>
@@ -580,22 +712,24 @@
     </nav>
 
     <!-- Main Content -->
-    <div class="container-fluid">
+    <div class="container-fluid mt-4">
         <!-- Page Header -->
-        <div class="page-header">
-            <h1><i class="fas fa-link me-2"></i> Material Tracking System</h1>
-            <p>Link purchase order items to installation tags and track material status throughout the project lifecycle</p>
-        </div>
-
-        <!-- Backend Status Alert -->
-        <div class="backend-status">
-            <div class="alert alert-warning" id="backendWarning" style="display: none;">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                <strong>Backend Disconnected:</strong> Please start the backend server by running <code>start_backend.bat</code>
-            </div>
-            <div class="alert alert-success" id="backendSuccess" style="display: none;">
-                <i class="fas fa-check-circle me-2"></i>
-                <strong>Connected:</strong> Backend API is running and responsive
+        <!-- Standardized Page Header -->
+        <div class="page-header bg-white"
+            style="border-bottom: 1px solid var(--border-light); padding: 1.5rem 2rem; margin-bottom: 2rem;">
+            <div class="container-fluid d-flex align-items-center"
+                style="max-width: 1800px; margin: 0 auto; padding: 0;">
+                <div class="header-icon-box me-3"
+                    style="width: 48px; height: 48px; min-width: 48px; border-radius: 12px; background: rgba(37,99,235,0.1); display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-link" style="font-size: 1.5rem; color: var(--primary-blue);"></i>
+                </div>
+                <div>
+                    <h1
+                        style="font-size: 1.5rem; font-weight: 600; color: var(--text-dark); margin: 0 0 4px 0; line-height: 1.2;">
+                        Material Tracking System</h1>
+                    <p style="font-size: 0.9rem; color: var(--navbar-text); margin: 0;">Link purchase order items to
+                        installation tags and track status throughout the project lifecycle</p>
+                </div>
             </div>
         </div>
 
@@ -612,10 +746,12 @@
                     <i class="fas fa-search"></i>
                 </div>
                 <div style="padding: 0.5rem 1rem; display: flex; gap: 0.5rem;">
-                    <button class="btn btn-sm btn-outline-secondary" id="filterDeliveryDates" onclick="filterByDeliveryDates()">
+                    <button class="btn btn-sm btn-outline-secondary" id="filterDeliveryDates"
+                        onclick="filterByDeliveryDates()">
                         <i class="fas fa-truck me-1"></i> Show Only Items with Delivery Dates
                     </button>
-                    <button class="btn btn-sm btn-outline-secondary" id="clearFilter" onclick="clearDeliveryFilter()" style="display: none;">
+                    <button class="btn btn-sm btn-outline-secondary" id="clearFilter" onclick="clearDeliveryFilter()"
+                        style="display: none;">
                         <i class="fas fa-times me-1"></i> Clear Filter
                     </button>
                 </div>
@@ -655,7 +791,7 @@
                     <p id="selectedPO">No item selected</p>
                 </div>
                 <div class="link-icon">
-                    <i class="fas fa-arrows-alt-h"></i>
+                    <i class="far fa-arrows-alt-h"></i>
                 </div>
                 <div class="selected-display">
                     <h5>Selected Installation Item</h5>
@@ -754,4 +890,5 @@
     <!-- Material Tracking JS (Supabase Version) -->
     <script src="material-tracking-supabase.js?v=4"></script>
 </body>
+
 </html>
