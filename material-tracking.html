@@ -733,6 +733,19 @@
             </div>
         </div>
 
+        <!-- Backend Status Alert -->
+        <div class="backend-status mb-4" style="max-width: 1800px; margin-left: auto; margin-right: auto;">
+            <div class="alert alert-warning" id="backendWarning" style="display: none;">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Backend Disconnected:</strong> Please check Supabase configuration in
+                material-tracking-supabase.js
+            </div>
+            <div class="alert alert-success" id="backendSuccess" style="display: none;">
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Connected:</strong> Supabase database is connected and ready
+            </div>
+        </div>
+
         <!-- Dual Panel Selection -->
         <div class="dual-panel-container">
             <!-- PO Items Panel -->
