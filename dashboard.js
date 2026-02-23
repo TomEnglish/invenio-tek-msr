@@ -16,7 +16,7 @@ let charts = {
 };
 
 // Initialize dashboard on page load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     console.log('Initializing MSR Dashboard...');
 
     // Supabase client is now initialized by js/utils/supabase-client.js
@@ -72,7 +72,7 @@ async function loadAllData() {
         // Parse JSONB fields that may come back as strings
         const parseField = (val, fallback) => {
             if (!val) return fallback;
-            if (typeof val === 'string') try { return JSON.parse(val); } catch(e) { return fallback; }
+            if (typeof val === 'string') try { return JSON.parse(val); } catch (e) { return fallback; }
             return val;
         };
         const metrics = {
@@ -153,12 +153,12 @@ function createPOStatusChart() {
             datasets: [{
                 data: data,
                 backgroundColor: [
-                    '#2563EB', // RPS lime green
-                    '#f5a623', // warning orange
-                    '#d0021b', // danger red
-                    '#4a90e2', // info blue
-                    '#2d2d2d', // darker charcoal
-                    '#cccccc'  // medium gray
+                    '#2563EB', // IA Blue
+                    '#334155', // Dark Slate
+                    '#64748B', // Slate
+                    '#94A3B8', // Light Slate
+                    '#CBD5E1', // Extra Light Slate
+                    '#0F172A'  // Charcoal/Black
                 ],
                 borderWidth: 3,
                 borderColor: '#ffffff'
@@ -179,7 +179,7 @@ function createPOStatusChart() {
                 },
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
+                        label: function (context) {
                             const label = context.label || '';
                             const value = context.parsed || 0;
                             const total = context.dataset.data.reduce((a, b) => a + b, 0);
@@ -214,11 +214,11 @@ function createShipmentStatusChart() {
                 label: 'Shipments',
                 data: data,
                 backgroundColor: [
-                    '#2563EB',  // RPS lime green
-                    '#f5a623',  // warning orange
-                    '#d0021b',  // danger red
-                    '#4a90e2',  // info blue
-                    '#2d2d2d'   // darker charcoal
+                    '#2563EB',  // IA Blue
+                    '#334155',  // Dark Slate
+                    '#64748B',  // Slate
+                    '#94A3B8',  // Light Slate
+                    '#0F172A'   // Charcoal/Black
                 ],
                 borderWidth: 0,
                 borderRadius: 8
@@ -233,7 +233,7 @@ function createShipmentStatusChart() {
                 },
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
+                        label: function (context) {
                             return `Count: ${context.parsed.y}`;
                         }
                     }
@@ -272,14 +272,14 @@ function createDisciplineChart() {
                 {
                     label: 'Total Items',
                     data: items,
-                    backgroundColor: '#2563EB',  // RPS lime green
+                    backgroundColor: '#2563EB',  // IA Blue
                     borderRadius: 8,
                     yAxisID: 'y'
                 },
                 {
                     label: 'Field Hours',
                     data: hours,
-                    backgroundColor: '#2d2d2d',  // Darker charcoal
+                    backgroundColor: '#64748B',  // Slate Grey
                     borderRadius: 8,
                     yAxisID: 'y1'
                 }
@@ -369,7 +369,7 @@ function populatePOTable() {
     tbody.innerHTML = rows;
 
     // Add search functionality
-    document.getElementById('poSearch').addEventListener('input', function(e) {
+    document.getElementById('poSearch').addEventListener('input', function (e) {
         const searchTerm = e.target.value.toLowerCase();
         const rows = tbody.getElementsByTagName('tr');
 
@@ -429,7 +429,7 @@ function populateShipmentTable() {
     renderShipments();
 
     // Add filter functionality
-    document.getElementById('shipmentStatusFilter').addEventListener('change', function(e) {
+    document.getElementById('shipmentStatusFilter').addEventListener('change', function (e) {
         currentFilter = e.target.value;
         renderShipments();
     });
@@ -535,7 +535,7 @@ function populateInstallationTable() {
     renderInstallation();
 
     // Add filter functionality
-    document.getElementById('disciplineFilter').addEventListener('change', function(e) {
+    document.getElementById('disciplineFilter').addEventListener('change', function (e) {
         currentFilter = e.target.value;
         renderInstallation();
     });
@@ -574,13 +574,13 @@ function getDisciplineIcon(discipline) {
 
 function getDisciplineColor(discipline) {
     const colors = {
-        'civil': 'bg-lime-500',         // Lime green variant
-        'electrical': 'bg-yellow-500',  // Bright yellow
-        'instrumentation': 'bg-blue-500', // Info blue
-        'mechanical': 'bg-green-600',   // Darker green
-        'steel': 'bg-gray-600'          // Charcoal gray
+        'civil': 'bg-blue-600',         // IA Blue
+        'electrical': 'bg-slate-800',   // Dark Charcoal
+        'instrumentation': 'bg-slate-400', // Light Slate
+        'mechanical': 'bg-slate-500',   // Medium Slate
+        'steel': 'bg-slate-700'         // Charcoal Grey
     };
-    return colors[discipline] || 'bg-gray-500';
+    return colors[discipline] || 'bg-slate-600';
 }
 
 function formatCurrency(value) {
