@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="shortcut icon" href="favicon.ico" />
+    <title>Login - MSR Dashboard</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        :root {
+            --primary-charcoal: #3a3a3a;
+            --brand-gold: #B0A07A;
+            --brand-gold-dark: #9A8B65;
+            --off-white: #F8FAFC;
+        }
+
+        body {
+            background-color: var(--off-white);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif;
+        }
+
+        .login-card {
+            max-width: 420px;
+            width: 100%;
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+        }
+
+        .login-header {
+            background: var(--primary-charcoal);
+            color: white;
+            border-radius: 12px 12px 0 0;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .login-header h3 {
+            color: white !important;
+            margin-bottom: 0.25rem;
+        }
+
+        .login-header p {
+            color: #aaa;
+            margin-bottom: 0;
+            font-size: 0.9rem;
+        }
+
+        .login-body {
+            padding: 2rem;
+        }
+
+        .btn-brand {
+            background: var(--brand-gold);
+            border: none;
+            color: white;
+            font-weight: 600;
+            padding: 0.6rem;
+        }
+
+        .btn-brand:hover {
+            background: var(--brand-gold-dark);
+            color: white;
+        }
+
+        .alert { font-size: 0.9rem; }
+
+        /* Hexagon logo */
+        .logo-hex {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card login-card">
+        <div class="login-header">
+            <svg class="logo-hex" viewBox="0 0 100 100">
+                <polygon points="50,5 93.3,27.5 93.3,72.5 50,95 6.7,72.5 6.7,27.5" fill="#B0A07A" />
+                <polygon points="50,28 75,42.5 75,57.5 50,72 25,57.5 25,42.5" fill="none" />
+                <polygon points="50,30 73,44 50,68 27,44" fill="white" />
+            </svg>
+            <h3>MSR Dashboard</h3>
+            <p>Material Status Report</p>
+        </div>
+        <div class="login-body">
+            <div id="login-error" class="alert alert-danger d-none"></div>
+            <form id="login-form">
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email" required autofocus>
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="password" required>
+                </div>
+                <button type="submit" class="btn btn-brand w-100" id="login-btn">
+                    <span id="login-text">Sign In</span>
+                    <span id="login-spinner" class="d-none">
+                        <span class="spinner-border spinner-border-sm me-1"></span> Signing in...
+                    </span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="js/utils/supabase-client.js"></script>
+    <script>
+        // If already logged in, redirect to dashboard
+        supabaseClient.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+                window.location.href = 'index.html';
+            }
+        });
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('login-error');
+            const loginText = document.getElementById('login-text');
+            const loginSpinner = document.getElementById('login-spinner');
+
+            errorDiv.classList.add('d-none');
+            loginText.classList.add('d-none');
+            loginSpinner.classList.remove('d-none');
+
+            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+            if (error) {
+                errorDiv.textContent = error.message;
+                errorDiv.classList.remove('d-none');
+                loginText.classList.remove('d-none');
+                loginSpinner.classList.add('d-none');
+            } else {
+                window.location.href = 'index.html';
+            }
+        });
+    </script>
+</body>
+
+</html>

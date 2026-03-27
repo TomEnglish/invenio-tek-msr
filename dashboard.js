@@ -26,7 +26,95 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     loadAllData();
+    setupRealtimeSubscriptions();
 });
+
+// Real-time subscriptions - auto-refresh when mobile app writes data
+function setupRealtimeSubscriptions() {
+    const channel = supabaseClient.channel('dashboard-realtime');
+
+    // Tables the mobile app writes to
+    const watchTables = [
+        'receiving_records', 'materials', 'material_movements',
+        'material_issues', 'shipments_out', 'audit_log',
+        // MSR tables that Python sync scripts update
+        'purchase_orders', 'shipments', 'dashboard_metrics',
+        'samsara_trackers', 'delivery_dates'
+    ];
+
+    watchTables.forEach(table => {
+        channel.on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: table
+        }, (payload) => {
+            console.log(`Real-time update on ${table}:`, payload.eventType);
+            showRealtimeToast(table, payload.eventType);
+            debouncedRefresh();
+        });
+    });
+
+    channel.subscribe((status) => {
+        console.log('Real-time subscription status:', status);
+        const indicator = document.getElementById('realtime-indicator');
+        if (indicator) {
+            indicator.className = status === 'SUBSCRIBED'
+                ? 'badge bg-success' : 'badge bg-warning';
+            indicator.textContent = status === 'SUBSCRIBED'
+                ? 'LIVE' : 'Connecting...';
+        }
+    });
+}
+
+// Debounce refresh to avoid hammering on bulk updates
+let refreshTimer = null;
+function debouncedRefresh() {
+    if (refreshTimer) clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => {
+        console.log('Auto-refreshing dashboard from real-time event...');
+        loadAllData();
+    }, 2000);
+}
+
+// Toast notification for real-time updates
+function showRealtimeToast(table, event) {
+    const friendlyNames = {
+        'receiving_records': 'Receiving Record',
+        'materials': 'Material',
+        'material_movements': 'Material Transfer',
+        'material_issues': 'Material Issue',
+        'shipments_out': 'Shipment',
+        'audit_log': 'Activity',
+        'purchase_orders': 'Purchase Order',
+        'shipments': 'Shipment',
+        'dashboard_metrics': 'Dashboard Metrics',
+        'samsara_trackers': 'GPS Tracker',
+        'delivery_dates': 'Delivery Date'
+    };
+    const actions = { 'INSERT': 'added', 'UPDATE': 'updated', 'DELETE': 'removed' };
+    const name = friendlyNames[table] || table;
+    const action = actions[event] || event;
+
+    const toast = document.createElement('div');
+    toast.className = 'realtime-toast';
+    toast.innerHTML = `<i class="fas fa-bolt me-2" style="color: #B0A07A;"></i>${name} ${action}`;
+    toast.style.cssText = `
+        position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+        background: #1a1a1a; color: white; padding: 12px 20px;
+        border-radius: 8px; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        animation: slideIn 0.3s ease, fadeOut 0.5s ease 3s forwards;
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3500);
+}
+
+// Inject toast animation CSS
+const toastStyle = document.createElement('style');
+toastStyle.textContent = `
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+`;
+document.head.appendChild(toastStyle);
 
 // Load all data from Supabase
 async function loadAllData() {

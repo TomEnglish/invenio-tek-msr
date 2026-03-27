@@ -344,6 +344,7 @@
             color: var(--navbar-active) !important;
         }
     </style>
+    <style>html:not(.auth-ready) body { visibility: hidden; }</style>
 </head>
 
 <body>
@@ -450,6 +451,14 @@
                             </div>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="signOut(); return false;" title="Sign Out">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
+                                <i class="fas fa-sign-out-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Sign Out</span>
+                            </div>
+                        </a>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -468,8 +477,13 @@
                         </h2>
                         <p class="text-[#475569] mb-0 d-flex justify-content-between align-items-center">
                             <span>Comprehensive tracking of procurement, shipments, and installation progress</span>
-                            <small class="text-muted"><i class="far fa-clock me-1"></i>Last Updated: <span
-                                    id="lastUpdated">--</span></small>
+                            <small class="text-muted d-flex align-items-center gap-2">
+                                <span id="realtime-indicator" class="badge bg-warning">Connecting...</span>
+                                <i class="far fa-clock me-1"></i>Last Updated: <span id="lastUpdated">--</span>
+                                <button id="export-pdf-btn" class="btn btn-sm btn-outline-primary ms-2" onclick="generateMSRReport()">
+                                    <i class="fas fa-file-pdf me-1"></i>Export PDF
+                                </button>
+                            </small>
                         </p>
                     </div>
                 </div>
@@ -864,7 +878,10 @@
     <!-- Shared Utilities -->
     <script src="js/utils/constants.js"></script>
     <script src="js/utils/formatting.js"></script>
+    <script src="js/utils/branding.js"></script>
     <script src="js/utils/supabase-client.js"></script>
+    <script src="js/utils/auth-guard.js"></script>
+    <script src="js/utils/pdf-export.js"></script>
     <script src="js/utils/export.js"></script>
 
     <!-- Dashboard JavaScript -->
