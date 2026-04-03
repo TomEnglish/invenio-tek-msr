@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="shortcut icon" href="favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+    <link rel="manifest" href="site.webmanifest" />
+    <title>Data Browser - MSR Dashboard</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        h1,h2,h3,h4,h5,h6,.card-title,.lead { color: var(--text-dark) !important; }
+
+        :root {
+            --primary-charcoal: #3a3a3a;
+            --primary-blue: #2563EB;
+            --lime-green: #2563EB;
+            --white: #ffffff;
+            --light-gray: #f5f5f5;
+            --medium-gray: #e0e0e0;
+            --text-gray: #666666;
+            --border-gray: #cccccc;
+            --navbar-bg: #FFFFFF;
+            --navbar-text: #64748B;
+            --navbar-active: #2563EB;
+            --border-light: #E2E8F0;
+            --text-dark: #334155;
+            --success-green: #10B981;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif;
+            background-color: #F8FAFC;
+            color: var(--primary-charcoal);
+        }
+
+        .navbar-brand { display: flex; align-items: center; color: var(--navbar-text) !important; font-weight: 600; font-size: 1.3rem; text-decoration: none; }
+        .navbar-brand img { height: 40px; margin-right: 15px; }
+        .navbar-nav .nav-link { color: var(--navbar-text) !important; margin: 0 10px; transition: color 0.3s ease; font-weight: 500; }
+        .navbar-nav .nav-link:hover { color: var(--lime-green) !important; }
+        .navbar-nav .nav-link.active { color: var(--lime-green) !important; border-bottom: 2px solid var(--lime-green); }
+
+        .container-fluid { padding: 0 2rem; max-width: 1800px; margin: 0 auto; }
+
+        .navbar { background-color: var(--navbar-bg) !important; border-bottom: 1px solid var(--border-light); box-shadow: none !important; padding: 0.5rem 0.5rem !important; }
+        .navbar-brand span { color: var(--text-dark) !important; }
+        .navbar-nav { gap: 0.5rem; align-items: flex-end; }
+        .navbar-nav .nav-link { color: var(--navbar-text) !important; font-size: 0.70rem !important; font-weight: 500; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0.25rem 0.75rem !important; transition: all 0.2s ease; }
+        .navbar-nav .nav-link i { font-size: 1.35rem; margin-bottom: 4px; margin-right: 0 !important; margin-left: 0 !important; }
+        .navbar-nav .nav-link:hover, .navbar-nav .nav-link.active { color: var(--navbar-active) !important; }
+
+        /* Admin-specific styles */
+        .toolbar {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            margin-bottom: 1.5rem;
+            display: flex;
+            gap: 1rem;
+            align-items: end;
+            flex-wrap: wrap;
+        }
+
+        .toolbar label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 0.25rem;
+            display: block;
+        }
+
+        .toolbar select, .toolbar input {
+            border: 2px solid var(--medium-gray);
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.9rem;
+        }
+
+        .toolbar select:focus, .toolbar input:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        .data-card {
+            background: var(--white);
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        .data-card .card-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 2px solid var(--primary-blue);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--white);
+        }
+
+        .data-card .card-header h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .data-table thead {
+            background: var(--primary-charcoal);
+            color: white;
+        }
+
+        .data-table thead th {
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .data-table thead th:hover {
+            background: #2a2a2a;
+        }
+
+        .data-table thead th .sort-icon {
+            margin-left: 4px;
+            opacity: 0.5;
+        }
+
+        .data-table thead th.sorted .sort-icon {
+            opacity: 1;
+        }
+
+        .data-table tbody tr {
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .data-table tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        .data-table tbody td {
+            padding: 0.6rem 1rem;
+            max-width: 250px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .pagination-bar {
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #f0f0f0;
+            font-size: 0.85rem;
+            color: var(--text-gray);
+        }
+
+        .pagination-bar .page-btns {
+            display: flex;
+            gap: 4px;
+        }
+
+        .pagination-bar button {
+            border: 1px solid var(--medium-gray);
+            background: white;
+            border-radius: 6px;
+            padding: 0.35rem 0.75rem;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .pagination-bar button:hover { background: #f0f0f0; }
+        .pagination-bar button:disabled { opacity: 0.4; cursor: default; }
+        .pagination-bar button.active { background: var(--primary-blue); color: white; border-color: var(--primary-blue); }
+
+        /* Edit modal */
+        .edit-modal .modal-content {
+            border-radius: 12px;
+            border: none;
+        }
+
+        .edit-modal .modal-header {
+            border-bottom: 2px solid var(--primary-blue);
+            padding: 1rem 1.5rem;
+        }
+
+        .edit-modal .modal-body {
+            padding: 1.5rem;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .edit-modal .field-group {
+            margin-bottom: 1rem;
+        }
+
+        .edit-modal .field-group label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .edit-modal .field-group label .badge {
+            font-size: 0.65rem;
+            font-weight: 500;
+        }
+
+        .edit-modal .field-readonly {
+            background: #f8fafc;
+            border: 1px solid var(--border-light);
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.85rem;
+            color: var(--text-gray);
+            word-break: break-all;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-gray);
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            color: #CBD5E1;
+            margin-bottom: 1rem;
+        }
+
+        .record-count {
+            font-size: 0.85rem;
+            color: var(--text-gray);
+        }
+
+        @media (max-width: 768px) {
+            .toolbar { flex-direction: column; }
+            .data-table { font-size: 0.8rem; }
+            .data-table tbody td { padding: 0.5rem 0.6rem; }
+        }
+    </style>
+    <style>html:not(.auth-ready) body { visibility: hidden; }</style>
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg border-b border-[var(--border-light)]"
+        style="padding: 0 !important; min-height: 64px; background: var(--navbar-bg);">
+        <div class="container-fluid"
+            style="padding-top: 0 !important; padding-bottom: 0 !important; padding-left: 1.5rem !important; padding-right: 1.5rem !important; margin-top: 0 !important; margin-bottom: 0 !important;">
+            <a class="navbar-brand m-0" href="index.html"
+                style="display: flex; align-items: center; gap: 12px; text-decoration: none; min-width: 240px; padding: 0.5rem 0;">
+                <img src="favicon-96x96.png" alt="RPS Branding Logo"
+                    style="height: 40px; width: auto; object-fit: contain;">
+                <span style="font-size: 1.25rem; font-weight: 600; color: var(--text-dark); letter-spacing: -0.02em;">MSR Dashboard</span>
+            </a>
+
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto" style="gap: 4px;">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
+                                <i class="fas fa-tachometer-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Dashboard</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="gap-analysis.html">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
+                                <i class="fas fa-clipboard-check" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Gap Analysis</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="material-tracking.html">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
+                                <i class="fas fa-cubes" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Materials</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="delivery-dates.html">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
+                                <i class="fas fa-truck" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Deliveries</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="project-schedule.html">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
+                                <i class="fas fa-history" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Schedule</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="samsara-tracking.html">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
+                                <i class="fas fa-map-marker-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">GPS</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="site-plan.html">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
+                                <i class="fas fa-drafting-compass" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Site Plan</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="receiving.html">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
+                                <i class="fas fa-clipboard-list" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Receiving</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="admin.html">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
+                                <i class="fas fa-database" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Admin</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" title="Link to hosted phone app" onclick="alert('Update the href attribute in the Dashboard HTML files once the mobile app Server URL is hosted.')">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
+                                <i class="fas fa-mobile-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Mobile App</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="signOut(); return false;" title="Sign Out">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
+                                <i class="fas fa-sign-out-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Sign Out</span>
+                            </div>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
+        <!-- Page Header -->
+        <div class="page-header bg-white"
+            style="border-bottom: 1px solid var(--border-light); padding: 1.5rem 2rem; margin-bottom: 2rem;">
+            <div class="container-fluid d-flex align-items-center"
+                style="max-width: 1800px; margin: 0 auto; padding: 0;">
+                <div class="header-icon-box me-3"
+                    style="width: 48px; height: 48px; min-width: 48px; border-radius: 12px; background: rgba(37,99,235,0.1); display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-database" style="font-size: 1.5rem; color: var(--primary-blue);"></i>
+                </div>
+                <div>
+                    <h1 style="font-size: 1.5rem; font-weight: 600; color: var(--text-dark); margin: 0 0 4px 0; line-height: 1.2;">
+                        Data Browser</h1>
+                    <p style="font-size: 0.9rem; color: var(--navbar-text); margin: 0;">Browse, search, and edit database records across all project tables</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <div>
+                <label for="tableSelect">Table</label>
+                <select class="form-select" id="tableSelect" style="min-width: 220px;"></select>
+            </div>
+            <div class="flex-grow-1">
+                <label for="searchInput">Search</label>
+                <input type="text" class="form-control" id="searchInput" placeholder="Search across columns...">
+            </div>
+            <div>
+                <label for="pageSizeSelect">Rows</label>
+                <select class="form-select" id="pageSizeSelect">
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-primary btn-sm" id="btnRefresh" title="Refresh">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" id="btnExportCSV" title="Export CSV">
+                    <i class="fas fa-download"></i> CSV
+                </button>
+                <button class="btn btn-primary btn-sm" id="btnAddRecord" style="display: none;" title="Add Record">
+                    <i class="fas fa-plus"></i> Add
+                </button>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="data-card">
+            <div class="card-header">
+                <h3 id="tableTitle"><i class="fas fa-table me-2"></i>Select a table</h3>
+                <span class="record-count" id="recordCount"></span>
+            </div>
+            <div class="table-responsive">
+                <table class="data-table" id="dataTable">
+                    <thead id="tableHead"></thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td colspan="20" class="empty-state">
+                                <i class="fas fa-database d-block"></i>
+                                <p>Select a table from the dropdown above</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="pagination-bar" id="paginationBar" style="display: none;">
+                <span id="pageInfo">Page 1</span>
+                <div class="page-btns">
+                    <button id="btnPrevPage" disabled><i class="fas fa-chevron-left"></i></button>
+                    <button id="btnNextPage" disabled><i class="fas fa-chevron-right"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal fade edit-modal" id="editModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editModalTitle">Edit Record</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="editModalBody"></div>
+                <div class="modal-footer">
+                    <button class="btn btn-danger me-auto" id="btnDeleteRecord" style="display: none;">
+                        <i class="fas fa-trash me-1"></i> Delete
+                    </button>
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" id="btnSaveRecord">
+                        <i class="fas fa-save me-1"></i> Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Supabase Configuration -->
+    <script src="supabase-config.js"></script>
+
+    <!-- Shared Utilities -->
+    <script src="js/utils/constants.js"></script>
+    <script src="js/utils/formatting.js"></script>
+    <script src="js/utils/branding.js"></script>
+    <script src="js/utils/supabase-client.js"></script>
+    <script src="js/utils/auth-guard.js"></script>
+
+    <!-- Admin Data Browser JS -->
+    <script src="admin.js"></script>
+</body>
+
+</html>
