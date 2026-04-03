@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="shortcut icon" href="favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+    <link rel="manifest" href="site.webmanifest" />
+    <title>Receiving - MSR Dashboard</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        h1,h2,h3,h4,h5,h6,.card-title,.lead { color: var(--text-dark) !important; }
+
+        :root {
+            --primary-charcoal: #3a3a3a;
+            --primary-blue: #2563EB;
+            --lime-green: #2563EB;
+            --white: #ffffff;
+            --light-gray: #f5f5f5;
+            --medium-gray: #e0e0e0;
+            --text-gray: #666666;
+            --border-gray: #cccccc;
+            --navbar-bg: #FFFFFF;
+            --navbar-text: #64748B;
+            --navbar-active: #2563EB;
+            --border-light: #E2E8F0;
+            --text-dark: #334155;
+            --success-green: #10B981;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif;
+            background-color: #F8FAFC;
+            color: var(--primary-charcoal);
+        }
+
+        .navbar-brand { display: flex; align-items: center; color: var(--navbar-text) !important; font-weight: 600; font-size: 1.3rem; text-decoration: none; }
+        .navbar-brand img { height: 40px; margin-right: 15px; }
+        .navbar-nav .nav-link { color: var(--navbar-text) !important; margin: 0 10px; transition: color 0.3s ease; font-weight: 500; }
+        .navbar-nav .nav-link:hover { color: var(--lime-green) !important; }
+        .navbar-nav .nav-link.active { color: var(--lime-green) !important; border-bottom: 2px solid var(--lime-green); }
+
+        .container-fluid { padding: 0 2rem; max-width: 1800px; margin: 0 auto; }
+
+        .navbar { background-color: var(--navbar-bg) !important; border-bottom: 1px solid var(--border-light); box-shadow: none !important; padding: 0.5rem 0.5rem !important; }
+        .navbar-brand span { color: var(--text-dark) !important; }
+        .navbar-nav { gap: 0.5rem; align-items: flex-end; }
+        .navbar-nav .nav-link { color: var(--navbar-text) !important; font-size: 0.70rem !important; font-weight: 500; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0.25rem 0.75rem !important; transition: all 0.2s ease; }
+        .navbar-nav .nav-link i { font-size: 1.35rem; margin-bottom: 4px; margin-right: 0 !important; margin-left: 0 !important; }
+        .navbar-nav .nav-link:hover, .navbar-nav .nav-link.active { color: var(--navbar-active) !important; }
+
+        /* Wizard Styles */
+        .wizard-card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            margin-bottom: 1.5rem;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .step-dot {
+            text-align: center;
+            cursor: default;
+        }
+
+        .step-dot .circle {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin: 0 auto 4px;
+            transition: all 0.3s ease;
+            background: #E2E8F0;
+            color: #94A3B8;
+        }
+
+        .step-dot.active .circle {
+            background: var(--primary-blue);
+            color: white;
+        }
+
+        .step-dot.completed .circle {
+            background: var(--success-green);
+            color: white;
+        }
+
+        .step-dot small {
+            font-size: 0.7rem;
+            color: var(--text-gray);
+            font-weight: 500;
+        }
+
+        .step-dot.active small {
+            color: var(--primary-blue);
+            font-weight: 600;
+        }
+
+        .material-type-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .material-type-btn {
+            padding: 0.5rem 0.25rem;
+            border: 2px solid var(--medium-gray);
+            border-radius: 8px;
+            background: var(--white);
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .material-type-btn:hover {
+            border-color: var(--primary-blue);
+            background: rgba(37,99,235,0.05);
+        }
+
+        .material-type-btn.selected {
+            background: var(--primary-blue);
+            color: white;
+            border-color: var(--primary-blue);
+        }
+
+        .btn-choice {
+            padding: 0.6rem 1.2rem;
+            border: 2px solid var(--medium-gray);
+            border-radius: 8px;
+            background: var(--white);
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .btn-choice:hover {
+            border-color: var(--primary-blue);
+        }
+
+        .btn-choice.selected {
+            background: var(--primary-blue);
+            color: white;
+            border-color: var(--primary-blue);
+        }
+
+        .btn-choice.selected-success {
+            background: var(--success-green);
+            color: white;
+            border-color: var(--success-green);
+        }
+
+        .btn-choice.selected-danger {
+            background: #DC2626;
+            color: white;
+            border-color: #DC2626;
+        }
+
+        .btn-choice.selected-warning {
+            background: #F59E0B;
+            color: white;
+            border-color: #F59E0B;
+        }
+
+        .location-card {
+            border: 2px solid var(--border-light);
+            border-radius: 10px;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 0.5rem;
+        }
+
+        .location-card:hover {
+            border-color: var(--primary-blue);
+            background: rgba(37,99,235,0.03);
+        }
+
+        .location-card.selected {
+            border-color: var(--primary-blue);
+            background: #EFF6FF;
+        }
+
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+            margin-top: 1rem;
+        }
+
+        .photo-card {
+            position: relative;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .photo-card img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+        }
+
+        .photo-card .photo-info {
+            padding: 0.4rem 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+        }
+
+        .photo-card .btn-remove-photo {
+            background: #DC2626;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 0.7rem;
+            cursor: pointer;
+        }
+
+        .auto-exception-alert {
+            background: #FEF3C7;
+            border: 1px solid #F59E0B;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            color: #92400E;
+        }
+
+        .wizard-nav {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .form-label-custom {
+            font-weight: 500;
+            color: var(--text-dark);
+            margin-bottom: 0.4rem;
+            font-size: 0.9rem;
+        }
+
+        .choice-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .success-card {
+            text-align: center;
+            padding: 3rem 2rem;
+        }
+
+        .success-card i {
+            font-size: 4rem;
+            color: var(--success-green);
+            margin-bottom: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .material-type-grid { grid-template-columns: repeat(2, 1fr); }
+            .step-indicator { gap: 0.75rem; }
+            .step-dot small { font-size: 0.6rem; }
+        }
+    </style>
+    <style>html:not(.auth-ready) body { visibility: hidden; }</style>
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg border-b border-[var(--border-light)]"
+        style="padding: 0 !important; min-height: 64px; background: var(--navbar-bg);">
+        <div class="container-fluid"
+            style="padding-top: 0 !important; padding-bottom: 0 !important; padding-left: 1.5rem !important; padding-right: 1.5rem !important; margin-top: 0 !important; margin-bottom: 0 !important;">
+            <a class="navbar-brand m-0" href="index.html"
+                style="display: flex; align-items: center; gap: 12px; text-decoration: none; min-width: 240px; padding: 0.5rem 0;">
+                <img src="favicon-96x96.png" alt="RPS Branding Logo"
+                    style="height: 40px; width: auto; object-fit: contain;">
+                <span style="font-size: 1.25rem; font-weight: 600; color: var(--text-dark); letter-spacing: -0.02em;">MSR Dashboard</span>
+            </a>
+
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto" style="gap: 4px;">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
+                                <i class="fas fa-tachometer-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Dashboard</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="gap-analysis.html">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
+                                <i class="fas fa-clipboard-check" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Gap Analysis</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="material-tracking.html">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
+                                <i class="fas fa-cubes" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Materials</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="delivery-dates.html">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
+                                <i class="fas fa-truck" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Deliveries</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="project-schedule.html">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
+                                <i class="fas fa-history" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Schedule</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="samsara-tracking.html">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
+                                <i class="fas fa-map-marker-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">GPS</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="site-plan.html">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
+                                <i class="fas fa-drafting-compass" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Site Plan</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="receiving.html">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
+                                <i class="fas fa-clipboard-list" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Receiving</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" title="Link to hosted phone app" onclick="alert('Update the href attribute in the Dashboard HTML files once the mobile app Server URL is hosted.')">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
+                                <i class="fas fa-mobile-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Mobile App</span>
+                            </div>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="signOut(); return false;" title="Sign Out">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
+                                <i class="fas fa-sign-out-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
+                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Sign Out</span>
+                            </div>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
+        <!-- Page Header -->
+        <div class="page-header bg-white"
+            style="border-bottom: 1px solid var(--border-light); padding: 1.5rem 2rem; margin-bottom: 2rem;">
+            <div class="container-fluid d-flex align-items-center"
+                style="max-width: 1800px; margin: 0 auto; padding: 0;">
+                <div class="header-icon-box me-3"
+                    style="width: 48px; height: 48px; min-width: 48px; border-radius: 12px; background: rgba(37,99,235,0.1); display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-clipboard-list" style="font-size: 1.5rem; color: var(--primary-blue);"></i>
+                </div>
+                <div>
+                    <h1 style="font-size: 1.5rem; font-weight: 600; color: var(--text-dark); margin: 0 0 4px 0; line-height: 1.2;">
+                        Material Receiving</h1>
+                    <p style="font-size: 0.9rem; color: var(--navbar-text); margin: 0;">Inspect, document, and accept incoming materials with the 6-step receiving wizard</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content area (max-width centered) -->
+        <div style="max-width: 800px; margin: 0 auto;">
+
+            <!-- QR Code Preamble -->
+            <div class="wizard-card" id="qrSection">
+                <h5 style="font-weight: 600; margin-bottom: 1rem;"><i class="fas fa-qrcode me-2"></i>QR Code</h5>
+                <p style="font-size: 0.9rem; color: var(--text-gray); margin-bottom: 1rem;">Enter an existing QR code value or auto-generate a new one to begin the receiving process.</p>
+                <div class="d-flex gap-2 align-items-end flex-wrap">
+                    <div class="flex-grow-1">
+                        <label class="form-label-custom" for="qrCodeInput">QR Code Value</label>
+                        <input type="text" class="form-control" id="qrCodeInput" placeholder="QR-XXXXXXXX">
+                        <div class="invalid-feedback" id="qrError">Please enter a QR code value</div>
+                    </div>
+                    <button class="btn btn-outline-secondary" id="btnAutoGenerate" style="white-space: nowrap;">
+                        <i class="fas fa-magic me-1"></i> Auto-generate
+                    </button>
+                    <button class="btn btn-primary" id="btnStartWizard" style="white-space: nowrap;">
+                        <i class="fas fa-arrow-right me-1"></i> Start Receiving
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step Indicator -->
+            <div class="step-indicator" id="stepIndicator" style="display: none;">
+                <div class="step-dot active" data-step="0">
+                    <div class="circle">1</div>
+                    <small>Material</small>
+                </div>
+                <div class="step-dot" data-step="1">
+                    <div class="circle">2</div>
+                    <small>PO Info</small>
+                </div>
+                <div class="step-dot" data-step="2">
+                    <div class="circle">3</div>
+                    <small>Photos</small>
+                </div>
+                <div class="step-dot" data-step="3">
+                    <div class="circle">4</div>
+                    <small>Inspection</small>
+                </div>
+                <div class="step-dot" data-step="4">
+                    <div class="circle">5</div>
+                    <small>Decision</small>
+                </div>
+                <div class="step-dot" data-step="5">
+                    <div class="circle">6</div>
+                    <small>Location</small>
+                </div>
+            </div>
+
+            <!-- Wizard Container -->
+            <div id="wizardContainer" style="display: none;">
+
+                <!-- Step 0: Material Details -->
+                <div id="step-0" class="wizard-step" style="display: none;">
+                    <div class="wizard-card">
+                        <h5 style="font-weight: 600; margin-bottom: 1.5rem;"><i class="fas fa-box me-2"></i>Material Details</h5>
+
+                        <div class="mb-3">
+                            <label class="form-label-custom">Material Type <span class="text-danger">*</span></label>
+                            <div class="material-type-grid" id="materialTypeGrid"></div>
+                            <div class="text-danger small" id="materialTypeError" style="display: none;">Please select a material type</div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label-custom" for="inputQty">Quantity <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="inputQty" min="1" value="1" required>
+                                <div class="invalid-feedback">Quantity must be at least 1</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label-custom" for="inputSize">Size</label>
+                                <input type="text" class="form-control" id="inputSize" list="sizeList" placeholder='e.g. 4"'>
+                                <datalist id="sizeList"></datalist>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label-custom" for="inputGrade">Grade</label>
+                                <input type="text" class="form-control" id="inputGrade" list="gradeList" placeholder="e.g. A106 Gr B">
+                                <datalist id="gradeList"></datalist>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-1">
+                            <div class="col-md-4">
+                                <label class="form-label-custom" for="inputWeight">Weight (lbs)</label>
+                                <input type="number" class="form-control" id="inputWeight" min="0" step="0.1" placeholder="Optional">
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label-custom" for="inputDescription">Description</label>
+                                <input type="text" class="form-control" id="inputDescription" placeholder="Optional description">
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mt-1">
+                            <div class="col-md-6">
+                                <label class="form-label-custom" for="inputSpec">Spec</label>
+                                <input type="text" class="form-control" id="inputSpec" placeholder="Optional spec">
+                            </div>
+                        </div>
+
+                        <div class="wizard-nav">
+                            <div></div>
+                            <button class="btn btn-primary" onclick="nextStep()">Next <i class="fas fa-arrow-right ms-1"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 1: PO / Delivery Info -->
+                <div id="step-1" class="wizard-step" style="display: none;">
+                    <div class="wizard-card">
+                        <h5 style="font-weight: 600; margin-bottom: 1.5rem;"><i class="fas fa-file-invoice me-2"></i>PO / Delivery Info</h5>
+                        <p style="font-size: 0.85rem; color: var(--text-gray); margin-bottom: 1.5rem;">All fields are optional.</p>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label-custom" for="inputVendor">Vendor</label>
+                                <input type="text" class="form-control" id="inputVendor" placeholder="Vendor name">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label-custom" for="inputPONumber">PO Number</label>
+                                <input type="text" class="form-control" id="inputPONumber" placeholder="e.g. PO-12345">
+                            </div>
+                        </div>
+                        <div class="row g-3 mt-1">
+                            <div class="col-md-6">
+                                <label class="form-label-custom" for="inputDeliveryTicket">Delivery Ticket #</label>
+                                <input type="text" class="form-control" id="inputDeliveryTicket" placeholder="e.g. DT-67890">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label-custom" for="inputCarrier">Carrier</label>
+                                <input type="text" class="form-control" id="inputCarrier" placeholder="Trucking company">
+                            </div>
+                        </div>
+
+                        <div class="wizard-nav">
+                            <button class="btn btn-outline-secondary" onclick="prevStep()"><i class="fas fa-arrow-left me-1"></i> Back</button>
+                            <button class="btn btn-primary" onclick="nextStep()">Next <i class="fas fa-arrow-right ms-1"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Photos -->
+                <div id="step-2" class="wizard-step" style="display: none;">
+                    <div class="wizard-card">
+                        <h5 style="font-weight: 600; margin-bottom: 1.5rem;"><i class="fas fa-camera me-2"></i>Photos</h5>
+                        <p style="font-size: 0.85rem; color: var(--text-gray); margin-bottom: 1rem;">Attach photos of the material. This step is optional.</p>
+
+                        <div class="mb-3">
+                            <label class="form-label-custom">Photo Type</label>
+                            <div class="choice-group" id="photoTypeGroup">
+                                <button class="btn-choice selected" data-value="general" onclick="selectPhotoType(this)">General</button>
+                                <button class="btn-choice" data-value="damage" onclick="selectPhotoType(this)">Damage</button>
+                                <button class="btn-choice" data-value="delivery_ticket" onclick="selectPhotoType(this)">Delivery Ticket</button>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label-custom" for="photoInput">Upload Photos</label>
+                            <input type="file" class="form-control" id="photoInput" accept="image/*" multiple>
+                        </div>
+
+                        <div id="photoCount" class="text-muted small mb-2">No photos added yet (optional)</div>
+                        <div class="photo-grid" id="photoGrid"></div>
+
+                        <div class="wizard-nav">
+                            <button class="btn btn-outline-secondary" onclick="prevStep()"><i class="fas fa-arrow-left me-1"></i> Back</button>
+                            <button class="btn btn-primary" onclick="nextStep()">Next <i class="fas fa-arrow-right ms-1"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Inspection -->
+                <div id="step-3" class="wizard-step" style="display: none;">
+                    <div class="wizard-card">
+                        <h5 style="font-weight: 600; margin-bottom: 1.5rem;"><i class="fas fa-search me-2"></i>Inspection</h5>
+
+                        <div class="mb-3">
+                            <label class="form-label-custom">Material Condition <span class="text-danger">*</span></label>
+                            <div class="choice-group" id="conditionGroup">
+                                <button class="btn-choice selected-success" data-value="good" onclick="selectCondition(this)">Good</button>
+                                <button class="btn-choice" data-value="damaged" onclick="selectCondition(this)">Damaged</button>
+                                <button class="btn-choice" data-value="mixed" onclick="selectCondition(this)">Mixed</button>
+                            </div>
+                        </div>
+
+                        <div class="mb-3" id="damageNotesSection" style="display: none;">
+                            <label class="form-label-custom" for="inputDamageNotes">Damage Notes</label>
+                            <textarea class="form-control" id="inputDamageNotes" rows="3" placeholder="Describe the damage..."></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label-custom">Inspection Pass? <span class="text-danger">*</span></label>
+                            <div class="choice-group" id="inspectionPassGroup">
+                                <button class="btn-choice selected-success" data-value="true" onclick="selectInspectionPass(this)">Pass</button>
+                                <button class="btn-choice" data-value="false" onclick="selectInspectionPass(this)">Fail</button>
+                            </div>
+                        </div>
+
+                        <div class="wizard-nav">
+                            <button class="btn btn-outline-secondary" onclick="prevStep()"><i class="fas fa-arrow-left me-1"></i> Back</button>
+                            <button class="btn btn-primary" onclick="nextStep()">Next <i class="fas fa-arrow-right ms-1"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Decision -->
+                <div id="step-4" class="wizard-step" style="display: none;">
+                    <div class="wizard-card">
+                        <h5 style="font-weight: 600; margin-bottom: 1.5rem;"><i class="fas fa-gavel me-2"></i>Decision</h5>
+
+                        <div class="mb-3">
+                            <label class="form-label-custom">Status <span class="text-danger">*</span></label>
+                            <div class="choice-group" id="statusGroup">
+                                <button class="btn-choice selected-success" data-value="accepted" onclick="selectStatus(this)">Accept</button>
+                                <button class="btn-choice" data-value="partially_accepted" onclick="selectStatus(this)">Partial Accept</button>
+                                <button class="btn-choice" data-value="rejected" onclick="selectStatus(this)">Reject</button>
+                            </div>
+                        </div>
+
+                        <div class="auto-exception-alert" id="autoExceptionAlert" style="display: none;">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Exception auto-flagged</strong> because the material is damaged or failed inspection.
+                        </div>
+
+                        <div id="exceptionFlagSection" style="display: none;">
+                            <div class="mb-3">
+                                <label class="form-label-custom">Flag Exception?</label>
+                                <div class="choice-group" id="exceptionFlagGroup">
+                                    <button class="btn-choice selected" data-value="false" onclick="selectExceptionFlag(this)">No</button>
+                                    <button class="btn-choice" data-value="true" onclick="selectExceptionFlag(this)">Yes</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="exceptionTypeSection" style="display: none;">
+                            <div class="mb-3">
+                                <label class="form-label-custom">Exception Type</label>
+                                <div class="choice-group" id="exceptionTypeGroup">
+                                    <button class="btn-choice" data-value="wrong_type" onclick="selectExceptionType(this)">Wrong Type</button>
+                                    <button class="btn-choice" data-value="wrong_count" onclick="selectExceptionType(this)">Wrong Count</button>
+                                    <button class="btn-choice" data-value="damage" onclick="selectExceptionType(this)">Damage</button>
+                                </div>
+                                <div class="text-danger small" id="exceptionTypeError" style="display: none;">Please select an exception type</div>
+                            </div>
+                        </div>
+
+                        <div class="wizard-nav">
+                            <button class="btn btn-outline-secondary" onclick="prevStep()"><i class="fas fa-arrow-left me-1"></i> Back</button>
+                            <button class="btn btn-primary" onclick="nextStep()">Next <i class="fas fa-arrow-right ms-1"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 5: Location -->
+                <div id="step-5" class="wizard-step" style="display: none;">
+                    <div class="wizard-card">
+                        <h5 style="font-weight: 600; margin-bottom: 1.5rem;"><i class="fas fa-map-marker-alt me-2"></i>Storage Location</h5>
+
+                        <div id="locationLoading" style="text-align: center; padding: 2rem; display: none;">
+                            <i class="fas fa-spinner fa-spin fa-2x mb-2" style="color: var(--primary-blue);"></i>
+                            <p class="text-muted">Loading locations...</p>
+                        </div>
+
+                        <div id="locationError" class="alert alert-danger" style="display: none;"></div>
+
+                        <div id="locationList"></div>
+                        <div class="text-danger small" id="locationSelectError" style="display: none;">Please select a storage location</div>
+
+                        <div class="wizard-nav">
+                            <button class="btn btn-outline-secondary" onclick="prevStep()"><i class="fas fa-arrow-left me-1"></i> Back</button>
+                            <button class="btn btn-primary" id="btnSubmit" onclick="handleSubmit()">
+                                <i class="fas fa-check me-1"></i> Submit
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Success State -->
+            <div id="successState" style="display: none;">
+                <div class="wizard-card success-card">
+                    <i class="fas fa-check-circle"></i>
+                    <h3 style="font-weight: 600; margin-bottom: 0.5rem;">Receiving Record Submitted</h3>
+                    <p class="text-muted" id="successMessage">The material has been successfully recorded.</p>
+                    <button class="btn btn-primary mt-3" onclick="resetWizard()">
+                        <i class="fas fa-plus me-1"></i> Start New Receiving
+                    </button>
+                </div>
+            </div>
+
+            <!-- Submit Error -->
+            <div id="submitError" class="alert alert-danger" style="display: none; margin-top: 1rem;"></div>
+
+        </div>
+    </div>
+
+    <!-- Datalists for autocomplete -->
+    <!-- populated by receiving.js -->
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Supabase Configuration -->
+    <script src="supabase-config.js"></script>
+
+    <!-- Shared Utilities -->
+    <script src="js/utils/constants.js"></script>
+    <script src="js/utils/formatting.js"></script>
+    <script src="js/utils/branding.js"></script>
+    <script src="js/utils/supabase-client.js"></script>
+    <script src="js/utils/auth-guard.js"></script>
+
+    <!-- Receiving Wizard JS -->
+    <script src="receiving.js"></script>
+</body>
+
+</html>
