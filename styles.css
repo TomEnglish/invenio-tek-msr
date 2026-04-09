@@ -42,9 +42,13 @@
 
     /* Semantic */
     --success:       #059669;
+    --success-light: #d1fae5;
     --warning:       #d97706;
+    --warning-light: #fef3c7;
     --danger:        #dc2626;
+    --danger-light:  #fee2e2;
     --purple:        #7c3aed;
+    --purple-light:  #ede9fe;
 
     /* Brand identity */
     --brand-gold:    #A69872;
@@ -72,7 +76,7 @@
 }
 
 /* ── Base Reset ─────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html { height: 100%; }
 
@@ -84,12 +88,26 @@ body {
     background: var(--bg);
     line-height: 1.6;
     height: 100%;
+    overflow: hidden;
 }
+
+/* Custom scrollbars (matches Kindred demo) */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--border-light); }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-light); }
 
 /* Hide until auth ready */
 html:not(.auth-ready) body { visibility: hidden; }
 
-h1, h2, h3, h4, h5, h6 {
+button, select, input, textarea { font-family: inherit; }
+
+h1, h2 {
+    color: var(--text-primary);
+    font-weight: 800;
+    margin: 0 0 0.5rem;
+}
+h3, h4, h5, h6 {
     color: var(--text-primary);
     font-weight: 700;
     margin: 0 0 0.5rem;
@@ -425,7 +443,7 @@ h1, h2, h3, h4, h5, h6 {
 .card, .msr-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: 12px;
     transition: all 0.2s ease;
 }
 .card:hover, .msr-card:hover {
@@ -433,10 +451,10 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .card-header, .msr-card-header {
-    padding: 16px 20px;
+    padding: 14px 20px;
     border-bottom: 1px solid var(--border);
     background: var(--surface);
-    border-radius: 14px 14px 0 0;
+    border-radius: 12px 12px 0 0;
     font-weight: 700;
     font-size: 14px;
     color: var(--text-primary);
@@ -446,7 +464,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .card-body, .msr-card-body {
-    padding: 20px;
+    padding: 20px 24px;
 }
 
 /* ── Metric / KPI Cards ─────────────────────────────────────── */
@@ -460,7 +478,7 @@ h1, h2, h3, h4, h5, h6 {
 .kpi-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: 12px;
     padding: 20px;
     display: flex;
     align-items: center;
@@ -469,7 +487,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 .kpi-card:hover {
     transform: translateY(-3px);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    box-shadow: 0 12px 24px rgba(0,0,0,0.08);
 }
 .kpi-label {
     font-size: 11px;
@@ -518,7 +536,7 @@ table.table {
     margin-bottom: 0;
 }
 table.table thead {
-    background: var(--border-light);
+    background: var(--bg);
 }
 table.table thead th {
     font-size: 11px;
@@ -527,11 +545,11 @@ table.table thead th {
     letter-spacing: 0.5px;
     color: var(--text-muted);
     border-bottom: 1px solid var(--border);
-    padding: 10px 14px;
+    padding: 12px 20px;
     white-space: nowrap;
 }
 table.table tbody td {
-    padding: 10px 14px;
+    padding: 14px 20px;
     border-bottom: 1px solid var(--border-light);
     color: var(--text-primary);
     vertical-align: middle;
@@ -539,28 +557,49 @@ table.table tbody td {
 table.table tbody tr {
     transition: background 0.15s;
 }
+table.table tbody tr:nth-child(even) {
+    background: var(--bg);
+}
 table.table tbody tr:hover {
-    background: var(--border-light);
+    background: var(--primary-light);
 }
 
 /* ── Buttons ────────────────────────────────────────────────── */
 .btn-primary, .btn-brand {
-    background: linear-gradient(135deg, var(--primary), var(--accent));
+    background: var(--primary);
     border: none;
     color: white;
     font-weight: 600;
-    padding: 8px 18px;
+    padding: 10px 20px;
     border-radius: 8px;
     font-size: 13px;
     transition: all 0.2s;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 .btn-primary:hover, .btn-brand:hover {
-    opacity: 0.9;
+    background: var(--primary);
+    opacity: 0.92;
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(3,105,161,0.3);
-    background: linear-gradient(135deg, var(--primary), var(--accent));
     color: white;
+}
+/* Secondary button style */
+.btn-secondary-kindred {
+    background: var(--primary-light);
+    border: none;
+    color: var(--primary);
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 12px;
+    transition: all 0.15s;
+}
+.btn-secondary-kindred:hover {
+    background: #bae6fd;
 }
 
 .btn-outline-primary {
@@ -583,9 +622,9 @@ table.table tbody tr:hover {
 /* ── Badges ─────────────────────────────────────────────────── */
 .badge {
     font-weight: 600;
-    font-size: 11px;
-    padding: 4px 10px;
-    border-radius: 6px;
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 12px;
 }
 .bg-success { background-color: var(--success) !important; }
 .bg-warning { background-color: var(--warning) !important; color: white !important; }
@@ -614,16 +653,18 @@ table.table tbody tr:hover {
 
 /* ── Forms ──────────────────────────────────────────────────── */
 .form-control, .form-select {
-    border-radius: 8px;
+    border-radius: 6px;
     border: 1px solid var(--border);
-    font-size: 13px;
-    padding: 8px 12px;
+    font-size: 11px;
+    padding: 8px 10px;
     color: var(--text-primary);
     transition: border-color 0.2s;
+    font-family: inherit;
 }
 .form-control:focus, .form-select:focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px rgba(3,105,161,0.1);
+    outline: none;
 }
 
 /* ── Chart container ────────────────────────────────────────── */
@@ -652,6 +693,34 @@ table.table tbody tr:hover {
 }
 .status-dot.live    { background: var(--success); animation: pulse 2s infinite; }
 .status-dot.warning { background: var(--warning); }
+
+/* ── Phase / Discipline Cards ───────────────────────────────── */
+.phase-card {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+.phase-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 24px rgba(0,0,0,0.08);
+}
+
+.disc-chip {
+    transition: all 0.15s ease;
+    cursor: pointer;
+}
+.disc-chip:hover {
+    transform: scale(1.03);
+}
+
+/* ── Progress bars ──────────────────────────────────────────── */
+.progress {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border-light);
+}
+.progress-bar {
+    border-radius: 3px;
+}
 
 /* ── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 1024px) {
