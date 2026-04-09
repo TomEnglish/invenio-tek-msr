@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="shortcut icon" href="favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+    <link rel="manifest" href="site.webmanifest" />
+    <title>Outside Shop Inventory - MSR Dashboard</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Shared Design System -->
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- Page-specific styles -->
+    <style>
+        /* Two-column layout */
+        .inventory-layout {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Left filter panel */
+        .filter-panel {
+            width: 220px;
+            min-width: 220px;
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.25rem;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            align-self: flex-start;
+            position: sticky;
+            top: 1rem;
+        }
+
+        .filter-panel h5 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        .filter-panel .filter-section {
+            margin-bottom: 1.25rem;
+        }
+
+        .filter-panel .form-check {
+            padding-left: 1.5rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .filter-panel .form-check-input {
+            margin-top: 0.3rem;
+            cursor: pointer;
+        }
+
+        .filter-panel .form-check-label {
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        .filter-panel .load-name-list {
+            max-height: 260px;
+            overflow-y: auto;
+        }
+
+        /* Right content area */
+        .content-area {
+            flex: 1;
+            min-width: 0;
+        }
+
+        /* Contact card */
+        .contact-card {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            margin-bottom: 1.5rem;
+            display: none;
+        }
+
+        .contact-card.visible {
+            display: block;
+        }
+
+        .contact-card h5 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.75rem;
+        }
+
+        .contact-card .contact-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+
+        .contact-card .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.88rem;
+            color: var(--text-primary);
+        }
+
+        .contact-card .contact-item i {
+            color: var(--primary);
+            width: 16px;
+            text-align: center;
+        }
+
+        /* Table card */
+        .table-card {
+            background: var(--surface);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+
+        .table-card .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+        }
+
+        .table-card .card-header span {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--text-primary);
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .table-container table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table-container thead {
+            background-color: var(--text-primary);
+            color: var(--surface);
+        }
+
+        .table-container thead th {
+            padding: 0.85rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+
+        .table-container tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: background-color 0.2s ease;
+        }
+
+        .table-container tbody tr:hover {
+            background-color: var(--border-light);
+        }
+
+        .table-container tbody td {
+            padding: 0.75rem 1rem;
+            font-size: 0.88rem;
+            color: var(--text-primary);
+        }
+
+        /* Status badges */
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.7rem;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .status-at-shop {
+            background-color: #cfe2ff;
+            color: #084298;
+        }
+
+        .status-ready-to-ship {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .status-shipped {
+            background-color: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .status-delivered {
+            background-color: #d1e7dd;
+            color: #0f5132;
+        }
+
+        /* Empty / loading states */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state i {
+            font-size: 2.5rem;
+            margin-bottom: 0.75rem;
+            display: block;
+        }
+
+        /* Row count badge */
+        .row-count-badge {
+            background-color: var(--primary);
+            color: var(--surface);
+            font-size: 0.8rem;
+            padding: 0.3rem 0.7rem;
+            border-radius: 12px;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .inventory-layout {
+                flex-direction: column;
+            }
+
+            .filter-panel {
+                width: 100%;
+                min-width: unset;
+                position: static;
+            }
+
+            .contact-card .contact-details {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+        }
+    </style>
+    <style>html:not(.auth-ready) body { visibility: hidden; }</style>
+</head>
+
+<body>
+    <!-- Page Header -->
+    <div class="hero-banner fade-up">
+        <h1><i class="fas fa-warehouse" style="margin-right:10px; font-size:22px;"></i>Outside Shop Inventory</h1>
+        <p>Track materials currently at fabrication shops — replaces PowerBI report</p>
+    </div>
+
+    <!-- Main Layout -->
+    <div class="inventory-layout fade-up" style="animation-delay:0.05s;">
+        <!-- Left: Filter Panel -->
+        <div class="filter-panel">
+            <!-- Shop Filter -->
+            <div class="filter-section">
+                <h5><i class="fas fa-store me-2"></i>Shop</h5>
+                <div id="shopFilters">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="shopRadio" id="shopAll" value="" checked>
+                        <label class="form-check-label" for="shopAll">Select All</label>
+                    </div>
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
+            <!-- Load Name Filter -->
+            <div class="filter-section">
+                <h5><i class="fas fa-tags me-2"></i>Load Name</h5>
+                <div class="load-name-list" id="loadNameFilters">
+                    <p class="text-muted" style="font-size:0.82rem; padding:0.25rem 0;">Select a shop first</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Content Area -->
+        <div class="content-area">
+            <!-- Contact Info Card -->
+            <div class="contact-card" id="contactCard">
+                <h5><i class="fas fa-address-card me-2"></i>Shop Contact</h5>
+                <div class="contact-details">
+                    <div class="contact-item">
+                        <i class="fas fa-building"></i>
+                        <span id="contactShopName">--</span>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span id="contactAddress">--</span>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-phone"></i>
+                        <span id="contactPhone">--</span>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-user"></i>
+                        <span id="contactName">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table Card -->
+            <div class="table-card">
+                <div class="card-header">
+                    <span><i class="fas fa-table text-primary me-2"></i>Inventory Items</span>
+                    <span class="row-count-badge" id="rowCount">0 items</span>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>QR ID</th>
+                                <th>Scanner Comments</th>
+                                <th>Delivery Date</th>
+                                <th>Load Name</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventoryTableBody">
+                            <tr>
+                                <td colspan="5">
+                                    <div class="empty-state">
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                        <p>Loading inventory data...</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Supabase Configuration -->
+    <script src="supabase-config.js"></script>
+
+    <!-- Shared Utilities -->
+    <script src="js/utils/constants.js"></script>
+    <script src="js/utils/formatting.js"></script>
+    <script src="js/utils/branding.js"></script>
+    <script src="js/utils/supabase-client.js"></script>
+    <script src="js/utils/auth-guard.js"></script>
+
+    <!-- Sidebar Navigation -->
+    <script src="js/utils/sidebar.js"></script>
+
+    <!-- Page JavaScript -->
+    <script>
+        // --- State ---
+        let shopContacts = [];
+        let inventoryItems = [];
+        let selectedShopId = null;    // null means "all"
+        let checkedLoadNames = new Set();
+
+        // --- Init ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                await loadData();
+                buildShopRadios();
+                applyFilters();
+            } catch (err) {
+                console.error('Failed to load outside shop inventory:', err);
+                showEmptyState('Error loading data. Please try again.');
+            }
+        });
+
+        // --- Data Fetching ---
+        async function loadData() {
+            const [contactsRes, inventoryRes] = await Promise.all([
+                supabase.from('shop_contacts').select('*').order('shop_name'),
+                supabase.from('outside_shop_inventory').select('*').order('delivery_date', { ascending: true, nullsFirst: false })
+            ]);
+
+            if (contactsRes.error) throw contactsRes.error;
+            if (inventoryRes.error) throw inventoryRes.error;
+
+            shopContacts = contactsRes.data || [];
+            inventoryItems = inventoryRes.data || [];
+        }
+
+        // --- Build Shop Radio Buttons ---
+        function buildShopRadios() {
+            const container = document.getElementById('shopFilters');
+            // Keep the "Select All" radio that already exists in HTML
+            shopContacts.forEach((shop, i) => {
+                const id = 'shop_' + i;
+                const div = document.createElement('div');
+                div.className = 'form-check';
+                div.innerHTML = `
+                    <input class="form-check-input" type="radio" name="shopRadio" id="${id}" value="${shop.id}">
+                    <label class="form-check-label" for="${id}">${escapeHtml(shop.shop_name)}</label>
+                `;
+                container.appendChild(div);
+            });
+
+            // Listen for changes
+            container.addEventListener('change', (e) => {
+                if (e.target.name === 'shopRadio') {
+                    const val = e.target.value;
+                    selectedShopId = val === '' ? null : val;
+                    checkedLoadNames.clear();
+                    buildLoadNameCheckboxes();
+                    updateContactCard();
+                    applyFilters();
+                }
+            });
+        }
+
+        // --- Build Load Name Checkboxes ---
+        function buildLoadNameCheckboxes() {
+            const container = document.getElementById('loadNameFilters');
+            container.innerHTML = '';
+
+            // Get unique load names for the selected shop (or all)
+            const relevant = selectedShopId
+                ? inventoryItems.filter(item => String(item.shop_id) === String(selectedShopId))
+                : inventoryItems;
+
+            const loadNames = [...new Set(relevant.map(r => r.load_name).filter(Boolean))].sort();
+
+            if (loadNames.length === 0) {
+                container.innerHTML = '<p class="text-muted" style="font-size:0.82rem; padding:0.25rem 0;">No load names available</p>';
+                return;
+            }
+
+            loadNames.forEach((name, i) => {
+                const id = 'load_' + i;
+                const div = document.createElement('div');
+                div.className = 'form-check';
+                div.innerHTML = `
+                    <input class="form-check-input" type="checkbox" id="${id}" value="${escapeHtml(name)}" checked>
+                    <label class="form-check-label" for="${id}">${escapeHtml(name)}</label>
+                `;
+                container.appendChild(div);
+                checkedLoadNames.add(name);
+            });
+
+            container.addEventListener('change', (e) => {
+                if (e.target.type === 'checkbox') {
+                    const name = e.target.value;
+                    if (e.target.checked) {
+                        checkedLoadNames.add(name);
+                    } else {
+                        checkedLoadNames.delete(name);
+                    }
+                    applyFilters();
+                }
+            });
+        }
+
+        // --- Update Contact Card ---
+        function updateContactCard() {
+            const card = document.getElementById('contactCard');
+            if (!selectedShopId) {
+                card.classList.remove('visible');
+                return;
+            }
+
+            const shop = shopContacts.find(s => String(s.id) === String(selectedShopId));
+            if (!shop) {
+                card.classList.remove('visible');
+                return;
+            }
+
+            document.getElementById('contactShopName').textContent = shop.shop_name || '--';
+            document.getElementById('contactAddress').textContent = shop.address || '--';
+            document.getElementById('contactPhone').textContent = shop.phone || '--';
+            document.getElementById('contactName').textContent = shop.contact_name || '--';
+            card.classList.add('visible');
+        }
+
+        // --- Apply Filters and Render Table ---
+        function applyFilters() {
+            let filtered = inventoryItems;
+
+            // Filter by shop
+            if (selectedShopId) {
+                filtered = filtered.filter(item => String(item.shop_id) === String(selectedShopId));
+            }
+
+            // Filter by load names (only if checkboxes have been built)
+            if (checkedLoadNames.size > 0) {
+                filtered = filtered.filter(item => checkedLoadNames.has(item.load_name));
+            }
+
+            renderTable(filtered);
+        }
+
+        // --- Render Table ---
+        function renderTable(items) {
+            const tbody = document.getElementById('inventoryTableBody');
+            const countEl = document.getElementById('rowCount');
+            countEl.textContent = items.length + ' item' + (items.length !== 1 ? 's' : '');
+
+            if (items.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5">
+                            <div class="empty-state">
+                                <i class="fas fa-box-open"></i>
+                                <p>No inventory items match the current filters.</p>
+                            </div>
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            tbody.innerHTML = items.map(item => `
+                <tr>
+                    <td>${escapeHtml(item.qr_id || '--')}</td>
+                    <td>${escapeHtml(item.scanner_comments || '--')}</td>
+                    <td>${item.delivery_date ? formatDate(item.delivery_date) : '--'}</td>
+                    <td>${escapeHtml(item.load_name || '--')}</td>
+                    <td>${statusBadge(item.status)}</td>
+                </tr>
+            `).join('');
+        }
+
+        // --- Status Badge ---
+        function statusBadge(status) {
+            if (!status) return '<span class="status-badge" style="background:#e9ecef;color:#6c757d;">Unknown</span>';
+
+            const lower = status.toLowerCase();
+            let cls = '';
+            if (lower === 'at shop') cls = 'status-at-shop';
+            else if (lower === 'ready to ship') cls = 'status-ready-to-ship';
+            else if (lower === 'shipped') cls = 'status-shipped';
+            else if (lower === 'delivered') cls = 'status-delivered';
+            else cls = 'status-at-shop'; // default
+
+            return `<span class="status-badge ${cls}">${escapeHtml(status)}</span>`;
+        }
+
+        // --- Helpers ---
+        function escapeHtml(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '--';
+            const d = new Date(dateStr + 'T00:00:00');
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        function showEmptyState(msg) {
+            document.getElementById('inventoryTableBody').innerHTML = `
+                <tr>
+                    <td colspan="5">
+                        <div class="empty-state">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p>${msg}</p>
+                        </div>
+                    </td>
+                </tr>`;
+        }
+    </script>
+</body>
+
+</html>

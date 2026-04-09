@@ -17,11 +17,12 @@ const BRANDING = {
     projectSubtitle: 'Material Status Report',
     logo: 'favicon-96x96.png',  // swap with client logo file
     colors: {
-        primary: '#2563EB',     // Main brand color (buttons, links, charts)
-        accent: '#B0A07A',      // Accent/gold color
-        dark: '#1a1a1a',        // Dark backgrounds
-        navBg: '#FFFFFF',       // Navbar background
-        navText: '#64748B',     // Navbar text
+        primary: '#0369a1',     // Main brand color (sidebar active, buttons, charts)
+        accent: '#0891b2',      // Accent color (gradients, secondary elements)
+        dark: '#1e293b',        // Dark text
+        navBg: '#FFFFFF',       // Sidebar / header background
+        navText: '#64748b',     // Nav text color
+        brandGold: '#A69872',   // Brand identity accent
     }
 };
 
@@ -29,28 +30,36 @@ const BRANDING = {
 function applyBranding() {
     const root = document.documentElement.style;
 
-    // Update CSS variables
+    // Update CSS variables to match new design system
+    root.setProperty('--primary', BRANDING.colors.primary);
+    root.setProperty('--accent', BRANDING.colors.accent);
+    root.setProperty('--text-primary', BRANDING.colors.dark);
+    root.setProperty('--surface', BRANDING.colors.navBg);
+    root.setProperty('--text-muted', BRANDING.colors.navText);
+    root.setProperty('--brand-gold', BRANDING.colors.brandGold);
+
+    // Legacy aliases for backward compatibility
     root.setProperty('--primary-blue', BRANDING.colors.primary);
     root.setProperty('--lime-green', BRANDING.colors.primary);
-    root.setProperty('--brand-accent', BRANDING.colors.accent);
     root.setProperty('--navbar-bg', BRANDING.colors.navBg);
     root.setProperty('--navbar-text', BRANDING.colors.navText);
+    root.setProperty('--navbar-active', BRANDING.colors.primary);
 
     // Update page title
     document.title = `MSR Dashboard - ${BRANDING.projectName}`;
 
-    // Update navbar brand text
-    const brandSpan = document.querySelector('.navbar-brand span');
-    if (brandSpan) brandSpan.textContent = 'MSR Dashboard';
+    // Update sidebar logo text if present
+    const logoText = document.querySelector('.logo-text');
+    if (logoText) logoText.textContent = 'MSR Dashboard';
 
-    // Update navbar logo
-    const brandImg = document.querySelector('.navbar-brand img');
-    if (brandImg) brandImg.src = BRANDING.logo;
+    // Update sidebar logo image if present
+    const logoImg = document.querySelector('.sidebar-logo img');
+    if (logoImg) logoImg.src = BRANDING.logo;
 
-    // Update project header if present
-    const projectHeader = document.querySelector('.card-body h2');
-    if (projectHeader && projectHeader.textContent.includes('Material Status Report')) {
-        projectHeader.innerHTML = `<i class="fas fa-industry text-primary me-2"></i>${BRANDING.projectName} - ${BRANDING.projectSubtitle}`;
+    // Update hero banner if present
+    const heroBanner = document.querySelector('.hero-banner h1');
+    if (heroBanner && heroBanner.textContent.includes('Greenfield')) {
+        heroBanner.innerHTML = `<i class="fas fa-industry" style="margin-right:10px; font-size:22px;"></i>${BRANDING.projectName}`;
     }
 }
 

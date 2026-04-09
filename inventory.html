@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="shortcut icon" href="favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+    <link rel="manifest" href="site.webmanifest" />
+    <title>Master Inventory - MSR Dashboard</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Shared Design System -->
+    <link rel="stylesheet" href="styles.css">
+
+    <style>
+        /* ── Inventory Layout ────────────────────────────────────── */
+        .inventory-layout {
+            display: flex;
+            gap: 0;
+            min-height: calc(100vh - 200px);
+        }
+
+        /* ── Filter Panel (left sidebar) ─────────────────────────── */
+        .filter-panel {
+            width: 220px;
+            min-width: 220px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px 0 0 14px;
+            border-right: 2px solid var(--border);
+            padding: 1.25rem 1rem;
+            overflow-y: auto;
+            max-height: calc(100vh - 200px);
+        }
+
+        .filter-panel h6 {
+            font-weight: 700;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 0.6rem;
+            padding-bottom: 0.4rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .filter-panel .form-check {
+            padding-left: 1.5rem;
+            margin-bottom: 0.15rem;
+        }
+
+        .filter-panel .form-check-input {
+            width: 14px;
+            height: 14px;
+            margin-top: 0.25rem;
+            cursor: pointer;
+        }
+
+        .filter-panel .form-check-label {
+            font-size: 0.82rem;
+            color: var(--text-primary);
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 160px;
+        }
+
+        .filter-panel .form-check-input:checked {
+            background-color: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .filter-search {
+            width: 100%;
+            padding: 0.35rem 0.6rem;
+            font-size: 0.8rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-bottom: 0.6rem;
+            background: var(--bg);
+            color: var(--text-primary);
+        }
+
+        .filter-search:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(3,105,161,0.15);
+        }
+
+        .filter-checklist {
+            max-height: 260px;
+            overflow-y: auto;
+            padding-right: 2px;
+        }
+
+        .filter-checklist::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .filter-checklist::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        /* ── Table Area (right) ──────────────────────────────────── */
+        .inventory-table-area {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: none;
+            border-radius: 0 14px 14px 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .inventory-table-area .table-container {
+            flex: 1;
+            overflow: auto;
+        }
+
+        /* ── Responsive ──────────────────────────────────────────── */
+        @media (max-width: 768px) {
+            .inventory-layout {
+                flex-direction: column;
+            }
+            .filter-panel {
+                width: 100%;
+                min-width: unset;
+                border-radius: 14px 14px 0 0;
+                border-right: none;
+                border-bottom: 2px solid var(--border);
+                max-height: 300px;
+            }
+            .inventory-table-area {
+                border-left: 1px solid var(--border);
+                border-radius: 0 0 14px 14px;
+            }
+        }
+    </style>
+    <style>html:not(.auth-ready) body { visibility: hidden; }</style>
+</head>
+
+<body>
+
+    <!-- KPI Card -->
+    <div class="kpi-grid" style="grid-template-columns: 1fr; max-width: 280px; margin-bottom: 1.5rem;">
+        <div class="kpi-card">
+            <div>
+                <div class="kpi-label">Inventory Count</div>
+                <div class="kpi-value" id="inventoryCount"><span class="loading-spinner"></span></div>
+                <div class="kpi-sub">Total items in inventory</div>
+            </div>
+            <div class="kpi-icon blue"><i class="fas fa-boxes-stacked"></i></div>
+        </div>
+    </div>
+
+    <!-- Filter Panel + Table Layout -->
+    <div class="inventory-layout">
+
+        <!-- Left Filter Panel -->
+        <div class="filter-panel">
+
+            <!-- Unit Filter (radio buttons) -->
+            <h6><i class="fas fa-building me-1"></i>Unit</h6>
+            <div id="unitFilterList">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="unitFilter" id="unitAll" value="" checked>
+                    <label class="form-check-label" for="unitAll">Select All</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="unitFilter" id="unitBlank" value="(blank)">
+                    <label class="form-check-label" for="unitBlank">(blank)</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="unitFilter" id="unitACW" value="ACW">
+                    <label class="form-check-label" for="unitACW">ACW</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="unitFilter" id="unitAIFH" value="AIFH">
+                    <label class="form-check-label" for="unitAIFH">AIFH</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="unitFilter" id="unitCT" value="COOLING TOWER">
+                    <label class="form-check-label" for="unitCT">COOLING TOWER</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="unitFilter" id="unitGT1" value="Gas Turbine 1">
+                    <label class="form-check-label" for="unitGT1">Gas Turbine 1</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="unitFilter" id="unitGT2" value="Gas Turbine 2">
+                    <label class="form-check-label" for="unitGT2">Gas Turbine 2</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="unitFilter" id="unitGT3" value="Gas Turbine 3">
+                    <label class="form-check-label" for="unitGT3">Gas Turbine 3</label>
+                </div>
+            </div>
+
+            <hr style="margin: 1rem 0; border-color: var(--border);">
+
+            <!-- Inventory Item Filter (search + checkboxes) -->
+            <h6><i class="fas fa-tags me-1"></i>Inventory Item</h6>
+            <input type="text" class="filter-search" id="itemSearchInput" placeholder="Search items...">
+            <div class="filter-checklist" id="itemFilterList">
+                <!-- Dynamically populated -->
+            </div>
+
+        </div>
+
+        <!-- Right Table Area -->
+        <div class="inventory-table-area">
+            <div class="table-container">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>QR Code</th>
+                            <th>Inventory Item</th>
+                            <th>SubSystem</th>
+                            <th>Unit</th>
+                            <th>Location</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventoryTableBody">
+                        <tr>
+                            <td colspan="6" class="text-center py-5">
+                                <span class="loading-spinner"></span>
+                                <p class="mt-2" style="color:var(--text-muted);">Loading inventory...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Supabase Configuration -->
+    <script src="supabase-config.js"></script>
+
+    <!-- Shared Utilities -->
+    <script src="js/utils/constants.js"></script>
+    <script src="js/utils/formatting.js"></script>
+    <script src="js/utils/branding.js"></script>
+    <script src="js/utils/supabase-client.js"></script>
+    <script src="js/utils/auth-guard.js"></script>
+    <script src="js/utils/export.js"></script>
+    <script src="js/utils/sidebar.js"></script>
+
+    <!-- Inventory Dashboard JS -->
+    <script>
+    (function () {
+        'use strict';
+
+        let allRecords = [];
+        let checkedItems = new Set();
+
+        // ── Bootstrap ───────────────────────────────────────────
+        document.addEventListener('DOMContentLoaded', () => {
+            // Wait for supabase-client to be ready
+            if (typeof getSupabase === 'function') {
+                loadInventory();
+            } else {
+                window.addEventListener('supabase:ready', loadInventory);
+                // Fallback: poll briefly in case event already fired
+                setTimeout(() => { if (allRecords.length === 0) loadInventory(); }, 1500);
+            }
+            bindFilterEvents();
+        });
+
+        // ── Data Loading ────────────────────────────────────────
+        async function loadInventory() {
+            try {
+                const sb = typeof getSupabase === 'function' ? getSupabase() : supabase;
+                const { data, error } = await sb
+                    .from('inventory_records')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+                allRecords = data || [];
+                populateItemChecklist();
+                applyFilters();
+            } catch (err) {
+                console.error('Failed to load inventory:', err);
+                document.getElementById('inventoryTableBody').innerHTML =
+                    '<tr><td colspan="6" class="text-center py-5 text-danger">' +
+                    '<i class="fas fa-exclamation-triangle me-2"></i>Failed to load inventory data.</td></tr>';
+            }
+        }
+
+        // ── Populate Inventory Item checklist ───────────────────
+        function populateItemChecklist() {
+            const items = [...new Set(allRecords.map(r => r.inventory_item || '(blank)'))].sort((a, b) => {
+                if (a === '(blank)') return -1;
+                if (b === '(blank)') return 1;
+                return a.localeCompare(b);
+            });
+
+            checkedItems = new Set(items); // all checked by default
+            renderItemChecklist(items);
+        }
+
+        function renderItemChecklist(items) {
+            const container = document.getElementById('itemFilterList');
+            const searchTerm = (document.getElementById('itemSearchInput').value || '').toLowerCase();
+
+            const filtered = searchTerm
+                ? items.filter(i => i.toLowerCase().includes(searchTerm))
+                : items;
+
+            container.innerHTML = '';
+
+            // Select All / Deselect All toggle
+            const allChecked = filtered.every(i => checkedItems.has(i));
+            const toggleDiv = document.createElement('div');
+            toggleDiv.className = 'form-check';
+            toggleDiv.innerHTML =
+                '<input class="form-check-input" type="checkbox" id="itemSelectAll"' + (allChecked ? ' checked' : '') + '>' +
+                '<label class="form-check-label" for="itemSelectAll" style="font-weight:600;">Select All</label>';
+            container.appendChild(toggleDiv);
+
+            toggleDiv.querySelector('#itemSelectAll').addEventListener('change', function () {
+                filtered.forEach(i => {
+                    if (this.checked) checkedItems.add(i);
+                    else checkedItems.delete(i);
+                });
+                renderItemChecklist(getAllItemNames());
+                applyFilters();
+            });
+
+            filtered.forEach(item => {
+                const id = 'item_' + item.replace(/[^a-zA-Z0-9]/g, '_');
+                const div = document.createElement('div');
+                div.className = 'form-check';
+                div.innerHTML =
+                    '<input class="form-check-input" type="checkbox" id="' + id + '" value="' + item + '"' +
+                    (checkedItems.has(item) ? ' checked' : '') + '>' +
+                    '<label class="form-check-label" for="' + id + '">' + escapeHtml(item) + '</label>';
+                container.appendChild(div);
+
+                div.querySelector('input').addEventListener('change', function () {
+                    if (this.checked) checkedItems.add(item);
+                    else checkedItems.delete(item);
+                    applyFilters();
+                });
+            });
+        }
+
+        function getAllItemNames() {
+            return [...new Set(allRecords.map(r => r.inventory_item || '(blank)'))].sort((a, b) => {
+                if (a === '(blank)') return -1;
+                if (b === '(blank)') return 1;
+                return a.localeCompare(b);
+            });
+        }
+
+        // ── Filter Events ───────────────────────────────────────
+        function bindFilterEvents() {
+            // Unit radio buttons
+            document.querySelectorAll('input[name="unitFilter"]').forEach(radio => {
+                radio.addEventListener('change', applyFilters);
+            });
+
+            // Item search
+            document.getElementById('itemSearchInput').addEventListener('input', function () {
+                renderItemChecklist(getAllItemNames());
+            });
+        }
+
+        // ── Apply Filters & Render ──────────────────────────────
+        function applyFilters() {
+            const unitValue = document.querySelector('input[name="unitFilter"]:checked').value;
+
+            let filtered = allRecords;
+
+            // Unit filter
+            if (unitValue === '(blank)') {
+                filtered = filtered.filter(r => !r.unit || r.unit.trim() === '');
+            } else if (unitValue !== '') {
+                filtered = filtered.filter(r => r.unit === unitValue);
+            }
+
+            // Item checkbox filter
+            filtered = filtered.filter(r => {
+                const itemName = r.inventory_item || '(blank)';
+                return checkedItems.has(itemName);
+            });
+
+            renderTable(filtered);
+            updateKPI(filtered);
+        }
+
+        // ── Render Table ────────────────────────────────────────
+        function renderTable(records) {
+            const tbody = document.getElementById('inventoryTableBody');
+
+            if (records.length === 0) {
+                tbody.innerHTML =
+                    '<tr><td colspan="6" class="text-center py-5" style="color:var(--text-muted);">' +
+                    '<i class="fas fa-inbox me-2"></i>No inventory records match the current filters.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = records.map(r => {
+                const status = r.status || '';
+                const badgeClass = getStatusBadgeClass(status);
+                return '<tr>' +
+                    '<td><code>' + escapeHtml(r.qr_code || '-') + '</code></td>' +
+                    '<td>' + escapeHtml(r.inventory_item || '-') + '</td>' +
+                    '<td>' + escapeHtml(r.subsystem || '-') + '</td>' +
+                    '<td>' + escapeHtml(r.unit || '-') + '</td>' +
+                    '<td>' + escapeHtml(r.location || '-') + '</td>' +
+                    '<td><span class="badge ' + badgeClass + '">' + escapeHtml(status || '-') + '</span></td>' +
+                    '</tr>';
+            }).join('');
+        }
+
+        // ── Update KPI ──────────────────────────────────────────
+        function updateKPI(records) {
+            document.getElementById('inventoryCount').textContent = records.length.toLocaleString();
+        }
+
+        // ── Helpers ─────────────────────────────────────────────
+        function getStatusBadgeClass(status) {
+            const s = (status || '').toLowerCase();
+            if (s.includes('active') || s.includes('in use') || s.includes('installed')) return 'bg-success';
+            if (s.includes('available') || s.includes('in stock') || s.includes('accepted')) return 'bg-primary';
+            if (s.includes('reserved') || s.includes('pending')) return 'bg-warning text-dark';
+            if (s.includes('damaged') || s.includes('rejected') || s.includes('missing')) return 'bg-danger';
+            if (s.includes('surplus') || s.includes('inactive')) return 'bg-secondary';
+            return 'bg-info text-dark';
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+    })();
+    </script>
+</body>
+
+</html>

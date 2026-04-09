@@ -12,485 +12,191 @@
     <title>Project Schedule - MSR Dashboard</title>
 
     <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- Supabase JS -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <!-- Custom Styles -->
     <link rel="stylesheet" href="styles.css">
-
-    <style>
-        /* IA Draft 1 App Styling Overrides */
-        h1,
-        h2,
-        h3,
-        h4,
-        h5,
-        h6,
-        .card-title,
-        .lead {
-            color: var(--text-dark) !important;
-        }
-
-        :root {
-            --primary-blue: #2563EB;
-            --navbar-bg: #FFFFFF;
-            --navbar-text: #64748B;
-            /* Dark grey for nav text */
-            --navbar-active: #2563EB;
-            --border-light: #E2E8F0;
-            --text-dark: #334155;
-            /* Dark grey for body text */
-            --lime-green: var(--primary-blue);
-            --success-green: #10B981;
-        }
-
-        body {
-            background-color: #F8FAFC;
-            color: var(--text-dark);
-        }
-
-        .navbar {
-            background-color: var(--navbar-bg) !important;
-            border-bottom: 1px solid var(--border-light);
-            box-shadow: none !important;
-            padding: 0.5rem 0.5rem !important;
-        }
-
-        .navbar-brand {
-            color: var(--text-dark) !important;
-        }
-
-        .navbar-nav {
-            gap: 0.5rem;
-            align-items: flex-end;
-        }
-
-        .navbar-nav .nav-link {
-            color: var(--navbar-text) !important;
-            font-size: 0.70rem !important;
-            font-weight: 500;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 0.25rem 0.75rem !important;
-            transition: all 0.2s ease;
-        }
-
-        .navbar-nav .nav-link i {
-            font-size: 1.35rem;
-            margin-bottom: 4px;
-            margin-right: 0 !important;
-            margin-left: 0 !important;
-        }
-
-        .navbar-nav .nav-link:hover,
-        .navbar-nav .nav-link.active {
-            color: var(--navbar-active) !important;
-        }
-
-        .card {
-            border-radius: 12px;
-            border: none;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-            background: #FFFFFF;
-        }
-
-        .card-header {
-            background: #FFFFFF;
-            border-bottom: 1px solid var(--border-light);
-            border-radius: 12px 12px 0 0 !important;
-            color: var(--text-dark);
-        }
-    </style>
     <style>html:not(.auth-ready) body { visibility: hidden; }</style>
 </head>
 
-
 <body>
-    <!-- Navigation -->
-    <!-- Standardized Navigation Bar -->
-    <nav class="navbar navbar-expand-lg border-b border-[var(--border-light)]"
-        style="padding: 0 !important; min-height: 64px; background: var(--navbar-bg);">
-        <div class="container-fluid"
-            style="padding-top: 0 !important; padding-bottom: 0 !important; padding-left: 1.5rem !important; padding-right: 1.5rem !important; margin-top: 0 !important; margin-bottom: 0 !important;">
-            <a class="navbar-brand m-0" href="index.html"
-                style="display: flex; align-items: center; gap: 12px; text-decoration: none; min-width: 240px; padding: 0.5rem 0;">
-                <img src="favicon-96x96.png" alt="RPS Branding Logo"
-                    style="height: 40px; width: auto; object-fit: contain;">
-                <span
-                    style="font-size: 1.25rem; font-weight: 600; color: var(--text-dark); letter-spacing: -0.02em;">MSR
-                    Dashboard</span>
-            </a>
 
-            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse"
-                data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto" style="gap: 4px;">
-                    <li class="nav-item">
-                        <a class="nav-link" href="index.html">
-                            <div
-                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap; white-space: nowrap;">
-                                <i class="fas fa-tachometer-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
-                                <span
-                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Dashboard</span>
-                            </div>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="gap-analysis.html">
-                            <div
-                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap; white-space: nowrap;">
-                                <i class="fas fa-clipboard-check" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
-                                <span
-                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Gap
-                                    Analysis</span>
-                            </div>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="material-tracking.html">
-                            <div
-                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap; white-space: nowrap;">
-                                <i class="fas fa-cubes" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
-                                <span
-                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Materials</span>
-                            </div>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="delivery-dates.html">
-                            <div
-                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap; white-space: nowrap;">
-                                <i class="fas fa-truck" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
-                                <span
-                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Deliveries</span>
-                            </div>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link active" href="project-schedule.html">
-                            <div
-                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap; white-space: nowrap;">
-                                <i class="fas fa-history" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
-                                <span
-                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Schedule</span>
-                            </div>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="samsara-tracking.html">
-                            <div
-                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap; white-space: nowrap;">
-                                <i class="fas fa-map-marker-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
-                                <span
-                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">GPS</span>
-                            </div>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="site-plan.html">
-                            <div
-                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap; white-space: nowrap;">
-                                <i class="fas fa-drafting-compass" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
-                                <span
-                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Site
-                                    Plan</span>
-                            </div>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="receiving.html">
-                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
-                                <i class="fas fa-clipboard-list" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
-                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Receiving</span>
-                            </div>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="admin.html">
-                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
-                                <i class="fas fa-database" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
-                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Admin</span>
-                            </div>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" title="Link to hosted phone app" onclick="alert('Update the href attribute in the Dashboard HTML files once the mobile app Server URL is hosted.')">
-                            <div
-                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
-                                <i class="fas fa-mobile-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
-                                <span
-                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Mobile App</span>
-                            </div>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" onclick="signOut(); return false;" title="Sign Out">
-                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
-                                <i class="fas fa-sign-out-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
-                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Sign Out</span>
-                            </div>
-                        </a>
-                    </li>
-                </ul>
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div>
+                <div class="kpi-label">Total Activities</div>
+                <div class="kpi-value" id="totalActivities">0</div>
             </div>
+            <div class="kpi-icon blue"><i class="fas fa-history"></i></div>
         </div>
-    </nav>
-
-    <!-- Main Content -->
-    <div class="container-fluid mt-4">
-        <!-- Page Header -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <h1 class="display-5">
-                    <i class="far fa-calendar-alt me-2"></i>Project Schedule
-                </h1>
-                <p class="text-[#64748B]">Track project activities, milestones, and critical path</p>
+        <div class="kpi-card">
+            <div>
+                <div class="kpi-label">Milestones</div>
+                <div class="kpi-value" id="totalMilestones">0</div>
             </div>
+            <div class="kpi-icon teal"><i class="fas fa-flag-checkered"></i></div>
         </div>
+        <div class="kpi-card">
+            <div>
+                <div class="kpi-label">Upcoming (30 days)</div>
+                <div class="kpi-value" id="upcomingActivities">0</div>
+            </div>
+            <div class="kpi-icon amber"><i class="far fa-clock"></i></div>
+        </div>
+        <div class="kpi-card">
+            <div>
+                <div class="kpi-label">Critical Path</div>
+                <div class="kpi-value" id="criticalActivities">0</div>
+            </div>
+            <div class="kpi-icon red"><i class="fas fa-exclamation-triangle"></i></div>
+        </div>
+    </div>
 
-        <!-- Statistics Cards -->
-        <div class="row mb-4">
-            <div class="col-md-3 mb-3">
-                <div
-                    class="kpi-card bg-white rounded-xl shadow-sm border-0 p-4 h-100 transition-all d-flex align-items-center justify-content-between">
-                    <div class="d-flex flex-column h-100">
-                        <span class="text-uppercase fw-semibold"
-                            style="font-size: 0.75rem; letter-spacing: 0.05em; color: var(--navbar-text); margin-bottom: 0.5rem;">Total
-                            Activities</span>
-                        <span id="totalActivities"
-                            style="font-size: 2.25rem; font-weight: 700; color: var(--text-dark); line-height: 1.1;">0</span>
-                    </div>
-                    <div class="header-icon-box"
-                        style="width: 48px; height: 48px; min-width: 48px; border-radius: 12px; background: rgba(37,99,235,0.1); display: flex; align-items: center; justify-content: center;">
-                        <i class="fas fa-history" style="font-size: 1.5rem; color: var(--primary-blue);"></i>
-                    </div>
+    <!-- Filters and Controls -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <!-- Search -->
+                <div class="col-md-3">
+                    <label for="searchInput" class="form-label">Search</label>
+                    <input type="text" class="form-select" id="searchInput" placeholder="Search activities...">
+                </div>
+
+                <!-- Activity Type Filter -->
+                <div class="col-md-2">
+                    <label for="filterActivityType" class="form-label">Activity Type</label>
+                    <select class="form-select" id="filterActivityType">
+                        <option value="">All Types</option>
+                    </select>
+                </div>
+
+                <!-- Category Filter -->
+                <div class="col-md-2">
+                    <label for="filterCategory" class="form-label">Category</label>
+                    <select class="form-select" id="filterCategory">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+
+                <!-- Status Filter -->
+                <div class="col-md-2">
+                    <label for="filterStatus" class="form-label">Status</label>
+                    <select class="form-select" id="filterStatus">
+                        <option value="">All Status</option>
+                        <option value="Not Started">Not Started</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Complete">Complete</option>
+                    </select>
+                </div>
+
+                <!-- View Filter -->
+                <div class="col-md-2">
+                    <label for="filterView" class="form-label">View</label>
+                    <select class="form-select" id="filterView">
+                        <option value="all">All Activities</option>
+                        <option value="milestones">Milestones Only</option>
+                        <option value="work">Work Activities</option>
+                    </select>
+                </div>
+
+                <!-- Export Button -->
+                <div class="col-md-1">
+                    <label class="form-label">&nbsp;</label>
+                    <button class="btn btn-success w-100" id="btnExport" title="Export to CSV">
+                        <i class="fas fa-file-excel"></i>
+                    </button>
                 </div>
             </div>
 
-            <div class="col-md-3 mb-3">
-                <div
-                    class="kpi-card bg-white rounded-xl shadow-sm border-0 p-4 h-100 transition-all d-flex align-items-center justify-content-between">
-                    <div class="d-flex flex-column h-100">
-                        <span class="text-uppercase fw-semibold"
-                            style="font-size: 0.75rem; letter-spacing: 0.05em; color: var(--navbar-text); margin-bottom: 0.5rem;">Milestones</span>
-                        <span id="totalMilestones"
-                            style="font-size: 2.25rem; font-weight: 700; color: var(--text-dark); line-height: 1.1;">0</span>
-                    </div>
-                    <div class="header-icon-box"
-                        style="width: 48px; height: 48px; min-width: 48px; border-radius: 12px; background: rgba(37,99,235,0.1); display: flex; align-items: center; justify-content: center;">
-                        <i class="far fa-flag-checkered" style="font-size: 1.5rem; color: var(--primary-blue);"></i>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-3 mb-3">
-                <div
-                    class="kpi-card bg-white rounded-xl shadow-sm border-0 p-4 h-100 transition-all d-flex align-items-center justify-content-between">
-                    <div class="d-flex flex-column h-100">
-                        <span class="text-uppercase fw-semibold"
-                            style="font-size: 0.75rem; letter-spacing: 0.05em; color: var(--navbar-text); margin-bottom: 0.5rem;">Upcoming
-                            (30 days)</span>
-                        <span id="upcomingActivities"
-                            style="font-size: 2.25rem; font-weight: 700; color: var(--text-dark); line-height: 1.1;">0</span>
-                    </div>
-                    <div class="header-icon-box"
-                        style="width: 48px; height: 48px; min-width: 48px; border-radius: 12px; background: rgba(37,99,235,0.1); display: flex; align-items: center; justify-content: center;">
-                        <i class="far fa-clock" style="font-size: 1.5rem; color: var(--primary-blue);"></i>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-3 mb-3">
-                <div
-                    class="kpi-card bg-white rounded-xl shadow-sm border-0 p-4 h-100 transition-all d-flex align-items-center justify-content-between">
-                    <div class="d-flex flex-column h-100">
-                        <span class="text-uppercase fw-semibold"
-                            style="font-size: 0.75rem; letter-spacing: 0.05em; color: var(--navbar-text); margin-bottom: 0.5rem;">Critical
-                            Path</span>
-                        <span id="criticalActivities"
-                            style="font-size: 2.25rem; font-weight: 700; color: var(--text-dark); line-height: 1.1;">0</span>
-                    </div>
-                    <div class="header-icon-box"
-                        style="width: 48px; height: 48px; min-width: 48px; border-radius: 12px; background: rgba(37,99,235,0.1); display: flex; align-items: center; justify-content: center;">
-                        <i class="fas fa-exclamation-triangle"
-                            style="font-size: 1.5rem; color: var(--primary-blue);"></i>
-                    </div>
+            <!-- Result Count and View Toggle -->
+            <div class="mt-3 d-flex justify-content-between align-items-center">
+                <span class="text-muted">Showing <strong id="resultCount">0</strong> activities</span>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-primary active" id="btnTableView">
+                        <i class="fas fa-table me-1"></i>Table
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" id="btnTimelineView">
+                        <i class="far fa-chart-bar me-1"></i>Timeline
+                    </button>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Filters and Controls -->
-        <div class="card mb-4">
-            <div class="card-body">
-                <div class="row g-3">
-                    <!-- Search -->
-                    <div class="col-md-3">
-                        <label for="searchInput" class="form-label">Search</label>
-                        <input type="text" class="form-select" id="searchInput" placeholder="Search activities...">
+    <!-- Timeline View -->
+    <div class="card mb-4" id="timelineView" style="display: none;">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="far fa-chart-bar me-2"></i> Schedule Timeline
+            </h5>
+        </div>
+        <div class="card-body">
+            <div id="timelineContainer" style="overflow-x: auto; overflow-y: auto; max-height: 600px;">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
                     </div>
-
-                    <!-- Activity Type Filter -->
-                    <div class="col-md-2">
-                        <label for="filterActivityType" class="form-label">Activity Type</label>
-                        <select class="form-select" id="filterActivityType">
-                            <option value="">All Types</option>
-                        </select>
-                    </div>
-
-                    <!-- Category Filter -->
-                    <div class="col-md-2">
-                        <label for="filterCategory" class="form-label">Category</label>
-                        <select class="form-select" id="filterCategory">
-                            <option value="">All Categories</option>
-                        </select>
-                    </div>
-
-                    <!-- Status Filter -->
-                    <div class="col-md-2">
-                        <label for="filterStatus" class="form-label">Status</label>
-                        <select class="form-select" id="filterStatus">
-                            <option value="">All Status</option>
-                            <option value="Not Started">Not Started</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Complete">Complete</option>
-                        </select>
-                    </div>
-
-                    <!-- View Filter -->
-                    <div class="col-md-2">
-                        <label for="filterView" class="form-label">View</label>
-                        <select class="form-select" id="filterView">
-                            <option value="all">All Activities</option>
-                            <option value="milestones">Milestones Only</option>
-                            <option value="work">Work Activities</option>
-                        </select>
-                    </div>
-
-                    <!-- Export Button -->
-                    <div class="col-md-1">
-                        <label class="form-label">&nbsp;</label>
-                        <button class="btn btn-success w-100" id="btnExport" title="Export to CSV">
-                            <i class="fas fa-file-excel"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Result Count and View Toggle -->
-                <div class="mt-3 d-flex justify-content-between align-items-center">
-                    <span class="text-[#64748B]">Showing <strong id="resultCount">0</strong> activities</span>
-                    <div class="btn-group" role="group">
-                        <button type="button" class="btn btn-outline-primary active" id="btnTableView">
-                            <i class="fas fa-table me-1"></i>Table
-                        </button>
-                        <button type="button" class="btn btn-outline-primary" id="btnTimelineView">
-                            <i class="far fa-chart-bar me-1"></i>Timeline
-                        </button>
-                    </div>
+                    <p class="mt-2 mb-0">Loading timeline...</p>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Timeline View -->
-        <div class="card mb-4" id="timelineView" style="display: none;">
-            <div class="card-header">
-                <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
-                    <i class="far fa-chart-bar text-[var(--primary-blue)] me-2"></i> Schedule Timeline
-                </h5>
-            </div>
-            <div class="card-body">
-                <div id="timelineContainer" style="overflow-x: auto; overflow-y: auto; max-height: 600px;">
-                    <div class="text-center py-4">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                        <p class="mt-2 mb-0">Loading timeline...</p>
-                    </div>
-                </div>
-            </div>
+    <!-- Schedule Table -->
+    <div class="card mb-4" id="tableView">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-list me-2"></i> Project Activities
+            </h5>
         </div>
-
-        <!-- Schedule Table -->
-        <div class="card mb-4" id="tableView">
-            <div class="card-header">
-                <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
-                    <i class="fas fa-list text-[var(--primary-blue)] me-2"></i> Project Activities
-                </h5>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Activity ID</th>
-                                <th>Activity Name</th>
-                                <th>Type</th>
-                                <th>Category</th>
-                                <th>Start Date</th>
-                                <th>Finish Date</th>
-                                <th>Duration</th>
-                                <th>Status</th>
-                                <th>Progress</th>
-                            </tr>
-                        </thead>
-                        <tbody id="scheduleTableBody">
-                            <tr>
-                                <td colspan="9" class="text-center py-4">
-                                    <div class="spinner-border text-primary" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                    <p class="mt-2 mb-0">Loading schedule data...</p>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Schedule Analysis Section -->
-        <div class="row g-4 mt-2">
-            <!-- Key Activities -->
-            <div class="col-md-6">
-                <div class="card h-100">
-                    <div class="card-header bg-white text-danger border-danger border">
-                        <h5 class="card-title mb-0"
-                            style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
-                            <i class="far fa-star text-[var(--primary-blue)] me-2"></i> Key Activities (Next 30 Days)
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div id="criticalPathContainer">
-                            <div class="text-center py-3">
-                                <div class="spinner-border text-danger" role="status">
-                                    <span class="visually-hidden">Loading...</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Schedule Health Metrics -->
-            <div class="col-md-6">
-                <div class="card h-100">
-                    <div class="card-header bg-white text-[var(--primary-blue)] border-primary border">
-                        <h5 class="card-title mb-0"
-                            style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
-                            <i class="fas fa-chart-line text-[var(--primary-blue)] me-2"></i> Schedule Health
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div id="scheduleHealthContainer">
-                            <div class="text-center py-3">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Activity ID</th>
+                            <th>Activity Name</th>
+                            <th>Type</th>
+                            <th>Category</th>
+                            <th>Start Date</th>
+                            <th>Finish Date</th>
+                            <th>Duration</th>
+                            <th>Status</th>
+                            <th>Progress</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scheduleTableBody">
+                        <tr>
+                            <td colspan="9" class="text-center py-4">
                                 <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
+                                <p class="mt-2 mb-0">Loading schedule data...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schedule Analysis Section -->
+    <div class="row g-4 mt-2">
+        <!-- Key Activities -->
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="far fa-star me-2"></i> Key Activities (Next 30 Days)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="criticalPathContainer">
+                        <div class="text-center py-3">
+                            <div class="spinner-border text-danger" role="status">
+                                <span class="visually-hidden">Loading...</span>
                             </div>
                         </div>
                     </div>
@@ -498,86 +204,106 @@
             </div>
         </div>
 
-        <!-- Upcoming Milestones Section -->
-        <div class="card mt-4">
-            <div class="card-header">
-                <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
-                    <i class="far fa-flag-checkered text-[var(--primary-blue)] me-2"></i> Upcoming Milestones
-                </h5>
-            </div>
-            <div class="card-body">
-                <div id="upcomingMilestonesContainer">
-                    <div class="text-center py-3">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
+        <!-- Schedule Health Metrics -->
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-line me-2"></i> Schedule Health
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="scheduleHealthContainer">
+                        <div class="text-center py-3">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Activities by Category Chart -->
-        <div class="card mt-4">
-            <div class="card-header">
-                <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
-                    <i class="fas fa-chart-pie text-[var(--primary-blue)] me-2"></i> Activities by Category
-                </h5>
-            </div>
-            <div class="card-body">
-                <canvas id="categoryChart" style="max-height: 300px;"></canvas>
+    <!-- Upcoming Milestones Section -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-flag-checkered me-2"></i> Upcoming Milestones
+            </h5>
+        </div>
+        <div class="card-body">
+            <div id="upcomingMilestonesContainer">
+                <div class="text-center py-3">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
             </div>
         </div>
+    </div>
 
-        <!-- Integration Insights -->
-        <div class="card mt-4">
-            <div class="card-header bg-white text-info border-info border">
-                <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
-                    <i class="fas fa-link text-[var(--primary-blue)] me-2"></i> Integration Insights
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="row g-4">
-                    <!-- Procurement Integration -->
-                    <div class="col-md-4">
-                        <div class="border rounded p-3">
-                            <h6 class="mb-3">
-                                <i class="fas fa-shopping-cart me-2 text-warning"></i>
-                                Procurement Activities
-                            </h6>
-                            <div id="procurementIntegration">
-                                <div class="text-center py-2">
-                                    <div class="spinner-border spinner-border-sm text-primary"></div>
-                                </div>
+    <!-- Activities by Category Chart -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-chart-pie me-2"></i> Activities by Category
+            </h5>
+        </div>
+        <div class="card-body">
+            <canvas id="categoryChart" style="max-height: 300px;"></canvas>
+        </div>
+    </div>
+
+    <!-- Integration Insights -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-link me-2"></i> Integration Insights
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-4">
+                <!-- Procurement Integration -->
+                <div class="col-md-4">
+                    <div class="border rounded p-3">
+                        <h6 class="mb-3">
+                            <i class="fas fa-shopping-cart me-2 text-warning"></i>
+                            Procurement Activities
+                        </h6>
+                        <div id="procurementIntegration">
+                            <div class="text-center py-2">
+                                <div class="spinner-border spinner-border-sm text-primary"></div>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Transportation Integration -->
-                    <div class="col-md-4">
-                        <div class="border rounded p-3">
-                            <h6 class="mb-3">
-                                <i class="fas fa-truck me-2 text-primary"></i>
-                                Transportation Activities
-                            </h6>
-                            <div id="transportationIntegration">
-                                <div class="text-center py-2">
-                                    <div class="spinner-border spinner-border-sm text-primary"></div>
-                                </div>
+                <!-- Transportation Integration -->
+                <div class="col-md-4">
+                    <div class="border rounded p-3">
+                        <h6 class="mb-3">
+                            <i class="fas fa-truck me-2 text-primary"></i>
+                            Transportation Activities
+                        </h6>
+                        <div id="transportationIntegration">
+                            <div class="text-center py-2">
+                                <div class="spinner-border spinner-border-sm text-primary"></div>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Installation Integration -->
-                    <div class="col-md-4">
-                        <div class="border rounded p-3">
-                            <h6 class="mb-3">
-                                <i class="fas fa-tools me-2 text-success"></i>
-                                Installation Activities
-                            </h6>
-                            <div id="installationIntegration">
-                                <div class="text-center py-2">
-                                    <div class="spinner-border spinner-border-sm text-primary"></div>
-                                </div>
+                <!-- Installation Integration -->
+                <div class="col-md-4">
+                    <div class="border rounded p-3">
+                        <h6 class="mb-3">
+                            <i class="fas fa-tools me-2 text-success"></i>
+                            Installation Activities
+                        </h6>
+                        <div id="installationIntegration">
+                            <div class="text-center py-2">
+                                <div class="spinner-border spinner-border-sm text-primary"></div>
                             </div>
                         </div>
                     </div>
@@ -587,9 +313,11 @@
     </div>
 
     <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Supabase Config -->
     <script src="supabase-config.js"></script>
     <!-- Shared Utilities -->
@@ -599,6 +327,7 @@
     <script src="js/utils/supabase-client.js"></script>
     <script src="js/utils/auth-guard.js"></script>
     <script src="js/utils/export.js"></script>
+    <script src="js/utils/sidebar.js"></script>
     <!-- Dashboard Script -->
     <script src="project-schedule.js?v=6"></script>
 </body>

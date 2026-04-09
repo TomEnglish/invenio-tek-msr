@@ -20,63 +20,10 @@
     <!-- Leaflet CSS for maps -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-    <!-- Supabase JS -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <!-- Supabase Config -->
-    <script src="supabase-config.js"></script>
+    <!-- Shared Design System -->
+    <link rel="stylesheet" href="styles.css">
 
     <style>
-        h1, h2, h3, h4, h5, h6, .card-title, .lead { color: var(--text-dark) !important; }
-        :root {
-            --primary-charcoal: #3a3a3a;
-            --lime-green: #2563EB;
-            --lime-green-dark: #7ab82d;
-            --white: #ffffff;
-            --off-white: #F8FAFC;
-            --light-gray: #e8e8e8;
-            --medium-gray: #cccccc;
-            --dark-gray: #666666;
-        }
-
-        body {
-            color: var(--text-dark) !important;
-
-            font-family: Arial, Helvetica, sans-serif;
-            background-color: #F8FAFC;
-            margin: 0;
-            padding: 0;
-        }
-
-        /* Navbar */
-        .navbar {
-            background-color: var(--navbar-bg) !important;
-            padding: 1rem 2rem;
-        }
-
-        .navbar-brand {
-            color: var(--navbar-text) !important;
-            font-size: 1.5rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .navbar-brand img {
-            height: 50px;
-        }
-
-        .nav-link {
-            color: var(--navbar-text) !important;
-            margin: 0 0.5rem;
-            transition: color 0.3s;
-        }
-
-        .nav-link:hover {
-            color: var(--lime-green) !important;
-        }
-
         /* Map Container */
         #map {
             height: 500px;
@@ -87,72 +34,72 @@
 
         /* Stats Cards */
         .stat-card {
-            background: white;
+            background: var(--surface);
             border-radius: 12px;
             padding: 1.5rem;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            border-left: 4px solid var(--lime-green);
+            border-left: 4px solid var(--primary);
             transition: transform 0.2s;
         }
 
         .stat-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
 
         .stat-value {
             font-size: 2rem;
             font-weight: 600;
-            color: var(--primary-charcoal);
+            color: var(--text-primary);
         }
 
         .stat-label {
-            color: var(--dark-gray);
+            color: var(--text-muted);
             font-size: 0.9rem;
             text-transform: uppercase;
         }
 
         /* Tracker Table */
         .tracker-table {
-            background: white;
+            background: var(--surface);
             border-radius: 12px;
             overflow: hidden;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         .tracker-table thead {
-            background-color: var(--primary-charcoal);
+            background-color: var(--text-primary);
             color: white;
         }
 
         .tracker-table tbody tr:hover {
-            background-color: rgba(37, 99, 235, 0.1);
+            background-color: var(--primary-light);
         }
 
         /* Status Badges */
         .badge-on-site {
-            background-color: var(--lime-green);
+            background-color: var(--success);
             color: white;
         }
 
         .badge-in-transit {
-            background-color: #f5a623;
+            background-color: var(--warning);
             color: white;
         }
 
         .badge-no-data {
-            background-color: var(--navbar-text);
+            background-color: var(--text-muted);
             color: white;
         }
 
         .badge-stale {
-            background-color: #d0021b;
+            background-color: var(--danger);
             color: white;
         }
 
         /* Buttons */
         .btn-lime {
-            background-color: var(--lime-green);
+            background-color: var(--primary);
             color: white;
             border: none;
             padding: 0.5rem 1.5rem;
@@ -161,28 +108,28 @@
         }
 
         .btn-lime:hover {
-            background-color: #7ab82d;
+            background-color: var(--accent);
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
 
         .btn-outline-lime {
             background-color: transparent;
-            color: var(--lime-green);
-            border: 2px solid var(--lime-green);
+            color: var(--primary);
+            border: 2px solid var(--primary);
             padding: 0.5rem 1.5rem;
             border-radius: 10px;
             transition: all 0.3s;
         }
 
         .btn-outline-lime:hover {
-            background-color: var(--lime-green);
+            background-color: var(--primary);
             color: white;
         }
 
         /* Filters */
         .filter-section {
-            background: white;
+            background: var(--surface);
             padding: 1.5rem;
             border-radius: 12px;
             margin-bottom: 1.5rem;
@@ -193,23 +140,23 @@
         .loading {
             text-align: center;
             padding: 3rem;
-            color: var(--dark-gray);
+            color: var(--text-muted);
         }
 
         .spinner-border {
-            color: var(--lime-green);
+            color: var(--primary);
         }
 
         /* Alert */
         .alert-lime {
-            background-color: rgba(37, 99, 235, 0.1);
-            border-left: 4px solid var(--lime-green);
-            color: var(--primary-charcoal);
+            background-color: var(--primary-light);
+            border-left: 4px solid var(--primary);
+            color: var(--text-primary);
         }
 
         /* Tracker labels on map */
         .tracker-label {
-            background: rgba(58, 58, 58, 0.85);
+            background: rgba(30, 41, 59, 0.85);
             border: none;
             border-radius: 8px;
             padding: 2px 6px;
@@ -222,326 +169,150 @@
 
         .tracker-label::before {
             display: none;
-            /* Remove arrow */
         }
-    
-        /* IA Draft 1 App Styling Overrides */
-        h1, h2, h3, h4, h5, h6, .card-title, .lead { color: var(--text-dark) !important; }
-        :root {
-            --primary-blue: #2563EB;
-            --navbar-bg: #FFFFFF;
-            --navbar-text: #64748B;
-            --navbar-active: #2563EB;
-            --border-light: #E2E8F0;
-            --text-dark: #334155;
-            /* Replace lime green with blue seamlessly */
-            --lime-green: var(--primary-blue); 
-            --success-green: #10B981; /* actual green for success states */
-        }
-        
-        .navbar {
-            background-color: var(--navbar-bg) !important;
-            border-bottom: 1px solid var(--border-light);
-            box-shadow: none !important;
-            padding: 0.5rem 0.5rem !important; /* tighter vertical padding */
-        }
-
-        .navbar-brand span {
-            color: var(--text-dark) !important;
-        }
-
-        /* Stacked Mobile-App Style Nav Links */
-        .navbar-nav {
-            gap: 0.5rem;
-            align-items: flex-end; /* right align mostly */
-        }
-        
-        .navbar-nav .nav-link {
-            color: var(--navbar-text) !important;
-            font-size: 0.70rem !important;
-            font-weight: 500;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 0.25rem 0.75rem !important;
-            transition: all 0.2s ease;
-        }
-
-        .navbar-nav .nav-link i {
-            font-size: 1.35rem; /* large icon */
-            margin-bottom: 4px;
-            margin-right: 0 !important; /* override me-1 */
-            margin-left: 0 !important;
-        }
-
-        .navbar-nav .nav-link:hover, .navbar-nav .nav-link.active {
-            color: var(--navbar-active) !important;
-        }
-
     </style>
     <style>html:not(.auth-ready) body { visibility: hidden; }</style>
 </head>
 
 <body>
-    <!-- Navbar -->
-    <!-- Standardized Navigation Bar -->
-    <nav class="navbar navbar-expand-lg border-b border-[var(--border-light)]" style="padding: 0 !important; min-height: 64px; background: var(--navbar-bg);">
-        <div class="container-fluid" style="padding-top: 0 !important; padding-bottom: 0 !important; padding-left: 1.5rem !important; padding-right: 1.5rem !important; margin-top: 0 !important; margin-bottom: 0 !important;">
-            <a class="navbar-brand m-0" href="index.html" style="display: flex; align-items: center; gap: 12px; text-decoration: none; min-width: 240px; padding: 0.5rem 0;">
-                <img src="favicon-96x96.png" alt="RPS Branding Logo" style="height: 40px; width: auto; object-fit: contain;">
-                <span style="font-size: 1.25rem; font-weight: 600; color: var(--text-dark); letter-spacing: -0.02em;">MSR Dashboard</span>
-            </a>
-            
-            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto" style="gap: 4px;">
-                    <li class="nav-item">
-                        <a class="nav-link" href="index.html">
-                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap; white-space: nowrap;">
-                                <i class="fas fa-tachometer-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
-                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Dashboard</span>
-                            </div>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="gap-analysis.html">
-                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap; white-space: nowrap;">
-                                <i class="fas fa-clipboard-check" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
-                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Gap Analysis</span>
-                            </div>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="material-tracking.html">
-                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap; white-space: nowrap;">
-                                <i class="fas fa-cubes" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
-                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Materials</span>
-                            </div>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="delivery-dates.html">
-                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap; white-space: nowrap;">
-                                <i class="fas fa-truck" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
-                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Deliveries</span>
-                            </div>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="project-schedule.html">
-                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap; white-space: nowrap;">
-                                <i class="fas fa-history" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
-                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Schedule</span>
-                            </div>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link active" href="samsara-tracking.html">
-                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap; white-space: nowrap;">
-                                <i class="fas fa-map-marker-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
-                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">GPS</span>
-                            </div>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="site-plan.html">
-                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap; white-space: nowrap;">
-                                <i class="fas fa-drafting-compass" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
-                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Site Plan</span>
-                            </div>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="receiving.html">
-                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
-                                <i class="fas fa-clipboard-list" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
-                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Receiving</span>
-                            </div>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="admin.html">
-                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
-                                <i class="fas fa-database" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
-                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Admin</span>
-                            </div>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" title="Link to hosted phone app" onclick="alert('Update the href attribute in the Dashboard HTML files once the mobile app Server URL is hosted.')">
-                            <div
-                                style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
-                                <i class="fas fa-mobile-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
-                                <span
-                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Mobile App</span>
-                            </div>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" onclick="signOut(); return false;" title="Sign Out">
-                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 72px; white-space: nowrap;">
-                                <i class="fas fa-sign-out-alt" style="font-size: 1.1rem; margin-bottom: 4px;"></i>
-                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Sign Out</span>
-                            </div>
-                        </a>
-                    </li>
-                </ul>
+    <!-- Stats Row -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value" id="statTotal">--</div>
+                <div class="stat-label">Total Trackers</div>
             </div>
         </div>
-    </nav>
-<!-- Standardized Page Header -->
-    <div class="page-header bg-white" style="border-bottom: 1px solid var(--border-light); padding: 1.5rem 2rem; margin-bottom: 2rem;">
-        <div class="container-fluid d-flex align-items-center" style="max-width: 1800px; margin: 0 auto; padding: 0;">
-            <div class="header-icon-box me-3" style="width: 48px; height: 48px; min-width: 48px; border-radius: 12px; background: rgba(37,99,235,0.1); display: flex; align-items: center; justify-content: center;">
-                <i class="fas fa-map-marker-alt" style="font-size: 1.5rem; color: var(--primary-blue);"></i>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value" id="statOnSite">--</div>
+                <div class="stat-label">On Site</div>
             </div>
-            <div>
-                <h1 style="font-size: 1.5rem; font-weight: 600; color: var(--text-dark); margin: 0 0 4px 0; line-height: 1.2;">GPS Tracker Locations</h1>
-                <p style="font-size: 0.9rem; color: var(--navbar-text); margin: 0;">Live tracking of shipments and materials currently in transit or on site</p>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value" id="statInTransit">--</div>
+                <div class="stat-label">In Transit</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value" id="statActive">--</div>
+                <div class="stat-label">Active (7d)</div>
             </div>
         </div>
     </div>
 
-    <!-- Main Content -->
-    <div class="container-fluid mt-4">
-        <!-- Stats Row -->
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="stat-card">
-                    <div class="stat-value" id="statTotal">--</div>
-                    <div class="stat-label">Total Trackers</div>
+    <!-- Controls -->
+    <div class="filter-section">
+        <div class="row align-items-center">
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" id="searchBox" placeholder="Search trackers...">
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="stat-card">
-                    <div class="stat-value" id="statOnSite">--</div>
-                    <div class="stat-label">On Site</div>
+                <select class="form-select" id="filterStatus">
+                    <option value="">All Statuses</option>
+                    <option value="On Site">On Site</option>
+                    <option value="In Transit">In Transit</option>
+                    <option value="No Data">No Data</option>
+                    <option value="Stale">Stale (>7 days)</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" id="filterLinked">
+                    <option value="">All Trackers</option>
+                    <option value="linked">Linked to Materials</option>
+                    <option value="unlinked">Not Linked</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" id="hideUnknown" checked>
+                    <label class="form-check-label" for="hideUnknown">
+                        Hide "Unknown" trackers
+                    </label>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="stat-card">
-                    <div class="stat-value" id="statInTransit">--</div>
-                    <div class="stat-label">In Transit</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stat-card">
-                    <div class="stat-value" id="statActive">--</div>
-                    <div class="stat-label">Active (7d)</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Controls -->
-        <div class="filter-section">
-            <div class="row align-items-center">
-                <div class="col-md-4">
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="fas fa-search"></i></span>
-                        <input type="text" class="form-control" id="searchBox" placeholder="Search trackers...">
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <select class="form-select" id="filterStatus">
-                        <option value="">All Statuses</option>
-                        <option value="On Site">On Site</option>
-                        <option value="In Transit">In Transit</option>
-                        <option value="No Data">No Data</option>
-                        <option value="Stale">Stale (>7 days)</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <select class="form-select" id="filterLinked">
-                        <option value="">All Trackers</option>
-                        <option value="linked">Linked to Materials</option>
-                        <option value="unlinked">Not Linked</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <div class="form-check mt-2">
-                        <input class="form-check-input" type="checkbox" id="hideUnknown" checked>
-                        <label class="form-check-label" for="hideUnknown">
-                            Hide "Unknown" trackers
-                        </label>
-                    </div>
-                </div>
-                <div class="col-md-3 text-end">
-                    <button class="btn btn-lime" id="btnRefresh">
-                        <i class="fas fa-sync-alt me-1"></i> Refresh
-                    </button>
-                    <button class="btn btn-outline-lime" id="btnExport">
-                        <i class="fas fa-download me-1"></i> Export
-                    </button>
-                </div>
+            <div class="col-md-3 text-end">
+                <button class="btn btn-lime" id="btnRefresh">
+                    <i class="fas fa-sync-alt me-1"></i> Refresh
+                </button>
+                <button class="btn btn-outline-lime" id="btnExport">
+                    <i class="fas fa-download me-1"></i> Export
+                </button>
             </div>
         </div>
+    </div>
 
-        <!-- Map -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header" >
-                        <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600; color: var(--text-dark);">
-                                    <i class="far fa-map text-[var(--primary-blue)] me-2"></i> Tracker Locations
-                                </h5>
-                    </div>
-                    <div class="card-body p-0">
-                        <div id="map"></div>
-                    </div>
+    <!-- Map -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0" style="font-size: 1.1rem; font-weight: 600;">
+                        <i class="far fa-map text-primary me-2"></i> Tracker Locations
+                    </h5>
                 </div>
-            </div>
-        </div>
-
-        <!-- Tracker List -->
-        <div class="row">
-            <div class="col-12">
-                <div class="tracker-table">
-                    <table class="table table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>Tracker Name</th>
-                                <th>Status</th>
-                                <th>Location</th>
-                                <th>Distance from Site</th>
-                                <th>Last Seen</th>
-                                <th>Linked Material</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="trackerTableBody">
-                            <tr>
-                                <td colspan="7" class="loading">
-                                    <div class="spinner-border" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                    <p class="mt-2">Loading tracker data...</p>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Last Sync Info -->
-        <div class="row mt-3 mb-4">
-            <div class="col-12">
-                <div class="alert alert-lime">
-                    <i class="fas fa-info-circle me-2"></i>
-                    <span id="lastSyncInfo">Loading sync information...</span>
+                <div class="card-body p-0">
+                    <div id="map"></div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Tracker List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="tracker-table">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Tracker Name</th>
+                            <th>Status</th>
+                            <th>Location</th>
+                            <th>Distance from Site</th>
+                            <th>Last Seen</th>
+                            <th>Linked Material</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trackerTableBody">
+                        <tr>
+                            <td colspan="7" class="loading">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <p class="mt-2">Loading tracker data...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Last Sync Info -->
+    <div class="row mt-3 mb-4">
+        <div class="col-12">
+            <div class="alert alert-lime">
+                <i class="fas fa-info-circle me-2"></i>
+                <span id="lastSyncInfo">Loading sync information...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
 
     <!-- Shared Utilities -->
     <script src="js/utils/constants.js"></script>
@@ -549,7 +320,7 @@
     <script src="js/utils/branding.js"></script>
     <script src="js/utils/supabase-client.js"></script>
     <script src="js/utils/auth-guard.js"></script>
-    <script src="js/utils/export.js"></script>
+    <script src="js/utils/sidebar.js"></script>
 
     <!-- Main App Script -->
     <script src="samsara-tracking.js?v=3"></script>

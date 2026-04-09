@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="shortcut icon" href="favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+    <link rel="manifest" href="site.webmanifest" />
+    <title>Shipment Visibility</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Shared Design System -->
+    <link rel="stylesheet" href="styles.css">
+    <style>html:not(.auth-ready) body { visibility: hidden; }</style>
+</head>
+
+<body>
+    <!-- Hero Banner -->
+    <div class="hero-banner fade-up">
+        <h1><i class="fas fa-truck-moving" style="margin-right:10px; font-size:22px;"></i>Shipment Visibility</h1>
+        <p>Real-time logistics tracking — shipment status, transit modes, and delivery progress</p>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid fade-up" style="animation-delay:0.05s;">
+        <div class="kpi-card">
+            <div>
+                <div class="kpi-label">Total Shipments</div>
+                <div class="kpi-value" id="kpiTotal"><span class="loading-spinner"></span></div>
+                <div class="kpi-sub">All cargo items</div>
+            </div>
+            <div class="kpi-icon blue"><i class="fas fa-boxes"></i></div>
+        </div>
+        <div class="kpi-card">
+            <div>
+                <div class="kpi-label">Not Yet Shipped</div>
+                <div class="kpi-value" id="kpiNotShipped"><span class="loading-spinner"></span></div>
+                <div class="kpi-sub">Awaiting release</div>
+            </div>
+            <div class="kpi-icon amber"><i class="fas fa-clock"></i></div>
+        </div>
+        <div class="kpi-card">
+            <div>
+                <div class="kpi-label">In Transit</div>
+                <div class="kpi-value" id="kpiInTransit"><span class="loading-spinner"></span></div>
+                <div class="kpi-sub">Currently moving</div>
+            </div>
+            <div class="kpi-icon teal"><i class="fas fa-truck"></i></div>
+        </div>
+        <div class="kpi-card">
+            <div>
+                <div class="kpi-label">Delivered</div>
+                <div class="kpi-value" id="kpiDelivered"><span class="loading-spinner"></span></div>
+                <div class="kpi-sub">At destination</div>
+            </div>
+            <div class="kpi-icon green"><i class="fas fa-check-circle"></i></div>
+        </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="card mb-4 fade-up" style="animation-delay:0.1s;">
+        <div class="card-body">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold" for="filterSearch">Cargo Description</label>
+                    <input type="text" class="form-control" id="filterSearch" placeholder="Search cargo...">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold" for="filterShipType">Shipment Type</label>
+                    <select class="form-select" id="filterShipType">
+                        <option value="">All</option>
+                        <option value="OUTSIDE SHOP">OUTSIDE SHOP</option>
+                        <option value="DIRECT SHIP">DIRECT SHIP</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold" for="filterMode">Mode</label>
+                    <select class="form-select" id="filterMode">
+                        <option value="">All</option>
+                        <option value="ROAD">ROAD</option>
+                        <option value="BARGE">BARGE</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold" for="filterStatus">Status</label>
+                    <select class="form-select" id="filterStatus">
+                        <option value="">All</option>
+                        <option value="Not RTS">Not RTS</option>
+                        <option value="In Transit">In Transit</option>
+                        <option value="Delivered">Delivered</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cargo Table -->
+    <div class="card fade-up" style="animation-delay:0.15s;">
+        <div class="card-header">
+            <span><i class="fas fa-ship text-primary me-2"></i>Cargo Details</span>
+            <span class="text-muted" id="rowCount" style="font-size:13px;"></span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-container">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Cargo Description</th>
+                            <th>Mode</th>
+                            <th>Ship Type</th>
+                            <th>Origin</th>
+                            <th>Destination</th>
+                            <th>Shipped Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cargoTableBody">
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <span class="loading-spinner"></span>
+                                <p class="mt-2" style="color:var(--text-muted);">Loading shipments...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+
+    <!-- Shared Utilities -->
+    <script src="js/utils/supabase-client.js"></script>
+    <script src="js/utils/auth-guard.js"></script>
+    <script src="js/utils/branding.js"></script>
+    <script src="js/utils/sidebar.js"></script>
+
+    <script>
+        /* ── Shipment Visibility Dashboard ─────────────────────────── */
+        let allShipments = [];
+
+        async function loadShipments() {
+            const { data, error } = await supabaseClient
+                .from('shipments')
+                .select('cargo_description, mode, ship_type, origin, destination, status, rts_date, delivery_date, shipment_number, part_description');
+
+            if (error) {
+                console.error('Error loading shipments:', error);
+                document.getElementById('cargoTableBody').innerHTML =
+                    '<tr><td colspan="7" class="text-center py-5 text-danger">Failed to load shipment data.</td></tr>';
+                return;
+            }
+
+            allShipments = data || [];
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const search = document.getElementById('filterSearch').value.toLowerCase().trim();
+            const shipType = document.getElementById('filterShipType').value;
+            const mode = document.getElementById('filterMode').value;
+            const status = document.getElementById('filterStatus').value;
+
+            const filtered = allShipments.filter(row => {
+                if (search && !(row.cargo_description || '').toLowerCase().includes(search)) return false;
+                if (shipType && row.ship_type !== shipType) return false;
+                if (mode && row.mode !== mode) return false;
+                if (status && row.status !== status) return false;
+                return true;
+            });
+
+            updateKPIs(filtered);
+            renderTable(filtered);
+        }
+
+        function updateKPIs(rows) {
+            const total = rows.length;
+            const notShipped = rows.filter(r => r.status === 'Not RTS' || r.status === 'RTS').length;
+            const inTransit = rows.filter(r => r.status === 'In Transit').length;
+            const delivered = rows.filter(r => r.status === 'Delivered').length;
+
+            document.getElementById('kpiTotal').textContent = total.toLocaleString();
+            document.getElementById('kpiNotShipped').textContent = notShipped.toLocaleString();
+            document.getElementById('kpiInTransit').textContent = inTransit.toLocaleString();
+            document.getElementById('kpiDelivered').textContent = delivered.toLocaleString();
+        }
+
+        function statusBadge(status) {
+            const map = {
+                'Delivered':  'bg-success',
+                'In Transit': 'bg-warning text-dark',
+                'Not RTS':    'bg-secondary',
+                'RTS':        'bg-info text-dark'
+            };
+            const cls = map[status] || 'bg-secondary';
+            return `<span class="badge ${cls}">${status || '—'}</span>`;
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '—';
+            const d = new Date(dateStr);
+            if (isNaN(d)) return dateStr;
+            return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        function renderTable(rows) {
+            const tbody = document.getElementById('cargoTableBody');
+            const countEl = document.getElementById('rowCount');
+
+            countEl.textContent = `${rows.length} record${rows.length !== 1 ? 's' : ''}`;
+
+            if (rows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4" style="color:var(--text-muted);">No shipments match the current filters.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = rows.map(row => `
+                <tr>
+                    <td>${row.cargo_description || '—'}</td>
+                    <td>${row.mode || '—'}</td>
+                    <td>${row.ship_type || '—'}</td>
+                    <td>${row.origin || '—'}</td>
+                    <td>${row.destination || '—'}</td>
+                    <td>${formatDate(row.rts_date)}</td>
+                    <td>${statusBadge(row.status)}</td>
+                </tr>
+            `).join('');
+        }
+
+        /* ── Wire up filters ───────────────────────────────────────── */
+        document.getElementById('filterSearch').addEventListener('input', applyFilters);
+        document.getElementById('filterShipType').addEventListener('change', applyFilters);
+        document.getElementById('filterMode').addEventListener('change', applyFilters);
+        document.getElementById('filterStatus').addEventListener('change', applyFilters);
+
+        /* ── Init ──────────────────────────────────────────────────── */
+        loadShipments();
+    </script>
+</body>
+
+</html>
