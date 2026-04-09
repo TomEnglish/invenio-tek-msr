@@ -212,7 +212,7 @@
             const countEl = document.getElementById('contactsCount');
 
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('shop_contacts')
                     .select('*')
                     .order('shop_name', { ascending: true });

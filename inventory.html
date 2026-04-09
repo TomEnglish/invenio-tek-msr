@@ -288,8 +288,7 @@
         // ── Data Loading ────────────────────────────────────────
         async function loadInventory() {
             try {
-                const sb = typeof getSupabase === 'function' ? getSupabase() : supabase;
-                const { data, error } = await sb
+                const { data, error } = await supabaseClient
                     .from('inventory_records')
                     .select('*')
                     .order('created_at', { ascending: false });

@@ -391,8 +391,8 @@
         // --- Data Fetching ---
         async function loadData() {
             const [contactsRes, inventoryRes] = await Promise.all([
-                supabase.from('shop_contacts').select('*').order('shop_name'),
-                supabase.from('outside_shop_inventory').select('*').order('delivery_date', { ascending: true, nullsFirst: false })
+                supabaseClient.from('shop_contacts').select('*').order('shop_name'),
+                supabaseClient.from('outside_shop_inventory').select('*').order('delivery_date', { ascending: true, nullsFirst: false })
             ]);
 
             if (contactsRes.error) throw contactsRes.error;
