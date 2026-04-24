@@ -6,7 +6,5 @@
     </linearGradient>
   </defs>
   <rect width="64" height="64" rx="14" fill="url(#invenioMark)"/>
-  <!-- "I" letterform: 48×48 (75% of canvas), 12-tall bars, 14-wide stem.
-       Big enough to remain legible at favicon and 32px sidebar sizes. -->
-  <path d="M8 8H56V20H39V44H56V56H8V44H25V20H8Z" fill="#FFFFFF"/>
+  <path d="M21 17h22v7h-7.5v16H43v7H21v-7h7.5V24H21z" fill="#FFFFFF"/>
 </svg>

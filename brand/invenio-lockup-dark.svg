@@ -6,6 +6,6 @@
     </linearGradient>
   </defs>
   <rect width="64" height="64" rx="14" fill="url(#invenioLockupDark)"/>
-  <path d="M8 8H56V20H39V44H56V56H8V44H25V20H8Z" fill="#0B1220"/>
+  <path d="M21 17h22v7h-7.5v16H43v7H21v-7h7.5V24H21z" fill="#0B1220"/>
   <text x="82" y="42" font-family="Inter, system-ui, sans-serif" font-weight="800" font-size="28" fill="#F1F5F9" letter-spacing="-0.5">Invenio</text>
 </svg>

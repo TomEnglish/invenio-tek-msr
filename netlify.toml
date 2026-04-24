@@ -30,18 +30,27 @@
     X-XSS-Protection = "1; mode=block"
     Referrer-Policy = "strict-origin-when-cross-origin"
 
-# Cache static assets
+# Cache static assets — short max-age + must-revalidate so deploys take effect
+# without a hard-refresh. Don't use `immutable` on un-fingerprinted file names
+# like styles.css or *.js: the browser will hold the stale copy for the full
+# max-age and never check for updates.
 [[headers]]
   for = "/*.js"
   [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+    Cache-Control = "public, max-age=300, must-revalidate"
 
 [[headers]]
   for = "/*.css"
   [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+    Cache-Control = "public, max-age=300, must-revalidate"
+
+# Brand SVGs and favicon — content-stable, can cache longer but still revalidate.
+[[headers]]
+  for = "/brand/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400, must-revalidate"
 
 [[headers]]
-  for = "/favicon-96x96.png"
+  for = "/favicon.svg"
   [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+    Cache-Control = "public, max-age=86400, must-revalidate"
