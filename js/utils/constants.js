@@ -44,17 +44,19 @@ const COLORS = {
     OFF_WHITE:   '#f8fafc'
 };
 
-// Category Colors (for timeline/charts)
+// Category Colors — Invenio palette extended with sky-400 / cyan-700 / slate
+// for enough categorical distinguishability. Sourced from Tailwind ramps that
+// match the InvenioStyle token surface.
 const CATEGORY_COLORS = {
-    'Design/Engineering': '#4a90e2',
-    'Procurement': '#f5a623',
-    'Fabrication': '#7ed321',
-    'Transportation': '#9013fe',
-    'Installation': '#50e3c2',
-    'Testing/Commissioning': '#bd10e0',
-    'Startup': '#d0021b',
-    'Milestone': '#2563EB',
-    'Other': '#9b9b9b'
+    'Design/Engineering':    '#0369A1', // primary (sky-700)
+    'Procurement':           '#D97706', // warn (amber)
+    'Fabrication':           '#059669', // success (green)
+    'Transportation':        '#7C3AED', // info (purple)
+    'Installation':          '#0891B2', // accent (cyan-600)
+    'Testing/Commissioning': '#38BDF8', // sky-400 (lighter brand)
+    'Startup':               '#DC2626', // danger (red)
+    'Milestone':             '#475569', // slate-600
+    'Other':                 '#94A3B8'  // text-subtle (slate-400)
 };
 
 // Status Badge Colors

@@ -1021,7 +1021,52 @@ table.table.density-spacious tbody td { padding: 18px 20px; font-size: 15px; }
 /* ── Bootstrap utility overrides ────────────────────────────── */
 .shadow-sm { box-shadow: var(--shadow-sm) !important; }
 .text-primary { color: var(--primary) !important; }
+.text-dark    { color: var(--text) !important; }
+.text-muted   { color: var(--text-muted) !important; }
 .bg-primary   { background-color: var(--primary) !important; }
+
+/* Token-aware overrides for Bootstrap's bg utilities — these otherwise
+   render as hard-coded #fff / #f8f9fa and break dark mode by bleeding
+   white through cards, sub-panels, and chart wrappers. */
+.bg-white { background-color: var(--surface) !important; }
+.bg-light { background-color: var(--raised) !important; }
+.bg-body  { background-color: var(--canvas) !important; }
+
+/* Bootstrap card defaults inherit a white background — token-ize them. */
+.card {
+    background-color: var(--surface);
+    border-color: var(--border);
+    color: var(--text);
+}
+.card-header { background-color: var(--surface); border-color: var(--border); }
+.card-footer { background-color: var(--raised); border-color: var(--border); }
+
+/* Bootstrap modal */
+.modal-content { background-color: var(--surface); color: var(--text); border-color: var(--border); }
+.modal-header, .modal-footer { border-color: var(--border); }
+
+/* Bootstrap dropdown */
+.dropdown-menu { background-color: var(--surface); border-color: var(--border); }
+.dropdown-item { color: var(--text); }
+.dropdown-item:hover, .dropdown-item:focus { background-color: var(--raised); color: var(--text); }
+.dropdown-divider { border-color: var(--border); }
+
+/* Bootstrap list-group */
+.list-group-item { background-color: var(--surface); border-color: var(--border); color: var(--text); }
+.list-group-item-action:hover { background-color: var(--raised); }
+
+/* Bootstrap form-check (checkboxes/radios) */
+.form-check-input {
+    background-color: var(--surface);
+    border-color: var(--border-strong);
+}
+.form-check-input:checked {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+/* Chart canvas — inherit card background, no forced white */
+canvas { background: transparent !important; }
 
 /* ── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 1024px) {
