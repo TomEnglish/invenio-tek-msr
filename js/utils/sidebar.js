@@ -84,21 +84,43 @@
         }
     }
 
+    function getInitialTheme() {
+        try {
+            const saved = localStorage.getItem('invenio-theme');
+            if (saved === 'dark' || saved === 'light') return saved;
+        } catch (e) { /* localStorage blocked */ }
+        return null; // null = follow OS preference
+    }
+
+    function applyTheme(theme) {
+        if (theme === null) {
+            document.documentElement.removeAttribute('data-theme');
+            try { localStorage.removeItem('invenio-theme'); } catch (e) {}
+        } else {
+            document.documentElement.setAttribute('data-theme', theme);
+            try { localStorage.setItem('invenio-theme', theme); } catch (e) {}
+        }
+    }
+
+    function effectiveTheme() {
+        const explicit = document.documentElement.getAttribute('data-theme');
+        if (explicit === 'dark' || explicit === 'light') return explicit;
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+
     function injectShell() {
         const body = document.body;
         const existingContent = body.innerHTML;
 
-        // Get branding info
-        const clientName = window.BRANDING?.projectName || 'MSR Dashboard';
-        const logo = window.BRANDING?.logo || 'favicon-96x96.png';
+        // Get branding info — defaults assume Invenio
+        const logo = window.BRANDING?.logo || 'brand/invenio-lockup.svg';
 
         const shell = `
         <div class="app-shell">
             <!-- Sidebar -->
             <aside class="sidebar" id="app-sidebar">
                 <div class="sidebar-logo">
-                    <img src="${logo}" alt="Logo">
-                    <span class="logo-text">MSR Dashboard</span>
+                    <img src="${logo}" alt="Invenio" class="lockup">
                 </div>
                 <nav class="sidebar-nav">
                     ${buildNavLinks()}
@@ -129,6 +151,10 @@
                         <i class="fas fa-search"></i>
                         <input type="text" class="header-search" placeholder="Search..." id="header-search">
                     </div>
+                    <button class="theme-toggle" id="theme-toggle" title="Toggle color theme" aria-label="Toggle color theme">
+                        <i class="icon-moon fas fa-moon"></i>
+                        <i class="icon-sun fas fa-sun"></i>
+                    </button>
                     <button class="header-icon-btn" title="Notifications">
                         <i class="far fa-bell"></i>
                         <span class="notif-dot"></span>
@@ -153,6 +179,15 @@
                 const icon = toggleBtn.querySelector('i');
                 icon.classList.toggle('fa-bars');
                 icon.classList.toggle('fa-times');
+            });
+        }
+
+        // Theme toggle — cycles between light/dark, persists choice
+        const themeBtn = document.getElementById('theme-toggle');
+        if (themeBtn) {
+            themeBtn.addEventListener('click', () => {
+                const next = effectiveTheme() === 'dark' ? 'light' : 'dark';
+                applyTheme(next);
             });
         }
 

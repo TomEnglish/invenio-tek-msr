@@ -5,66 +5,59 @@
  * - clientName: Their company name
  * - projectName: The project/site name
  * - logo: Path or URL to their logo
- * - colors: Their brand colors (primary + accent)
  *
  * Then refresh the dashboard — all pages pick up the new branding.
+ *
+ * Color tokens live in styles.css (the Invenio design system) — do not
+ * override them here unless a client demands their own palette.
  */
 
 const BRANDING = {
-    // === CHANGE THESE BEFORE A DEMO ===
-    clientName: 'Relevant Power Solutions',
+    clientName: 'Invenio Tech',
     projectName: 'Greenfield LNG Terminal',
     projectSubtitle: 'Material Status Report',
-    logo: 'favicon-96x96.png',  // swap with client logo file
-    colors: {
-        primary: '#0369a1',     // Main brand color (sidebar active, buttons, charts)
-        accent: '#0891b2',      // Accent color (gradients, secondary elements)
-        dark: '#1e293b',        // Dark text
-        navBg: '#FFFFFF',       // Sidebar / header background
-        navText: '#64748b',     // Nav text color
-        brandGold: '#A69872',   // Brand identity accent
-    }
+    logo: 'brand/invenio-lockup.svg',         // light-theme lockup
+    logoDark: 'brand/invenio-lockup-dark.svg', // swapped in by applyBranding when [data-theme="dark"]
 };
 
-// Apply branding to the page
+function currentLogoFor(theme) {
+    return theme === 'dark' ? BRANDING.logoDark : BRANDING.logo;
+}
+
 function applyBranding() {
-    const root = document.documentElement.style;
+    document.title = `MSR Dashboard — ${BRANDING.projectName}`;
 
-    // Update CSS variables to match new design system
-    root.setProperty('--primary', BRANDING.colors.primary);
-    root.setProperty('--accent', BRANDING.colors.accent);
-    root.setProperty('--text-primary', BRANDING.colors.dark);
-    root.setProperty('--surface', BRANDING.colors.navBg);
-    root.setProperty('--text-muted', BRANDING.colors.navText);
-    root.setProperty('--brand-gold', BRANDING.colors.brandGold);
-
-    // Legacy aliases for backward compatibility
-    root.setProperty('--primary-blue', BRANDING.colors.primary);
-    root.setProperty('--lime-green', BRANDING.colors.primary);
-    root.setProperty('--navbar-bg', BRANDING.colors.navBg);
-    root.setProperty('--navbar-text', BRANDING.colors.navText);
-    root.setProperty('--navbar-active', BRANDING.colors.primary);
-
-    // Update page title
-    document.title = `MSR Dashboard - ${BRANDING.projectName}`;
-
-    // Update sidebar logo text if present
     const logoText = document.querySelector('.logo-text');
     if (logoText) logoText.textContent = 'MSR Dashboard';
 
-    // Update sidebar logo image if present
     const logoImg = document.querySelector('.sidebar-logo img');
-    if (logoImg) logoImg.src = BRANDING.logo;
+    if (logoImg) {
+        const theme = document.documentElement.getAttribute('data-theme');
+        logoImg.src = currentLogoFor(theme);
+    }
 
-    // Update hero banner if present
     const heroBanner = document.querySelector('.hero-banner h1');
     if (heroBanner && heroBanner.textContent.includes('Greenfield')) {
         heroBanner.innerHTML = `<i class="fas fa-industry" style="margin-right:10px; font-size:22px;"></i>${BRANDING.projectName}`;
     }
 }
 
-// Auto-apply on load
-document.addEventListener('DOMContentLoaded', applyBranding);
+// Re-swap the logo whenever the theme changes
+function watchThemeForLogoSwap() {
+    const observer = new MutationObserver(() => {
+        const logoImg = document.querySelector('.sidebar-logo img');
+        if (logoImg) {
+            const theme = document.documentElement.getAttribute('data-theme');
+            logoImg.src = currentLogoFor(theme);
+        }
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    applyBranding();
+    watchThemeForLogoSwap();
+});
 
 window.BRANDING = BRANDING;
 window.applyBranding = applyBranding;

@@ -4,10 +4,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/png" href="favicon-96x96.png" sizes="96x96" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-    <link rel="shortcut icon" href="favicon.ico" />
-    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+    <link rel="apple-touch-icon" href="brand/app-icon.svg" />
+    <meta name="theme-color" content="#0369a1" />
+
+    <!-- Theme init: avoid FOUC by setting data-theme before paint -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('invenio-theme');
+          if (saved === 'dark' || saved === 'light') {
+            document.documentElement.setAttribute('data-theme', saved);
+          }
+        } catch (e) { /* localStorage blocked — fall through to OS preference */ }
+      })();
+    </script>
     <link rel="manifest" href="site.webmanifest" />
     <title>MSR Dashboard</title>
 
@@ -34,7 +45,7 @@
                 <span id="realtime-indicator" class="badge bg-warning" style="font-size:11px;">Connecting...</span>
                 <span style="color:rgba(255,255,255,0.7); font-size:12px;"><i class="far fa-clock"></i> Last Updated: <span id="lastUpdated">--</span></span>
             </span>
-            <button class="hero-btn solid" onclick="generateMSRReport()">
+            <button class="btn btn-primary" onclick="generateMSRReport()">
                 <i class="fas fa-file-pdf"></i> Export PDF
             </button>
         </div>

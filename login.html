@@ -4,28 +4,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/png" href="favicon-96x96.png" sizes="96x96" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-    <link rel="shortcut icon" href="favicon.ico" />
+    <link rel="apple-touch-icon" href="brand/app-icon.svg" />
+    <meta name="theme-color" content="#0369a1" />
+
+    <!-- Theme init: avoid FOUC by setting data-theme before paint -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('invenio-theme');
+          if (saved === 'dark' || saved === 'light') {
+            document.documentElement.setAttribute('data-theme', saved);
+          }
+        } catch (e) { /* localStorage blocked — fall through to OS preference */ }
+      })();
+    </script>
     <title>Login - MSR Dashboard</title>
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Shared Design System -->
+    <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+        /* Login-only layout — uses shared tokens from styles.css.
+           styles.css forces overflow:hidden on body for the app shell;
+           the login page doesn't render that shell, so we restore the
+           normal page flow here. */
         body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
             height: 100vh;
+            overflow: hidden;
             display: flex;
-            background: #f8fafc;
         }
 
-        /* Left branding panel */
+        /* Left branding panel — Invenio gradient + mark */
         .login-brand {
             width: 45%;
-            background: #2B3A50;
+            background: var(--hero-gradient);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -34,42 +48,45 @@
             position: relative;
             overflow: hidden;
         }
-        .login-brand::before {
-            content: '';
-            position: absolute;
-            width: 400px; height: 400px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.03);
-            top: -100px; right: -100px;
-        }
+        .login-brand::before,
         .login-brand::after {
             content: '';
             position: absolute;
-            width: 300px; height: 300px;
             border-radius: 50%;
-            background: rgba(255,255,255,0.02);
+            background: rgba(255, 255, 255, 0.06);
+        }
+        .login-brand::before {
+            width: 400px; height: 400px;
+            top: -100px; right: -100px;
+        }
+        .login-brand::after {
+            width: 300px; height: 300px;
+            background: rgba(255, 255, 255, 0.04);
             bottom: -80px; left: -80px;
         }
         .login-brand .logo-container {
             text-align: center;
             z-index: 1;
         }
-        .login-brand svg {
-            width: 120px;
-            height: 120px;
-            margin-bottom: 2rem;
+        .login-brand .mark-svg {
+            width: 96px;
+            height: 96px;
+            margin: 0 auto 2rem;
+            display: block;
+            color: #fff;
         }
+        .login-brand .mark-svg path { fill: currentColor; }
         .login-brand h1 {
-            color: white;
+            color: #fff;
             font-size: 28px;
             font-weight: 800;
             letter-spacing: -0.02em;
             margin-bottom: 0.5rem;
         }
         .login-brand .tagline {
-            color: #A69872;
+            color: rgba(255, 255, 255, 0.85);
             font-size: 13px;
-            font-weight: 500;
+            font-weight: 600;
             letter-spacing: 2px;
             text-transform: uppercase;
         }
@@ -81,77 +98,82 @@
             align-items: center;
             justify-content: center;
             padding: 3rem;
+            background: var(--canvas);
         }
 
         .login-card {
             width: 100%;
             max-width: 440px;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.08);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-lg);
             padding: 3rem;
         }
 
         .login-card h2 {
             font-size: 22px;
             font-weight: 800;
-            color: #1e293b;
+            color: var(--text);
             margin-bottom: 4px;
         }
         .login-card .subtitle {
-            color: #64748b;
+            color: var(--text-muted);
             font-size: 14px;
             margin-bottom: 2rem;
         }
 
-        .form-group {
-            margin-bottom: 1.25rem;
-        }
+        .form-group { margin-bottom: 1.25rem; }
         .form-group label {
             display: block;
             font-size: 13px;
             font-weight: 600;
-            color: #1e293b;
+            color: var(--text);
             margin-bottom: 6px;
         }
         .form-group input {
             width: 100%;
-            padding: 11px 14px;
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 14px;
             font-family: inherit;
-            color: #1e293b;
-            transition: border-color 0.2s, box-shadow 0.2s;
+            font-size: 14px;
+            min-height: 40px;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            background: var(--surface);
+            color: var(--text);
+            transition:
+                border-color var(--motion-fast) var(--ease-standard),
+                box-shadow var(--motion-fast) var(--ease-standard);
             outline: none;
         }
-        .form-group input:focus {
-            border-color: #0369a1;
-            box-shadow: 0 0 0 3px rgba(3,105,161,0.1);
+        .form-group input::placeholder { color: var(--text-subtle); }
+        .form-group input:hover { border-color: var(--border-strong); }
+        .form-group input:focus-visible {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-soft);
         }
 
         .login-btn {
             width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #0369a1, #0891b2);
-            color: white;
+            height: 44px;
+            background: var(--primary);
+            color: #fff;
             border: none;
-            border-radius: 10px;
+            border-radius: var(--radius-md);
             font-size: 15px;
             font-weight: 700;
             font-family: inherit;
             cursor: pointer;
-            transition: all 0.2s;
+            transition:
+                background var(--motion-fast) var(--ease-standard),
+                transform var(--motion-fast) var(--ease-standard);
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
         }
-        .login-btn:hover {
-            opacity: 0.92;
-            transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(3,105,161,0.3);
-        }
+        .login-btn:hover { background: var(--primary-hover); }
+        .login-btn:active { transform: translateY(1px); }
         .login-btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
@@ -159,10 +181,10 @@
         }
 
         .login-error {
-            background: #fef2f2;
-            color: #dc2626;
-            border: 1px solid #fecaca;
-            border-radius: 10px;
+            background: var(--danger-soft);
+            color: var(--danger);
+            border: 1px solid var(--danger);
+            border-radius: var(--radius-md);
             padding: 10px 14px;
             font-size: 13px;
             margin-bottom: 1rem;
@@ -172,22 +194,21 @@
 
         .spinner-sm {
             width: 18px; height: 18px;
-            border: 2.5px solid rgba(255,255,255,0.3);
-            border-top-color: white;
+            border: 2.5px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
             border-radius: 50%;
             animation: spin 0.7s linear infinite;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
 
         /* Responsive: stack on small screens */
         @media (max-width: 768px) {
-            body { flex-direction: column; }
+            body { flex-direction: column; overflow-y: auto; }
             .login-brand {
                 width: 100%;
                 padding: 2rem;
                 min-height: 200px;
             }
-            .login-brand svg { width: 80px; height: 80px; margin-bottom: 1rem; }
+            .login-brand .mark-svg { width: 64px; height: 64px; margin-bottom: 1rem; }
             .login-brand h1 { font-size: 22px; }
             .login-card { padding: 2rem; }
         }
@@ -198,9 +219,9 @@
     <!-- Left: Branding Panel -->
     <div class="login-brand">
         <div class="logo-container">
-            <svg viewBox="0 0 100 100">
-                <polygon points="50,5 93.3,27.5 93.3,72.5 50,95 6.7,72.5 6.7,27.5" fill="#A69872" />
-                <polygon points="50,30 73,44 50,68 27,44" fill="white" />
+            <!-- White "I" letterform on transparent bg — sits crisply on the gradient panel -->
+            <svg class="mark-svg" viewBox="0 0 64 64" role="img" aria-label="Invenio">
+                <path d="M8 8H56V20H39V44H56V56H8V44H25V20H8Z"/>
             </svg>
             <h1>MSR Dashboard</h1>
             <div class="tagline">Powered by Invenio Tech</div>
@@ -232,6 +253,7 @@
         </div>
     </div>
 
+    <script>document.documentElement.classList.add('auth-ready');</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
     <script src="js/utils/supabase-client.js"></script>

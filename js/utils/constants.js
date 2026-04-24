@@ -22,24 +22,26 @@ const TIMEFRAMES = {
     TIMELINE_LOOK_FORWARD: 56
 };
 
-// RPS Brand Colors
+// Chart palette — mirrors the Invenio design system tokens in styles.css.
+// Keep these synced when tokens.ts in /InvenioStyle changes.
 const COLORS = {
-    // Primary brand colors
-    CHARCOAL: '#2d2d2d',
-    ACCENT: '#2563EB',
-    WHITE: '#ffffff',
+    // Brand
+    PRIMARY: '#0369a1',      // sky-700
+    ACCENT:  '#0891b2',      // cyan-600
+    DARK:    '#1e293b',
+    WHITE:   '#ffffff',
 
-    // Status colors
-    SUCCESS: '#2563EB',      // Muted green
-    WARNING: '#d4a039',      // Gold
-    ERROR: '#c0392b',        // Red
-    INFO: '#4a90e2',         // Blue
+    // Status
+    SUCCESS: '#059669',
+    WARNING: '#d97706',
+    ERROR:   '#dc2626',
+    INFO:    '#7c3aed',
 
-    // Additional UI colors
-    LIGHT_GRAY: '#e8e8e8',
-    MEDIUM_GRAY: '#cccccc',
-    DARK_GRAY: '#666666',
-    OFF_WHITE: '#f5f0eb'
+    // Neutrals
+    LIGHT_GRAY:  '#f1f5f9',
+    MEDIUM_GRAY: '#cbd5e1',
+    DARK_GRAY:   '#64748b',
+    OFF_WHITE:   '#f8fafc'
 };
 
 // Category Colors (for timeline/charts)
