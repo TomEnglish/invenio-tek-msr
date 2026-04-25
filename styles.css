@@ -567,22 +567,32 @@ h3, h4, h5, h6 {
 .hero-banner {
     background: var(--hero-gradient);
     border-radius: var(--radius-xl);
-    padding: 32px 36px;
-    color: var(--text-inverse);
+    padding: 36px 40px;
+    color: #fff;
     position: relative;
     overflow: hidden;
     margin-bottom: 24px;
     box-shadow: var(--shadow-md);
 }
 .hero-banner h1 {
-    color: var(--text-inverse);
-    font-size: 24px;
+    color: #fff;                 /* Always white — hero is a saturated gradient in both themes */
+    font-size: 32px;
     font-weight: 800;
-    margin-bottom: 4px;
+    line-height: 1.15;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+.hero-banner h1 i {
+    font-size: 30px;             /* Icon scales with the headline */
+    line-height: 1;
+    color: #fff;
 }
 .hero-banner p {
-    color: rgba(255, 255, 255, 0.85);
-    font-size: 14px;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 15px;
     margin: 0;
 }
 .hero-banner::before,
