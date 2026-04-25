@@ -97,11 +97,11 @@ function showRealtimeToast(table, event) {
 
     const toast = document.createElement('div');
     toast.className = 'realtime-toast';
-    toast.innerHTML = `<i class="fas fa-bolt me-2" style="color: #B0A07A;"></i>${name} ${action}`;
+    toast.innerHTML = `<i class="fas fa-bolt me-2" style="color: var(--warn);"></i>${name} ${action}`;
     toast.style.cssText = `
         position: fixed; bottom: 20px; right: 20px; z-index: 9999;
-        background: #1a1a1a; color: white; padding: 12px 20px;
-        border-radius: 8px; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        background: var(--text); color: var(--text-inverse); padding: 12px 20px;
+        border-radius: var(--radius-md); font-size: 0.9rem; box-shadow: var(--shadow-lg);
         animation: slideIn 0.3s ease, fadeOut 0.5s ease 3s forwards;
     `;
     document.body.appendChild(toast);
@@ -240,16 +240,9 @@ function createPOStatusChart() {
             labels: labels,
             datasets: [{
                 data: data,
-                backgroundColor: [
-                    '#2563EB', // IA Blue
-                    '#334155', // Dark Slate
-                    '#64748B', // Slate
-                    '#94A3B8', // Light Slate
-                    '#CBD5E1', // Extra Light Slate
-                    '#0F172A'  // Charcoal/Black
-                ],
+                backgroundColor: Chart.invenioPalette(),
                 borderWidth: 3,
-                borderColor: '#ffffff'
+                borderColor: Chart.invenioSurface()
             }]
         },
         options: {
@@ -301,13 +294,7 @@ function createShipmentStatusChart() {
             datasets: [{
                 label: 'Shipments',
                 data: data,
-                backgroundColor: [
-                    '#2563EB',  // IA Blue
-                    '#334155',  // Dark Slate
-                    '#64748B',  // Slate
-                    '#94A3B8',  // Light Slate
-                    '#0F172A'   // Charcoal/Black
-                ],
+                backgroundColor: Chart.invenioPalette(),
                 borderWidth: 0,
                 borderRadius: 8
             }]
@@ -360,14 +347,14 @@ function createDisciplineChart() {
                 {
                     label: 'Total Items',
                     data: items,
-                    backgroundColor: '#2563EB',  // IA Blue
+                    backgroundColor: Chart.invenioToken('primary') || '#0369A1',
                     borderRadius: 8,
                     yAxisID: 'y'
                 },
                 {
                     label: 'Field Hours',
                     data: hours,
-                    backgroundColor: '#64748B',  // Slate Grey
+                    backgroundColor: Chart.invenioToken('accent') || '#0891B2',
                     borderRadius: 8,
                     yAxisID: 'y1'
                 }

@@ -12,6 +12,27 @@
         return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
     }
 
+    // Categorical palette derived from Invenio tokens. Use this for any
+    // dataset that needs N distinguishable colors (doughnut slices, bar
+    // categories). Order is tuned for visual separation.
+    Chart.invenioPalette = function () {
+        return [
+            cssVar('--primary')   || '#0369A1', // sky-700
+            cssVar('--accent')    || '#0891B2', // cyan-600
+            cssVar('--success')   || '#059669',
+            cssVar('--warn')      || '#D97706',
+            cssVar('--info')      || '#7C3AED',
+            '#38BDF8',                          // sky-400 (lighter brand)
+            '#475569',                          // slate-600
+            cssVar('--text-muted')|| '#64748B',
+            '#CBD5E1',                          // slate-300
+        ];
+    };
+
+    // Surface color for chart slice borders / backgrounds — themes correctly.
+    Chart.invenioSurface = function () { return cssVar('--surface') || '#ffffff'; };
+    Chart.invenioToken = function (name) { return cssVar('--' + name); };
+
     function applyTheme() {
         const text       = cssVar('--text');
         const textMuted  = cssVar('--text-muted');
