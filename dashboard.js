@@ -347,14 +347,14 @@ function createDisciplineChart() {
                 {
                     label: 'Total Items',
                     data: items,
-                    backgroundColor: Chart.invenioToken('primary') || '#0369A1',
+                    backgroundColor: Chart.invenioToken('accent') || '#0891B2', // teal
                     borderRadius: 8,
                     yAxisID: 'y'
                 },
                 {
                     label: 'Field Hours',
                     data: hours,
-                    backgroundColor: Chart.invenioToken('accent') || '#0891B2',
+                    backgroundColor: '#D63384', // pink for contrast
                     borderRadius: 8,
                     yAxisID: 'y1'
                 }

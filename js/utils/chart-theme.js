@@ -12,20 +12,20 @@
         return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
     }
 
-    // Categorical palette derived from Invenio tokens. Use this for any
-    // dataset that needs N distinguishable colors (doughnut slices, bar
-    // categories). Order is tuned for visual separation.
+    // Categorical palette tuned for visual punch. Leads with the teal/accent
+    // (the "teal everywhere") and pink (Bootstrap <code> color, already
+    // in the app). Then sky-700, amber, sky-400, success, info-purple,
+    // danger. Drops the muted slates that made earlier charts look dull.
     Chart.invenioPalette = function () {
         return [
-            cssVar('--primary')   || '#0369A1', // sky-700
-            cssVar('--accent')    || '#0891B2', // cyan-600
-            cssVar('--success')   || '#059669',
-            cssVar('--warn')      || '#D97706',
-            cssVar('--info')      || '#7C3AED',
-            '#38BDF8',                          // sky-400 (lighter brand)
-            '#475569',                          // slate-600
-            cssVar('--text-muted')|| '#64748B',
-            '#CBD5E1',                          // slate-300
+            cssVar('--accent')  || '#0891B2', // teal — primary chart color
+            '#D63384',                         // pink — Bootstrap code accent
+            cssVar('--primary') || '#0369A1', // sky-700
+            cssVar('--warn')    || '#D97706', // amber
+            '#38BDF8',                         // sky-400 bright
+            cssVar('--success') || '#059669', // green
+            cssVar('--info')    || '#7C3AED', // purple
+            cssVar('--danger')  || '#DC2626', // red
         ];
     };
 
