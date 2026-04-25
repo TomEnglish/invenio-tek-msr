@@ -112,8 +112,16 @@
         const body = document.body;
         const existingContent = body.innerHTML;
 
-        // Get branding info — defaults assume Invenio
-        const logo = window.BRANDING?.logo || 'brand/invenio-lockup.svg';
+        // Pick the theme-correct lockup at inject time. If dark mode is active
+        // (explicit data-theme="dark" OR OS preference w/ no override), use the
+        // dark variant — otherwise the light lockup's dark wordmark would be
+        // invisible on the dark sidebar surface.
+        const explicitTheme = document.documentElement.getAttribute('data-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const isDark = explicitTheme === 'dark' || (!explicitTheme && prefersDark);
+        const lightLogo = window.BRANDING?.logo     || 'brand/invenio-lockup.svg';
+        const darkLogo  = window.BRANDING?.logoDark || 'brand/invenio-lockup-dark.svg';
+        const logo = isDark ? darkLogo : lightLogo;
 
         const shell = `
         <div class="app-shell">
