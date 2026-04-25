@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-    <link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png" />
-    <link rel="apple-touch-icon" href="brand/app-icon.svg" />
+    <link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png?v=20260424c" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png?v=20260424c" />
     <meta name="theme-color" content="#0369a1" />
 
     <!-- Theme init: avoid FOUC by setting data-theme before paint -->
@@ -49,7 +49,7 @@
         }
 
         .section-header {
-            border-bottom: 3px solid var(--lime-green);
+            border-bottom: 3px solid var(--primary);
             padding-bottom: 0.75rem;
             margin-bottom: 1.5rem;
         }
@@ -115,23 +115,13 @@
 </head>
 
 <body>
-    <!-- Page Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow-sm border-0"
-                style="background: var(--navbar-bg); color: var(--text-dark);">
-                <div class="card-body p-4">
-                    <h1 class="display-6 mb-2">
-                        <i class="fas fa-exclamation-triangle text-primary me-3"></i>
-                        MSR Gap Analysis
-                    </h1>
-                    <p class="lead mb-0">
-                        Comprehensive analysis of available data vs. requirements for complete Material Status
-                        Reporting
-                    </p>
-                </div>
-            </div>
-        </div>
+    <!-- Page Hero -->
+    <div class="hero-banner fade-up mb-4">
+        <h1>
+            <i class="fas fa-exclamation-triangle me-2" style="font-size:22px;"></i>
+            MSR Gap Analysis
+        </h1>
+        <p>Comprehensive analysis of available data vs. requirements for complete Material Status Reporting</p>
     </div>
 
     <!-- Summary Cards -->
@@ -449,7 +439,7 @@
     <!-- Recommended Actions -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0" style="border-left: 4px solid var(--lime-green);">
+            <div class="card shadow-sm border-0" style="border-left: 4px solid var(--primary);">
                 <div class="card-body">
                     <h3 class="mb-4">
                         <i class="far fa-lightbulb text-warning me-2"></i>

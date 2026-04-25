@@ -54,3 +54,9 @@
   for = "/favicon.svg"
   [headers.values]
     Cache-Control = "public, max-age=86400, must-revalidate"
+
+# PNG icons — short cache + must-revalidate so icon swaps go through immediately.
+[[headers]]
+  for = "/*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=300, must-revalidate"
