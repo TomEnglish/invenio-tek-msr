@@ -2,6 +2,10 @@
 -- Demo Seed Data for Inventory & Outside Shop Tables
 -- Fully fictional data for demo/sales purposes
 -- ============================================================
+-- All inventory_records and outside_shop_inventory rows are scoped to the
+-- default project (00000000-0000-0000-0000-000000000000) per Field migration
+-- 011, which made project_id NOT NULL on those tables. shop_contacts is
+-- intentionally unscoped (vendor reference data shared across projects).
 
 -- Clear existing demo data (safe to re-run)
 DELETE FROM outside_shop_inventory WHERE id > 0;
@@ -24,7 +28,9 @@ INSERT INTO shop_contacts (shop_name, address, city, state, zip, contact_name, c
 ON CONFLICT (shop_name) DO NOTHING;
 
 -- ── Inventory Records (Master Inventory — Riverbend Yard) ───
-INSERT INTO inventory_records (qr_code, inventory_item, item_description, unit, subsystem, location, status) VALUES
+INSERT INTO inventory_records (qr_code, inventory_item, item_description, unit, subsystem, location, status, project_id)
+SELECT v.qr_code, v.inventory_item, v.item_description, v.unit, v.subsystem, v.location, v.status, '00000000-0000-0000-0000-000000000000'::uuid
+FROM (VALUES
 -- AIFH items
 ('AIFH-7',   'AIFH Expansion Joint',   'Expansion Joint — AIFH System',          'AIFH', 'AIFH', 'Riverbend Yard A', 'In Storage'),
 ('AIFH-8',   'AIFH Expansion Joint',   'Expansion Joint — AIFH System',          'AIFH', 'AIFH', 'Riverbend Yard A', 'In Storage'),
@@ -66,12 +72,13 @@ INSERT INTO inventory_records (qr_code, inventory_item, item_description, unit, 
 -- Gas Turbine 3
 ('GT3-001',  'Gas Turbine Rotor',          'Unit 3 Turbine Rotor Assembly',      'Gas Turbine 3', 'GT3', 'Riverbend Warehouse', 'In Storage'),
 ('GT3-002',  'Inlet Air Filter House',     'Unit 3 AIFH Complete Assembly',      'Gas Turbine 3', 'GT3', 'Riverbend Yard A', 'In Storage'),
-('GT3-003',  'Lube Oil Cooler',            'Unit 3 Lube Oil Cooler',             'Gas Turbine 3', 'GT3', 'Riverbend Warehouse', 'In Storage');
+('GT3-003',  'Lube Oil Cooler',            'Unit 3 Lube Oil Cooler',             'Gas Turbine 3', 'GT3', 'Riverbend Warehouse', 'In Storage')
+) AS v(qr_code, inventory_item, item_description, unit, subsystem, location, status);
 
 -- ── Outside Shop Inventory ──────────────────────────────────
 -- Meridian Turbine items
-INSERT INTO outside_shop_inventory (shop_id, load_name, qr_id, scanner_comments, delivery_date, item_status)
-SELECT sc.id, osi.load_name, osi.qr_id, osi.scanner_comments, osi.delivery_date::date, osi.item_status
+INSERT INTO outside_shop_inventory (shop_id, load_name, qr_id, scanner_comments, delivery_date, item_status, project_id)
+SELECT sc.id, osi.load_name, osi.qr_id, osi.scanner_comments, osi.delivery_date::date, osi.item_status, '00000000-0000-0000-0000-000000000000'::uuid
 FROM (VALUES
     ('Meridian Turbine', 'HOT-PATH-U2',     'CR-0018', 'UNIT #2 TURBINE',                                        '2025-11-17', 'At Shop'),
     ('Meridian Turbine', 'HOT-PATH-U2',     'MTS-02',  'Stage 1 Bucket Shroud Blocks (3''7"x2''5"x1'')',          '2025-11-17', 'At Shop'),
@@ -89,8 +96,8 @@ FROM (VALUES
 JOIN shop_contacts sc ON sc.shop_name = osi.shop;
 
 -- Hartwell Crating items
-INSERT INTO outside_shop_inventory (shop_id, load_name, qr_id, scanner_comments, delivery_date, item_status)
-SELECT sc.id, osi.load_name, osi.qr_id, osi.scanner_comments, osi.delivery_date::date, osi.item_status
+INSERT INTO outside_shop_inventory (shop_id, load_name, qr_id, scanner_comments, delivery_date, item_status, project_id)
+SELECT sc.id, osi.load_name, osi.qr_id, osi.scanner_comments, osi.delivery_date::date, osi.item_status, '00000000-0000-0000-0000-000000000000'::uuid
 FROM (VALUES
     ('Hartwell Crating', 'CT#1', 'CT-2',  '(#2) Main Circulating Cooling Tower Motor 686',  '2025-11-24', 'Shipped'),
     ('Hartwell Crating', 'CT#2', 'CT-1',  '(#1) Main Circulating Cooling Tower Motor 697',  '2025-11-24', 'Shipped'),
@@ -100,8 +107,8 @@ FROM (VALUES
 JOIN shop_contacts sc ON sc.shop_name = osi.shop;
 
 -- Cascade Controls items
-INSERT INTO outside_shop_inventory (shop_id, load_name, qr_id, scanner_comments, delivery_date, item_status)
-SELECT sc.id, osi.load_name, osi.qr_id, osi.scanner_comments, osi.delivery_date::date, osi.item_status
+INSERT INTO outside_shop_inventory (shop_id, load_name, qr_id, scanner_comments, delivery_date, item_status, project_id)
+SELECT sc.id, osi.load_name, osi.qr_id, osi.scanner_comments, osi.delivery_date::date, osi.item_status, '00000000-0000-0000-0000-000000000000'::uuid
 FROM (VALUES
     ('Cascade Controls', 'Valve Package 1', 'CC-001', 'Flow Control Valve 6" — Rebuilt',    '2025-12-01', 'Ready to Ship'),
     ('Cascade Controls', 'Valve Package 1', 'CC-002', 'Gate Valve 8" — Tested',             '2025-12-01', 'Ready to Ship'),
@@ -111,8 +118,8 @@ FROM (VALUES
 JOIN shop_contacts sc ON sc.shop_name = osi.shop;
 
 -- Apex Electric items
-INSERT INTO outside_shop_inventory (shop_id, load_name, qr_id, scanner_comments, delivery_date, item_status)
-SELECT sc.id, osi.load_name, osi.qr_id, osi.scanner_comments, osi.delivery_date::date, osi.item_status
+INSERT INTO outside_shop_inventory (shop_id, load_name, qr_id, scanner_comments, delivery_date, item_status, project_id)
+SELECT sc.id, osi.load_name, osi.qr_id, osi.scanner_comments, osi.delivery_date::date, osi.item_status, '00000000-0000-0000-0000-000000000000'::uuid
 FROM (VALUES
     ('Apex Electric', 'Generator Rotor U2', 'GT2-R01', 'Unit 2 Generator Rotor — Rewind',  '2026-01-20', 'At Shop'),
     ('Apex Electric', 'Generator Rotor U2', 'GT2-R02', 'Unit 2 Exciter — Rebuild',         '2026-01-20', 'At Shop'),
