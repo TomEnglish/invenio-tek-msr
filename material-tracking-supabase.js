@@ -56,8 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function checkSupabaseConnection() {
     try {
         // Try to query the material_links table (should work even if empty)
-        const { data, error } = await supabaseClient
-            .from('material_links')
+        const { data, error } = await projectSupabaseClient.from('material_links')
             .select('count', { count: 'exact', head: true });
 
         if (error) {
@@ -117,12 +116,10 @@ async function loadPOItems() {
     try {
         // Load PO items and delivery dates from Supabase
         const [poResponse, deliveryResponse] = await Promise.all([
-            supabaseClient
-                .from('purchase_orders')
+            projectSupabaseClient.from('purchase_orders')
                 .select('*')
                 .order('purchase_order_id', { ascending: true }),
-            supabaseClient
-                .from('delivery_dates')
+            projectSupabaseClient.from('delivery_dates')
                 .select('*')
         ]);
 
@@ -211,8 +208,7 @@ async function loadInstallItems() {
 async function loadMaterialLinks() {
     try {
         // Query Supabase for material links
-        const { data, error } = await supabaseClient
-            .from('material_links')
+        const { data, error } = await projectSupabaseClient.from('material_links')
             .select('*')
             .order('created_at', { ascending: false });
 
@@ -237,11 +233,7 @@ function setupRealtimeSubscriptions() {
     // Subscribe to material_links changes
     supabaseClient
         .channel('material_links_changes')
-        .on('postgres_changes', {
-            event: '*',
-            schema: 'public',
-            table: 'material_links'
-        }, (payload) => {
+        .on('postgres_changes', InvenioProjectScope.projectChangeOptions('material_links'), (payload) => {
             console.log('Real-time update received:', payload);
             handleRealtimeUpdate(payload);
         })
@@ -526,8 +518,7 @@ async function createMaterialLink() {
     };
 
     try {
-        const { data, error } = await supabaseClient
-            .from('material_links')
+        const { data, error } = await projectSupabaseClient.from('material_links')
             .insert([linkData])
             .select();
 
@@ -584,8 +575,7 @@ async function updateLinkStatus(linkId, currentStatus) {
             }
         }
 
-        const { data, error } = await supabaseClient
-            .from('material_links')
+        const { data, error } = await projectSupabaseClient.from('material_links')
             .update(updateData)
             .eq('id', linkId)
             .select();
@@ -607,8 +597,7 @@ async function deleteLink(linkId) {
     }
 
     try {
-        const { error } = await supabaseClient
-            .from('material_links')
+        const { error } = await projectSupabaseClient.from('material_links')
             .delete()
             .eq('id', linkId);
 

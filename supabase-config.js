@@ -12,6 +12,9 @@ const SUPABASE_CONFIG = {
     // Example: https://abcdefghijklmnop.supabase.co
     url: 'https://lzroduricxyshgyjdkki.supabase.co',
 
+    // Default project used when a user has not selected a project yet.
+    defaultProjectId: '00000000-0000-0000-0000-000000000000',
+
     // Your Supabase Anon/Public Key
     // This is safe to use in the browser - it's designed to be public
     // Example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...

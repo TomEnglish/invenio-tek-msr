@@ -24,8 +24,7 @@ async function loadDeliveryDates() {
     try {
         console.log('Loading delivery dates from Supabase...');
 
-        const { data, error } = await supabaseClient
-            .from('delivery_dates')
+        const { data, error } = await projectSupabaseClient.from('delivery_dates')
             .select('*')
             .order('delivery_date', { ascending: true });
 

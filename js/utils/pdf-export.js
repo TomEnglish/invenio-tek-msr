@@ -19,10 +19,10 @@ async function generateMSRReport() {
             { data: shipments },
             { data: schedule }
         ] = await Promise.all([
-            supabaseClient.from('dashboard_metrics').select('*').order('last_updated', { ascending: false }).limit(1).single(),
-            supabaseClient.from('purchase_orders').select('*'),
-            supabaseClient.from('shipments').select('*'),
-            supabaseClient.from('project_schedule').select('*').eq('is_milestone', true).order('finish_date', { ascending: true }).limit(10)
+            projectSupabaseClient.from('dashboard_metrics').select('*').order('last_updated', { ascending: false }).limit(1).single(),
+            projectSupabaseClient.from('purchase_orders').select('*'),
+            projectSupabaseClient.from('shipments').select('*'),
+            projectSupabaseClient.from('project_schedule').select('*').eq('is_milestone', true).order('finish_date', { ascending: true }).limit(10)
         ]);
 
         const parseField = (val, fallback) => {

@@ -10,6 +10,10 @@
         return;
     }
 
+    if (window.InvenioProjectScope) {
+        await window.InvenioProjectScope.initializeProjectScope(supabaseClient, session.user.id);
+    }
+
     // Show the page body (hidden by default via auth-guard)
     document.documentElement.classList.add('auth-ready');
 

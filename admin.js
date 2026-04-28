@@ -379,7 +379,7 @@ async function loadData() {
 
     try {
         // Build query
-        let query = supabaseClient.from(tableName).select('*', { count: 'exact' });
+        let query = projectSupabaseClient.from(tableName).select('*', { count: 'exact' });
 
         // Sort
         const sortCol = state.sortColumn || config.orderBy;
@@ -622,13 +622,13 @@ async function saveRecord() {
 
     try {
         if (state.isNewRecord) {
-            const { error } = await supabaseClient
+            const { error } = await projectSupabaseClient
                 .from(state.currentTable)
                 .insert(changes);
             if (error) throw error;
         } else {
             const id = state.editRecord[config.idField];
-            const { error } = await supabaseClient
+            const { error } = await projectSupabaseClient
                 .from(state.currentTable)
                 .update(changes)
                 .eq(config.idField, id);
@@ -657,7 +657,7 @@ async function deleteRecord() {
     btn.disabled = true;
 
     try {
-        const { error } = await supabaseClient
+        const { error } = await projectSupabaseClient
             .from(state.currentTable)
             .delete()
             .eq(config.idField, id);

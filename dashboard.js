@@ -43,11 +43,7 @@ function setupRealtimeSubscriptions() {
     ];
 
     watchTables.forEach(table => {
-        channel.on('postgres_changes', {
-            event: '*',
-            schema: 'public',
-            table: table
-        }, (payload) => {
+        channel.on('postgres_changes', InvenioProjectScope.projectChangeOptions(table), (payload) => {
             console.log(`Real-time update on ${table}:`, payload.eventType);
             showRealtimeToast(table, payload.eventType);
             debouncedRefresh();
@@ -122,8 +118,7 @@ async function loadAllData() {
         console.log('Loading data from Supabase...');
 
         // Load metrics from dashboard_metrics table
-        const { data: metricsData, error: metricsError } = await supabaseClient
-            .from('dashboard_metrics')
+        const { data: metricsData, error: metricsError } = await projectSupabaseClient.from('dashboard_metrics')
             .select('*')
             .order('last_updated', { ascending: false })
             .limit(1)
@@ -132,16 +127,14 @@ async function loadAllData() {
         if (metricsError) throw metricsError;
 
         // Load shipments
-        const { data: shipments, error: shipmentsError } = await supabaseClient
-            .from('shipments')
+        const { data: shipments, error: shipmentsError } = await projectSupabaseClient.from('shipments')
             .select('*')
             .order('delivery_date', { ascending: false, nullsFirst: false });
 
         if (shipmentsError) throw shipmentsError;
 
         // Load PO data
-        const { data: poData, error: poError } = await supabaseClient
-            .from('purchase_orders')
+        const { data: poData, error: poError } = await projectSupabaseClient.from('purchase_orders')
             .select('*')
             .order('created_on', { ascending: false, nullsFirst: false });
 
@@ -705,8 +698,7 @@ async function loadUpcomingMilestones() {
         today.setHours(0, 0, 0, 0);
 
         // Get milestones that haven't finished yet
-        const { data: milestones, error } = await supabaseClient
-            .from('project_schedule')
+        const { data: milestones, error } = await projectSupabaseClient.from('project_schedule')
             .select('*')
             .eq('is_milestone', true)
             .gte('finish_date', today.toISOString().split('T')[0])

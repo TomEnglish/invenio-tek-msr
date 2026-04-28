@@ -22,8 +22,7 @@ async function loadScheduleData() {
     try {
         console.log('Loading project schedule from Supabase...');
 
-        const { data, error } = await supabaseClient
-            .from('project_schedule')
+        const { data, error } = await projectSupabaseClient.from('project_schedule')
             .select('*')
             .order('start_date', { ascending: true, nullsFirst: false });
 
@@ -931,8 +930,8 @@ async function loadIntegrationInsights() {
 
         // Load POs, Shipments, and Installation data from Supabase
         const [posResult, shipmentsResult] = await Promise.all([
-            supabaseClient.from('purchase_orders').select('*'),
-            supabaseClient.from('shipments').select('*')
+            projectSupabaseClient.from('purchase_orders').select('*'),
+            projectSupabaseClient.from('shipments').select('*')
         ]);
 
         const poData = posResult.data || [];

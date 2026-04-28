@@ -81,7 +81,7 @@ async function loadTrackers() {
         console.log('Loading tracker data from Supabase...');
 
         // Query the view for active trackers
-        const { data, error } = await supabaseClient
+        const { data, error } = await projectSupabaseClient
             .from('vw_active_samsara_trackers')
             .select('*')
             .order('last_seen_at', { ascending: false, nullsFirst: false });
@@ -360,11 +360,7 @@ function setupRealtimeSubscriptions() {
     // Subscribe to tracker updates
     supabaseClient
         .channel('samsara_trackers_changes')
-        .on('postgres_changes', {
-            event: '*',
-            schema: 'public',
-            table: 'samsara_trackers'
-        }, (payload) => {
+        .on('postgres_changes', InvenioProjectScope.projectChangeOptions('samsara_trackers'), (payload) => {
             console.log('Real-time update received:', payload);
             loadTrackers();  // Reload all data on any change
         })

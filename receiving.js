@@ -431,8 +431,7 @@ async function loadLocations() {
     list.innerHTML = '';
 
     try {
-        const { data, error } = await supabaseClient
-            .from('locations')
+        const { data, error } = await projectSupabaseClient.from('locations')
             .select('*')
             .order('zone')
             .order('row')
@@ -486,8 +485,7 @@ function selectLocation(id) {
 // ── Supabase: QR Code Lookup/Create ──
 
 async function lookupOrCreateQRCode(codeValue) {
-    const { data: existing } = await supabaseClient
-        .from('qr_codes')
+    const { data: existing } = await projectSupabaseClient.from('qr_codes')
         .select('*')
         .eq('code_value', codeValue)
         .single();
@@ -496,8 +494,7 @@ async function lookupOrCreateQRCode(codeValue) {
         return { id: existing.id, isNew: false };
     }
 
-    const { data: created, error } = await supabaseClient
-        .from('qr_codes')
+    const { data: created, error } = await projectSupabaseClient.from('qr_codes')
         .insert({ code_value: codeValue, entity_type: 'item' })
         .select()
         .single();
@@ -549,8 +546,7 @@ async function handleSubmit() {
         wizardState.qrCodeId = qr.id;
 
         // Insert receiving record
-        const { data: record, error: recordError } = await supabaseClient
-            .from('receiving_records')
+        const { data: record, error: recordError } = await projectSupabaseClient.from('receiving_records')
             .insert({
                 qr_code_id: wizardState.qrCodeId,
                 status: wizardState.decision.status,
@@ -583,8 +579,7 @@ async function handleSubmit() {
         for (const photo of wizardState.photos) {
             try {
                 const storagePath = await uploadPhoto(photo, record.id);
-                await supabaseClient
-                    .from('inspection_photos')
+                await projectSupabaseClient.from('inspection_photos')
                     .insert({
                         receiving_record_id: record.id,
                         storage_path: storagePath,
@@ -596,14 +591,13 @@ async function handleSubmit() {
         }
 
         // Link QR code to receiving record
-        await supabaseClient
-            .from('qr_codes')
+        await projectSupabaseClient.from('qr_codes')
             .update({ entity_id: record.id })
             .eq('id', wizardState.qrCodeId);
 
         // Auto-create material if accepted
         if (wizardState.decision.status === 'accepted' || wizardState.decision.status === 'partially_accepted') {
-            await supabaseClient.from('materials').insert({
+            await projectSupabaseClient.from('materials').insert({
                 receiving_record_id: record.id,
                 qr_code_id: wizardState.qrCodeId,
                 material_type: wizardState.material.material_type,
@@ -625,6 +619,7 @@ async function handleSubmit() {
             entity_type: 'receiving_record',
             entity_id: record.id,
             details: {
+                project_id: InvenioProjectScope.getActiveProjectId(),
                 material_type: wizardState.material.material_type,
                 qty: wizardState.material.qty,
                 status: wizardState.decision.status,
