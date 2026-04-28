@@ -1,4 +1,4 @@
-# MSR Dashboard - Quick Start Guide
+# Invenio Field MSR - Quick Start Guide
 
 ## 🚀 Getting Started
 
@@ -8,7 +8,7 @@
 
 1. **Set up Supabase** (for Material Tracking):
    - Follow **[setup-supabase.md](setup-supabase.md)** - only takes 8 minutes!
-   - Your project is already created: https://supabase.com/dashboard/project/lmdomalnuzbvxxutpyky
+   - Your project is already created: https://supabase.com/dashboard/project/lzroduricxyshgyjdkki
 
 2. **Extract Excel Data**:
    ```bash
@@ -177,7 +177,7 @@ pip install pandas openpyxl
 ## 📁 File Structure
 
 ```
-ProjectProgressandPO/
+Invenio Field MSR/
 ├── start_dashboard.bat          ← Double-click this to start!
 ├── index.html                   ← Dashboard HTML
 ├── dashboard.js                 ← Dashboard logic
@@ -215,4 +215,4 @@ ProjectProgressandPO/
 **Project:** Frame 6B Power Group
 **Contractor:** Relevant Power Solutions
 
-Enjoy your new MSR Dashboard! 🎉
+Enjoy your new Invenio Field MSR! 🎉

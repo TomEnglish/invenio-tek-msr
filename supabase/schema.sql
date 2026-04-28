@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Material Tracking System - Supabase Database Schema
 -- ============================================================================
--- Project: Frame 6B Power Group MSR Dashboard
+-- Project: Frame 6B Power Group Invenio Field MSR
 -- Purpose: Track material links between PO items and installation items
 -- Database: PostgreSQL (Supabase)
 -- ============================================================================

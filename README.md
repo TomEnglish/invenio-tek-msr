@@ -1,14 +1,14 @@
-# MSR Dashboard - Material Status Report
+# Invenio Field MSR - Material Status Report
 
 A modern, cloud-powered dashboard for tracking Material Status Reports (MSR) for the Frame 6B Power Group project.
 
-**Live Site:** https://msrf6b.netlify.app
+**Live Site:** https://invenio-field-msr.netlify.app
 
 ---
 
 ## Quick Start
 
-**The dashboard is live!** Just visit: https://msrf6b.netlify.app
+**The dashboard is live!** Just visit: https://invenio-field-msr.netlify.app
 
 All data auto-updates from Supabase cloud database. No local setup required.
 
@@ -106,7 +106,7 @@ All data auto-updates from Supabase cloud database. No local setup required.
 ## Project Structure
 
 ```
-ProjectProgressandPO/
+Invenio Field MSR/
 ├── 📄 index.html                       # Main dashboard
 ├── 📄 dashboard.js                     # Dashboard logic (Supabase)
 ├── 📄 gap-analysis.html                # MSR gap analysis page
@@ -212,7 +212,7 @@ Samsara tracker data auto-syncs **every hour** via GitHub Actions. No manual act
 When your Excel file is updated:
 
 ```bash
-cd C:\Users\thomasenglish\Desktop\ProjectProgressandPO
+cd <repo-folder>
 python sync_po_shipment_data.py
 ```
 
@@ -282,7 +282,7 @@ Or double-click: `sync_samsara.bat`
 
 ### Netlify (Production)
 
-**Site URL:** https://msrf6b.netlify.app
+**Site URL:** https://invenio-field-msr.netlify.app
 
 **Auto-Deploy:**
 1. Push to GitHub main branch
@@ -423,9 +423,9 @@ See [GITHUB_ACTIONS_SETUP.md](GITHUB_ACTIONS_SETUP.md) for setup.
 **Dashboard Version:** 3.0 (Cloud-Hosted)
 **Last Updated:** January 17, 2026
 
-**Live Site:** https://msrf6b.netlify.app
-**Supabase Project:** https://supabase.com/dashboard/project/lmdomalnuzbvxxutpyky
-**GitHub Repo:** https://github.com/TomEnglish/MSR_F6B
+**Live Site:** https://invenio-field-msr.netlify.app
+**Supabase Project:** https://supabase.com/dashboard/project/lzroduricxyshgyjdkki
+**GitHub Repo:** https://github.com/TomEnglish/invenio-tek-msr
 
 ---
 
@@ -441,4 +441,4 @@ See [GITHUB_ACTIONS_SETUP.md](GITHUB_ACTIONS_SETUP.md) for setup.
 
 ---
 
-**Ready to go!** Visit https://msrf6b.netlify.app to see your live dashboard 🚀
+**Ready to go!** Visit https://invenio-field-msr.netlify.app to see your live dashboard 🚀

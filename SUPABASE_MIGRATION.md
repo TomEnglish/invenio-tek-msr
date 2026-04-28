@@ -539,7 +539,7 @@ With Supabase, you can now:
 
 **Migration Version:** 1.0
 **Created:** January 15, 2026
-**Project:** Frame 6B Power Group MSR Dashboard
+**Project:** Frame 6B Power Group Invenio Field MSR
 **Contractor:** Relevant Power Solutions
 
 ---

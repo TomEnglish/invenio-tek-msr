@@ -1,7 +1,7 @@
-# MSR Dashboard - Netlify Deployment Guide
+# Invenio Field MSR - Netlify Deployment Guide
 
 ## Overview
-This guide walks you through deploying the MSR Dashboard to Netlify as a static web application.
+This guide walks you through deploying the Invenio Field MSR to Netlify as a static web application.
 
 ## Prerequisites
 - Netlify account (free tier works fine)
@@ -64,7 +64,7 @@ If you prefer not to commit the config file, you can inject it at build time usi
 2. Click **"Add new site"** → **"Import an existing project"**
 3. Choose **"Deploy with GitHub"**
 4. Authorize Netlify to access your GitHub
-5. Select your repository: **`TomEnglish/MSR_F6B`**
+5. Select your repository: **`TomEnglish/invenio-tek-msr`**
 6. Configure build settings:
    - **Branch to deploy:** `main`
    - **Build command:** (leave empty)
@@ -113,7 +113,7 @@ If you prefer not to commit `supabase-config.js`, you can use Netlify environmen
 1. Go to **Site settings** → **Environment variables**
 2. Add variables:
    ```
-   SUPABASE_URL=https://lmdomalnuzbvxxutpyky.supabase.co
+   SUPABASE_URL=https://lzroduricxyshgyjdkki.supabase.co
    SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
    ```
 
@@ -168,7 +168,7 @@ Set up Windows Task Scheduler to run `sync_samsara_data.py` every hour on your l
   <Actions>
     <Exec>
       <Command>python</Command>
-      <Arguments>C:\Users\thomasenglish\Desktop\ProjectProgressandPO\sync_samsara_data.py</Arguments>
+      <Arguments><repo-folder>\sync_samsara_data.py</Arguments>
     </Exec>
   </Actions>
 </Task>
@@ -351,4 +351,4 @@ USING (false);
 
 **Deployment Complete!** 🎉
 
-Your MSR Dashboard should now be live and accessible to your team.
+Your Invenio Field MSR should now be live and accessible to your team.

@@ -234,7 +234,7 @@ python sync_ready_by_dates.py
 ```
 
 **To verify data in Supabase:**
-Go to: https://supabase.com/dashboard/project/lmdomalnuzbvxxutpyky
+Go to: https://supabase.com/dashboard/project/lzroduricxyshgyjdkki
 - Click "Table Editor"
 - Select "ready_by_dates" table
 - View all 108 records

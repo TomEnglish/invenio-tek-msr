@@ -7,7 +7,7 @@ This guide will migrate your main dashboard from static JSON files to live Supab
 ## Step 1: Create Database Tables in Supabase
 
 1. **Open Supabase SQL Editor**
-   - Go to: https://supabase.com/dashboard/project/lmdomalnuzbvxxutpyky/sql/new
+   - Go to: https://supabase.com/dashboard/project/lzroduricxyshgyjdkki/sql/new
    - Or navigate to your project → SQL Editor (left sidebar)
 
 2. **Run the Schema SQL**
@@ -30,7 +30,7 @@ This guide will migrate your main dashboard from static JSON files to live Supab
 Run the Python sync script to upload your PO & Shipment data:
 
 ```bash
-cd C:\Users\thomasenglish\Desktop\ProjectProgressandPO
+cd C:\Users\thomasenglish\Desktop\Invenio Field MSR
 python sync_po_shipment_data.py
 ```
 
@@ -91,7 +91,7 @@ python sync_po_shipment_data.py
 Create a desktop shortcut to `sync_po_shipment_data.bat`:
 ```batch
 @echo off
-cd C:\Users\thomasenglish\Desktop\ProjectProgressandPO
+cd C:\Users\thomasenglish\Desktop\Invenio Field MSR
 python sync_po_shipment_data.py
 pause
 ```

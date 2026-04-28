@@ -8,12 +8,16 @@ import pandas as pd
 import requests
 from dotenv import load_dotenv
 from datetime import datetime
+from pathlib import Path
 
 # Load environment variables
 load_dotenv()
 
 # Configuration
-EXCEL_FILE = r"c:\Users\thomasenglish\Desktop\ProjectProgressandPO\PO & Shipment Log.xlsx"
+EXCEL_FILE = os.getenv(
+    'PO_SHIPMENT_EXCEL_FILE',
+    str(Path(__file__).with_name('PO & Shipment Log.xlsx'))
+)
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
 

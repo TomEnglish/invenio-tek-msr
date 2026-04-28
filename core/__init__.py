@@ -1,4 +1,4 @@
-# Core utilities package for MSR Dashboard
+# Core utilities package for Invenio Field MSR
 # Provides shared configuration, Supabase utilities, and data transformation helpers
 
 from .config import *

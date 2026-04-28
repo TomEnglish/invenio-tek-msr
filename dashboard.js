@@ -1,4 +1,4 @@
-// MSR Dashboard JavaScript
+// Invenio Field MSR JavaScript
 // Uses shared utilities from js/utils/
 
 let dashboardData = {
@@ -17,7 +17,7 @@ let charts = {
 
 // Initialize dashboard on page load
 document.addEventListener('DOMContentLoaded', function () {
-    console.log('Initializing MSR Dashboard...');
+    console.log('Initializing Invenio Field MSR...');
 
     // Supabase client is now initialized by js/utils/supabase-client.js
     if (!isSupabaseConfigured()) {

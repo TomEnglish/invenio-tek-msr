@@ -2,8 +2,8 @@
 REM Samsara Data Sync Script
 REM This batch file runs the Python sync script and logs the output
 
-REM Change to the project directory
-cd /d "C:\Users\thomasenglish\Desktop\ProjectProgressandPO"
+REM Change to the directory containing this batch file
+cd /d "%~dp0"
 
 REM Create logs directory if it doesn't exist
 if not exist "logs" mkdir logs

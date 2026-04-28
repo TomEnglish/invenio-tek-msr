@@ -1,5 +1,5 @@
 -- ============================================================================
--- Delivery Dates Schema for MSR Dashboard
+-- Delivery Dates Schema for Invenio Field MSR
 -- ============================================================================
 -- Stores expected delivery dates for installation items
 -- Run this in Supabase SQL Editor

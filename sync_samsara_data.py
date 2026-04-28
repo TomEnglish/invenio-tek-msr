@@ -29,11 +29,11 @@ class SamsaraSyncService:
         self.samsara = SamsaraClient()
 
         # Initialize Supabase REST API client
-        self.supabase_url = os.getenv('SUPABASE_URL') or 'https://lmdomalnuzbvxxutpyky.supabase.co'
-        self.supabase_key = os.getenv('SUPABASE_ANON_KEY') or os.getenv('supabase anon public')
+        self.supabase_url = os.getenv('SUPABASE_URL')
+        self.supabase_key = os.getenv('SUPABASE_ANON_KEY')
 
-        if not self.supabase_key:
-            raise ValueError("Supabase credentials not found in .env file")
+        if not self.supabase_url or not self.supabase_key:
+            raise ValueError("SUPABASE_URL and SUPABASE_ANON_KEY must be set in .env or GitHub secrets")
 
         self.supabase_headers = {
             'apikey': self.supabase_key,

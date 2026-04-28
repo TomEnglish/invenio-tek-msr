@@ -1,5 +1,5 @@
 -- ============================================================================
--- Project Schedule Schema for MSR Dashboard
+-- Project Schedule Schema for Invenio Field MSR
 -- ============================================================================
 -- Stores project schedule activities and milestones
 -- Run this in Supabase SQL Editor

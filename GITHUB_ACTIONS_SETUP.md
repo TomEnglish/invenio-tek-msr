@@ -21,7 +21,7 @@ This guide shows you how to use GitHub Actions to automatically sync Samsara dat
 GitHub Actions needs your API credentials. Let's add them as secrets:
 
 1. **Go to your GitHub repository**
-   - Navigate to: https://github.com/TomEnglish/MSR_F6B
+   - Navigate to: https://github.com/TomEnglish/invenio-tek-msr
 
 2. **Open Settings → Secrets and variables → Actions**
    - Click on **"Settings"** (top menu)
@@ -38,7 +38,7 @@ GitHub Actions needs your API credentials. Let's add them as secrets:
 
    **Secret 2:**
    - Name: `SUPABASE_URL`
-   - Value: `https://lmdomalnuzbvxxutpyky.supabase.co`
+   - Value: `https://lzroduricxyshgyjdkki.supabase.co`
 
    **Secret 3:**
    - Name: `SUPABASE_ANON_KEY`
@@ -51,7 +51,7 @@ GitHub Actions needs your API credentials. Let's add them as secrets:
 The workflow file `.github/workflows/sync-samsara.yml` has been created. Now commit and push it:
 
 ```bash
-cd C:\Users\thomasenglish\Desktop\ProjectProgressandPO
+cd <repo-folder>
 git add .github/workflows/sync-samsara.yml
 git add GITHUB_ACTIONS_SETUP.md
 git commit -m "Add GitHub Actions workflow for automated Samsara sync"
@@ -193,7 +193,7 @@ Click on any workflow run to see detailed logs:
 
 ## GitHub Actions Limits (Free Tier)
 
-### Public Repositories (Your MSR_F6B repo)
+### Public Repositories (Your Invenio Field MSR repo)
 - ✅ **Unlimited** minutes per month
 - ✅ **Unlimited** storage
 - ✅ **Unlimited** concurrent jobs

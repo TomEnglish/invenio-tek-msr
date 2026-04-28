@@ -38,6 +38,8 @@ node_modules/
 # Uncomment these if you don't want Excel files in repo:
 # *.xlsx
 # *.xls
+PBIX/
+logs/
 
 # Analysis scripts (one-time use only)
 analyze_*.py

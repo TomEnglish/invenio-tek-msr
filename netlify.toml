@@ -1,4 +1,4 @@
-# Netlify Configuration for MSR Dashboard
+# Netlify Configuration for Invenio Field MSR
 # https://docs.netlify.com/configure-builds/file-based-configuration/
 
 [build]

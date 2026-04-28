@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate Demo Data for Greenfield LNG Terminal MSR Dashboard
+Generate Demo Data for Greenfield LNG Terminal Invenio Field MSR
 Inserts realistic construction/energy industry data into Supabase via REST API.
 """
 

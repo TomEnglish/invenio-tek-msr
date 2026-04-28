@@ -25,10 +25,10 @@ function currentLogoFor(theme) {
 }
 
 function applyBranding() {
-    document.title = `MSR Dashboard — ${BRANDING.projectName}`;
+    document.title = `Invenio Field MSR — ${BRANDING.projectName}`;
 
     const logoText = document.querySelector('.logo-text');
-    if (logoText) logoText.textContent = 'MSR Dashboard';
+    if (logoText) logoText.textContent = 'Invenio Field MSR';
 
     const logoImg = document.querySelector('.sidebar-logo img');
     if (logoImg) {

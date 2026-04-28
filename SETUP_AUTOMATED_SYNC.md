@@ -12,7 +12,7 @@ This guide will help you set up automated hourly syncing of Samsara tracker data
 First, verify the sync script works:
 
 ```cmd
-cd C:\Users\thomasenglish\Desktop\ProjectProgressandPO
+cd C:\Users\thomasenglish\Desktop\Invenio Field MSR
 sync_samsara.bat
 ```
 
@@ -43,8 +43,8 @@ You should see output in `logs\sync_YYYYMMDD_HHMMSS.log`
 4. **Set Action**
    - Select **"Start a program"**
    - Click **Next**
-   - Program/script: `C:\Users\thomasenglish\Desktop\ProjectProgressandPO\sync_samsara.bat`
-   - Start in: `C:\Users\thomasenglish\Desktop\ProjectProgressandPO`
+   - Program/script: `C:\Users\thomasenglish\Desktop\Invenio Field MSR\sync_samsara.bat`
+   - Start in: `C:\Users\thomasenglish\Desktop\Invenio Field MSR`
    - Click **Next**
 
 5. **Configure Advanced Settings**
@@ -70,8 +70,8 @@ Run PowerShell as Administrator and execute:
 ```powershell
 # Create scheduled task
 $action = New-ScheduledTaskAction `
-    -Execute "C:\Users\thomasenglish\Desktop\ProjectProgressandPO\sync_samsara.bat" `
-    -WorkingDirectory "C:\Users\thomasenglish\Desktop\ProjectProgressandPO"
+    -Execute "C:\Users\thomasenglish\Desktop\Invenio Field MSR\sync_samsara.bat" `
+    -WorkingDirectory "C:\Users\thomasenglish\Desktop\Invenio Field MSR"
 
 $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Hours 1)
 
@@ -107,7 +107,7 @@ Register-ScheduledTask `
 Check sync logs periodically:
 
 ```cmd
-cd C:\Users\thomasenglish\Desktop\ProjectProgressandPO\logs
+cd C:\Users\thomasenglish\Desktop\Invenio Field MSR\logs
 dir /o-d
 type sync_20260116_090000.log
 ```
@@ -132,7 +132,7 @@ If your local machine isn't always running, deploy the sync script to a cloud pl
 
 3. **Create Railway Project**
    ```bash
-   cd C:\Users\thomasenglish\Desktop\ProjectProgressandPO
+   cd C:\Users\thomasenglish\Desktop\Invenio Field MSR
    railway init
    ```
 
@@ -337,14 +337,14 @@ Get-ScheduledTask -TaskName "Samsara Data Sync" | Get-ScheduledTaskInfo
 ### View Recent Logs
 
 ```cmd
-cd C:\Users\thomasenglish\Desktop\ProjectProgressandPO\logs
+cd C:\Users\thomasenglish\Desktop\Invenio Field MSR\logs
 dir /o-d /b | more
 ```
 
 ### Manual Sync Test
 
 ```cmd
-cd C:\Users\thomasenglish\Desktop\ProjectProgressandPO
+cd C:\Users\thomasenglish\Desktop\Invenio Field MSR
 python sync_samsara_data.py
 ```
 

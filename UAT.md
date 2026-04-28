@@ -1,4 +1,4 @@
-# MSR Dashboard — User Acceptance Testing
+# Invenio Field MSR — User Acceptance Testing
 
 Scope of this document: validate the Invenio design-system restyle (commits `608eca4` → `9613606` on `main`) before declaring it production-ready. This UAT does **not** cover Supabase data accuracy, Python sync scripts, or business logic — only the user-facing app behavior that changed.
 
@@ -119,7 +119,7 @@ For each page, in both `light` and `dark` mode, verify:
 - [ ] 👤 User initials avatar populates from logged-in email
 
 ### 3.3 Branding (`branding.js`)
-- [ ] 🤖 Page title: "MSR Dashboard — Greenfield LNG Terminal" on `index.html`
+- [ ] 🤖 Page title: "Invenio Field MSR — Greenfield LNG Terminal" on `index.html`
 - [ ] 🤖 `BRANDING.projectName` is rendered into the hero on `index.html`
 - [ ] 🤖 Logo is `brand/invenio-lockup.svg` in light, `brand/invenio-lockup-dark.svg` in dark (covered by 2.8)
 

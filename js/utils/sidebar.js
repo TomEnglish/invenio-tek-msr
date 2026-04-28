@@ -58,7 +58,7 @@
 
     function getPageTitle() {
         const current = getCurrentPage();
-        return PAGE_TITLES[current] || 'MSR Dashboard';
+        return PAGE_TITLES[current] || 'Invenio Field MSR';
     }
 
     function getUserInitials() {

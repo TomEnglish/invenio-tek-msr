@@ -1,5 +1,5 @@
 -- ============================================================================
--- PO & Shipment Data Schema for MSR Dashboard
+-- PO & Shipment Data Schema for Invenio Field MSR
 -- ============================================================================
 -- Stores Purchase Order and Shipment data from Excel for auto-updating dashboard
 -- Run this in Supabase SQL Editor

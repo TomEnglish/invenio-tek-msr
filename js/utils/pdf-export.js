@@ -196,7 +196,7 @@ async function generateMSRReport() {
 
 <div class="footer">
     <span>Confidential — ${BRANDING?.clientName || 'InvenioTek'}</span>
-    <span>Generated from MSR Dashboard on ${reportDate}</span>
+    <span>Generated from Invenio Field MSR on ${reportDate}</span>
 </div>
 
 </body></html>`;

@@ -1,5 +1,5 @@
 -- ============================================================================
--- COMBINED SETUP SCHEMA - MSR Dashboard (Greenfield LNG Terminal)
+-- COMBINED SETUP SCHEMA - Invenio Field MSR (Greenfield LNG Terminal)
 -- ============================================================================
 -- This file combines ALL individual schema files into a single re-runnable
 -- setup script. Tables are created in dependency order:
@@ -22,7 +22,7 @@
 -- ############################################################################
 
 -- ============================================================================
--- PO & Shipment Data Schema for MSR Dashboard
+-- PO & Shipment Data Schema for Invenio Field MSR
 -- ============================================================================
 -- Stores Purchase Order and Shipment data from Excel for auto-updating dashboard
 -- ============================================================================
@@ -391,7 +391,7 @@ END $$;
 -- ============================================================================
 -- Material Tracking System - Supabase Database Schema
 -- ============================================================================
--- Project: Greenfield LNG Terminal MSR Dashboard
+-- Project: Greenfield LNG Terminal Invenio Field MSR
 -- Purpose: Track material links between PO items and installation items
 -- Database: PostgreSQL (Supabase)
 -- ============================================================================
@@ -942,7 +942,7 @@ END $$;
 -- ############################################################################
 
 -- ============================================================================
--- Delivery Dates Schema for MSR Dashboard
+-- Delivery Dates Schema for Invenio Field MSR
 -- ============================================================================
 -- Stores expected delivery dates for installation items
 -- ============================================================================
@@ -1040,7 +1040,7 @@ END $$;
 -- ############################################################################
 
 -- ============================================================================
--- Project Schedule Schema for MSR Dashboard
+-- Project Schedule Schema for Invenio Field MSR
 -- ============================================================================
 -- Stores project schedule activities and milestones
 -- ============================================================================

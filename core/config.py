@@ -12,17 +12,20 @@ load_dotenv()
 # =============================================================================
 # SUPABASE CONFIGURATION
 # =============================================================================
-SUPABASE_URL = os.getenv('SUPABASE_URL') or 'https://lmdomalnuzbvxxutpyky.supabase.co'
-SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY') or os.getenv('supabase anon public')
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
 
 # Validate Supabase configuration
+if not SUPABASE_URL:
+    raise ValueError("SUPABASE_URL not found in environment variables")
+
 if not SUPABASE_KEY:
     raise ValueError("SUPABASE_ANON_KEY not found in environment variables")
 
 # =============================================================================
 # SAMSARA CONFIGURATION
 # =============================================================================
-SAMSARA_API_TOKEN = os.getenv('SAMSARA_API_TOKEN') or os.getenv('Samsara API Token')
+SAMSARA_API_TOKEN = os.getenv('SAMSARA_API_TOKEN')
 
 # =============================================================================
 # SITE CONFIGURATION (Frame 6B Power Group, Amarillo TX)

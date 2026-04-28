@@ -1,6 +1,6 @@
 {
-  "name": "Invenio-Tek MSR Dashboard",
-  "short_name": "Invenio-Tek",
+  "name": "Invenio Field MSR",
+  "short_name": "Field MSR",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
