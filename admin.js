@@ -160,12 +160,20 @@ const TABLE_CONFIG = {
             { key: 'purchase_order_id', label: 'PO ID', editable: false, type: 'text' },
             { key: 'po_description', label: 'Description', editable: false, type: 'text' },
             { key: 'supplier', label: 'Supplier', editable: false, type: 'text' },
-            { key: 'status', label: 'Status', editable: true, type: 'text' },
+            { key: 'status', label: 'Status', editable: true, type: 'enum',
+              options: ['Sent', 'Follow-Up Document Created', 'Finished', 'Canceled'] },
             { key: 'item_description', label: 'Item', editable: false, type: 'text' },
             { key: 'ordered_quantity', label: 'Qty', editable: false, type: 'number' },
             { key: 'net_value', label: 'Net Value', editable: false, type: 'number' },
-            { key: 'delivery_date_from', label: 'Delivery Date', editable: false, type: 'date' },
+            { key: 'delivery_date_from', label: 'Delivery Date', editable: true, type: 'date' },
             { key: 'created_at', label: 'Created', editable: false, type: 'datetime' },
+            // Edit-only fields — show in the modal and CSV export, hidden from
+            // the row table to keep it readable. Each is editable for manual
+            // override of values that normally come from the Excel sync.
+            { key: 'item_status', label: 'Item Status', editable: true, type: 'text', inTable: false },
+            { key: 'delivery_status', label: 'Delivery Status', editable: true, type: 'text', inTable: false },
+            { key: 'category', label: 'Category', editable: true, type: 'text', inTable: false },
+            { key: 'sub_category', label: 'Sub-Category', editable: true, type: 'text', inTable: false },
         ],
         searchColumns: ['purchase_order_id', 'po_description', 'supplier', 'item_description'],
     },
@@ -417,11 +425,18 @@ async function loadData() {
 
 // ── Rendering ──
 
+// Columns can opt out of the table view with `inTable: false` — they still
+// appear in the edit modal and in CSV exports. Used for fields that are
+// editable but too crowded to show in the table at a glance.
+function tableColumns(config) {
+    return config.columns.filter(col => col.inTable !== false);
+}
+
 function renderTableHead(config) {
     const thead = document.getElementById('tableHead');
     const sortCol = state.sortColumn || config.orderBy;
 
-    thead.innerHTML = '<tr>' + config.columns.map(col => {
+    thead.innerHTML = '<tr>' + tableColumns(config).map(col => {
         const isSorted = sortCol === col.key;
         const icon = isSorted
             ? (state.sortColumn ? (state.sortAsc ? 'fa-sort-up' : 'fa-sort-down') : (config.orderAsc ? 'fa-sort-up' : 'fa-sort-down'))
@@ -432,15 +447,16 @@ function renderTableHead(config) {
 
 function renderTableBody(config) {
     const tbody = document.getElementById('tableBody');
+    const visible = tableColumns(config);
     document.getElementById('recordCount').textContent = `${state.totalCount} record${state.totalCount !== 1 ? 's' : ''}`;
 
     if (state.data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${config.columns.length}" class="empty-state"><i class="fas fa-inbox d-block"></i><p>No records found</p></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${visible.length}" class="empty-state"><i class="fas fa-inbox d-block"></i><p>No records found</p></td></tr>`;
         return;
     }
 
     tbody.innerHTML = state.data.map((row, idx) => {
-        return '<tr onclick="openEditModal(' + idx + ')">' + config.columns.map(col => {
+        return '<tr onclick="openEditModal(' + idx + ')">' + visible.map(col => {
             const val = row[col.key];
             return `<td>${formatCell(val, col.type)}</td>`;
         }).join('') + '</tr>';
