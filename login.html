@@ -192,6 +192,45 @@
             display: none;
         }
         .login-error.show { display: block; }
+        .login-error.success {
+            background: var(--success-soft);
+            color: var(--success);
+            border-color: var(--success);
+        }
+
+        .form-actions {
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        .link-button {
+            background: transparent;
+            border: 0;
+            color: var(--primary);
+            cursor: pointer;
+            font: inherit;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 0;
+        }
+
+        .link-button:hover,
+        .link-button:focus-visible {
+            color: var(--primary-hover);
+            text-decoration: underline;
+        }
+
+        .reset-form {
+            display: none;
+        }
+
+        .reset-form.active {
+            display: block;
+        }
+
+        .login-form.hidden {
+            display: none;
+        }
 
         .spinner-sm {
             width: 18px; height: 18px;
@@ -238,7 +277,7 @@
 
             <div id="login-error" class="login-error"></div>
 
-            <form id="login-form">
+            <form id="login-form" class="login-form">
                 <div class="form-group">
                     <label for="email">Email</label>
                     <input type="email" id="email" placeholder="you@company.com" required autofocus>
@@ -251,6 +290,38 @@
                     <span id="login-text">Sign In</span>
                     <span id="login-spinner" style="display:none;"><span class="spinner-sm"></span></span>
                 </button>
+                <div class="form-actions">
+                    <button type="button" class="link-button" id="forgot-password-btn">Forgot password?</button>
+                </div>
+            </form>
+
+            <form id="reset-request-form" class="reset-form">
+                <div class="form-group">
+                    <label for="reset-email">Email</label>
+                    <input type="email" id="reset-email" placeholder="you@company.com" required>
+                </div>
+                <button type="submit" class="login-btn" id="reset-request-btn">
+                    <span id="reset-request-text">Send Reset Link</span>
+                    <span id="reset-request-spinner" style="display:none;"><span class="spinner-sm"></span></span>
+                </button>
+                <div class="form-actions">
+                    <button type="button" class="link-button" id="back-to-login-btn">Back to sign in</button>
+                </div>
+            </form>
+
+            <form id="update-password-form" class="reset-form">
+                <div class="form-group">
+                    <label for="new-password">New Password</label>
+                    <input type="password" id="new-password" placeholder="Enter a new password" minlength="8">
+                </div>
+                <div class="form-group">
+                    <label for="confirm-password">Confirm Password</label>
+                    <input type="password" id="confirm-password" placeholder="Confirm your new password" minlength="8">
+                </div>
+                <button type="submit" class="login-btn" id="update-password-btn">
+                    <span id="update-password-text">Update Password</span>
+                    <span id="update-password-spinner" style="display:none;"><span class="spinner-sm"></span></span>
+                </button>
             </form>
         </div>
     </div>
@@ -261,38 +332,166 @@
     <script src="js/utils/supabase-client.js?v=20260424f"></script>
     <script src="js/utils/project-scope.js?v=20260428a"></script>
     <script>
-        // If already logged in, redirect to dashboard
+        const loginForm = document.getElementById('login-form');
+        const resetRequestForm = document.getElementById('reset-request-form');
+        const updatePasswordForm = document.getElementById('update-password-form');
+        const title = document.querySelector('.login-card h2');
+        const subtitle = document.querySelector('.login-card .subtitle');
+        const messageBox = document.getElementById('login-error');
+
+        function isRecoveryUrl() {
+            return window.location.hash.includes('type=recovery') || window.location.search.includes('type=recovery');
+        }
+
+        function setMessage(message, type = 'error') {
+            messageBox.textContent = message;
+            messageBox.classList.toggle('success', type === 'success');
+            messageBox.classList.add('show');
+        }
+
+        function clearMessage() {
+            messageBox.classList.remove('show', 'success');
+            messageBox.textContent = '';
+        }
+
+        function showLoginForm() {
+            title.textContent = 'Welcome back';
+            subtitle.textContent = 'Sign in to your Invenio Field MSR';
+            loginForm.classList.remove('hidden');
+            resetRequestForm.classList.remove('active');
+            updatePasswordForm.classList.remove('active');
+            document.getElementById('password').required = true;
+            document.getElementById('new-password').required = false;
+            document.getElementById('confirm-password').required = false;
+        }
+
+        function showResetRequestForm() {
+            clearMessage();
+            title.textContent = 'Reset password';
+            subtitle.textContent = 'Enter your email and we will send a reset link.';
+            loginForm.classList.add('hidden');
+            resetRequestForm.classList.add('active');
+            updatePasswordForm.classList.remove('active');
+            document.getElementById('password').required = false;
+            document.getElementById('new-password').required = false;
+            document.getElementById('confirm-password').required = false;
+            document.getElementById('reset-email').value = document.getElementById('email').value;
+            document.getElementById('reset-email').focus();
+        }
+
+        function showUpdatePasswordForm() {
+            title.textContent = 'Set new password';
+            subtitle.textContent = 'Choose a new password for your account.';
+            loginForm.classList.add('hidden');
+            resetRequestForm.classList.remove('active');
+            updatePasswordForm.classList.add('active');
+            document.getElementById('password').required = false;
+            document.getElementById('new-password').required = true;
+            document.getElementById('confirm-password').required = true;
+            document.getElementById('new-password').focus();
+        }
+
+        function setButtonLoading(buttonId, textId, spinnerId, isLoading) {
+            document.getElementById(buttonId).disabled = isLoading;
+            document.getElementById(textId).style.display = isLoading ? 'none' : 'inline';
+            document.getElementById(spinnerId).style.display = isLoading ? 'inline-flex' : 'none';
+        }
+
+        supabaseClient.auth.onAuthStateChange((event) => {
+            if (event === 'PASSWORD_RECOVERY') {
+                clearMessage();
+                showUpdatePasswordForm();
+            }
+        });
+
+        if (isRecoveryUrl()) {
+            showUpdatePasswordForm();
+        }
+
+        // If already logged in, redirect to dashboard unless this is a password recovery session.
         supabaseClient.auth.getSession().then(({ data: { session } }) => {
-            if (session) {
+            if (session && !isRecoveryUrl()) {
                 window.location.href = 'index.html';
             }
         });
 
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
+        document.getElementById('forgot-password-btn').addEventListener('click', showResetRequestForm);
+        document.getElementById('back-to-login-btn').addEventListener('click', () => {
+            clearMessage();
+            showLoginForm();
+            document.getElementById('email').focus();
+        });
+
+        loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-            const errorDiv = document.getElementById('login-error');
-            const loginText = document.getElementById('login-text');
-            const loginSpinner = document.getElementById('login-spinner');
-            const btn = document.getElementById('login-btn');
 
-            errorDiv.classList.remove('show');
-            loginText.style.display = 'none';
-            loginSpinner.style.display = 'inline-flex';
-            btn.disabled = true;
+            clearMessage();
+            setButtonLoading('login-btn', 'login-text', 'login-spinner', true);
 
             const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
             if (error) {
-                errorDiv.textContent = error.message;
-                errorDiv.classList.add('show');
-                loginText.style.display = 'inline';
-                loginSpinner.style.display = 'none';
-                btn.disabled = false;
+                setMessage(error.message);
+                setButtonLoading('login-btn', 'login-text', 'login-spinner', false);
             } else {
                 window.location.href = 'index.html';
             }
+        });
+
+        resetRequestForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('reset-email').value;
+            const redirectTo = `${window.location.origin}${window.location.pathname}`;
+
+            clearMessage();
+            setButtonLoading('reset-request-btn', 'reset-request-text', 'reset-request-spinner', true);
+
+            const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo });
+
+            setButtonLoading('reset-request-btn', 'reset-request-text', 'reset-request-spinner', false);
+
+            if (error) {
+                setMessage(error.message);
+                return;
+            }
+
+            setMessage('Password reset link sent. Check your email for the next step.', 'success');
+        });
+
+        updatePasswordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newPassword = document.getElementById('new-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+
+            clearMessage();
+
+            if (newPassword.length < 8) {
+                setMessage('Password must be at least 8 characters.');
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                setMessage('Passwords do not match.');
+                return;
+            }
+
+            setButtonLoading('update-password-btn', 'update-password-text', 'update-password-spinner', true);
+
+            const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+
+            setButtonLoading('update-password-btn', 'update-password-text', 'update-password-spinner', false);
+
+            if (error) {
+                setMessage(error.message);
+                return;
+            }
+
+            setMessage('Password updated. Redirecting...', 'success');
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 700);
         });
     </script>
 </body>
