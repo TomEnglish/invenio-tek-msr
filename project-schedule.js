@@ -312,6 +312,7 @@ function renderTimeline() {
     const totalDays = Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24));
     const pixelsPerDay = 3; // Adjust for zoom level
     const timelineWidth = totalDays * pixelsPerDay;
+    const labelColWidth = 350;  // Single source of truth — header, rows, and today marker all key off this
 
     // Category colors
     const categoryColors = {
@@ -330,11 +331,11 @@ function renderTimeline() {
     let html = `
         <div style="min-width: ${Math.max(timelineWidth, 800)}px; position: relative;">
             <!-- Timeline Header -->
-            <div style="position: sticky; top: 0; background: white; z-index: 10; padding: 10px 0; border-bottom: 2px solid #ddd; margin-bottom: 10px;">
+            <div style="position: sticky; top: 0; background: var(--surface); z-index: 10; padding: 10px 0; border-bottom: 2px solid var(--border-strong); margin-bottom: 10px;">
                 <div style="display: flex; align-items: center;">
-                    <div style="width: 300px; font-weight: bold; padding-left: 10px;">Activity</div>
+                    <div style="width: ${labelColWidth}px; font-weight: bold; padding-left: 10px; color: var(--text);">Activity</div>
                     <div style="flex: 1; position: relative; height: 40px;">
-                        <div style="position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; font-size: 12px; color: #666;">
+                        <div style="position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted);">
     `;
 
     // Add month markers
@@ -345,8 +346,8 @@ function renderTimeline() {
         const daysFromStart = Math.ceil((currentDate - minDate) / (1000 * 60 * 60 * 24));
         const position = daysFromStart * pixelsPerDay;
 
-        html += `<div style="position: absolute; left: ${position}px; border-left: 1px solid #ccc; padding-left: 5px; height: 40px;">
-                    <div style="font-weight: bold;">${month}</div>
+        html += `<div style="position: absolute; left: ${position}px; border-left: 1px solid var(--border); padding-left: 5px; height: 40px;">
+                    <div style="font-weight: bold; color: var(--text);">${month}</div>
                  </div>`;
 
         currentDate.setMonth(currentDate.getMonth() + 1);
@@ -365,10 +366,10 @@ function renderTimeline() {
     // Add "Today" marker if within date range
     if (today >= minDate && today <= maxDate) {
         const todayOffset = Math.ceil((today - minDate) / (1000 * 60 * 60 * 24));
-        const todayPosition = todayOffset * pixelsPerDay + 300; // Add 300px for activity name column
+        const todayPosition = todayOffset * pixelsPerDay + labelColWidth;
         html += `
-            <div style="position: absolute; left: ${todayPosition}px; top: 0; bottom: 0; width: 2px; background: #d0021b; z-index: 5;">
-                <div style="position: sticky; top: 50px; background: #d0021b; color: white; padding: 2px 6px; font-size: 11px; font-weight: bold; border-radius: 3px; white-space: nowrap;">
+            <div style="position: absolute; left: ${todayPosition}px; top: 0; bottom: 0; width: 2px; background: var(--danger); z-index: 5;">
+                <div style="position: sticky; top: 50px; background: var(--danger); color: var(--text-inverse); padding: 2px 6px; font-size: 11px; font-weight: bold; border-radius: 3px; white-space: nowrap;">
                     TODAY
                 </div>
             </div>
@@ -445,15 +446,16 @@ function renderTimeline() {
             badgeHtml = '<span class="badge bg-danger" style="font-size: 9px; margin-left: 5px;">CRITICAL</span>';
         }
 
-        // Determine row background based on status
-        let rowBg = 'white';
-        if (isInProgress) rowBg = '#e8f4fd';  // Light blue for in-progress
-        else if (isCritical) rowBg = '#fff5f5';  // Light red for critical
-        else if (isMilestone) rowBg = '#f0fff4';  // Light green for milestones
+        // Determine row background based on status — use theme-soft tints
+        // so contrast holds in both light and dark modes.
+        let rowBg = 'var(--surface)';
+        if (isInProgress) rowBg = 'var(--primary-soft)';
+        else if (isCritical) rowBg = 'var(--danger-soft)';
+        else if (isMilestone) rowBg = 'var(--success-soft)';
 
         html += `
-            <div style="display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #f0f0f0; min-height: 45px; background: ${rowBg};">
-                <div style="width: 350px; padding-left: 10px; font-size: 13px;">
+            <div style="display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); min-height: 45px; background: ${rowBg};">
+                <div style="width: ${labelColWidth}px; padding-left: 10px; font-size: 13px; color: var(--text);">
                     ${isInProgress ? '<i class="fas fa-play-circle text-primary me-1" title="In Progress"></i>' : ''}
                     ${isCritical ? '<i class="fas fa-exclamation-triangle text-danger me-1" title="Critical"></i>' : ''}
                     ${isMilestone ? '<i class="fas fa-flag text-success me-1" title="Milestone"></i>' : ''}
@@ -512,7 +514,7 @@ Progress: ${progress}%">
         </div>
 
         <!-- Legend -->
-        <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+        <div style="margin-top: 20px; padding: 15px; background: var(--raised); border: 1px solid var(--border); border-radius: 5px; color: var(--text);">
             <strong>Legend:</strong>
             <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 10px;">
     `;
@@ -521,7 +523,7 @@ Progress: ${progress}%">
         html += `
             <div style="display: flex; align-items: center; gap: 5px;">
                 <div style="width: 20px; height: 12px; background: ${color}; border-radius: 2px;"></div>
-                <span style="font-size: 13px;">${category}</span>
+                <span style="font-size: 13px; color: var(--text);">${category}</span>
             </div>
         `;
     });
