@@ -1,8 +1,9 @@
 -- ============================================================================
 -- Project Schedule Schema for Invenio Field MSR
 -- ============================================================================
--- Stores project schedule activities and milestones
--- Run this in Supabase SQL Editor
+-- Stores project schedule activities and milestones.
+-- Run this in Supabase SQL Editor, then run seed_project_schedule.sql to load
+-- the committed baseline (118 rows snapshotted from the live DB).
 -- ============================================================================
 
 -- Drop existing table if re-running
@@ -11,7 +12,7 @@ DROP TABLE IF EXISTS project_schedule CASCADE;
 -- ============================================================================
 -- TABLE: project_schedule
 -- ============================================================================
--- Stores schedule activities from P0203-PM-120-SCH-0002.xlsx
+-- Stores schedule activities. Seed data lives in seed_project_schedule.sql.
 CREATE TABLE project_schedule (
     id BIGSERIAL PRIMARY KEY,
 
@@ -135,5 +136,5 @@ BEGIN
     RAISE NOTICE '  - vw_activities_by_type';
     RAISE NOTICE '';
     RAISE NOTICE 'Next step:';
-    RAISE NOTICE '  Run sync_project_schedule.py to upload schedule data';
+    RAISE NOTICE '  Run seed_project_schedule.sql to load the committed baseline';
 END $$;
