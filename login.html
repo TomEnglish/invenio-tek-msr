@@ -343,6 +343,11 @@
             return window.location.hash.includes('type=recovery') || window.location.search.includes('type=recovery');
         }
 
+        // Supabase consumes the recovery hash while establishing the session.
+        // Capture this before that happens so getSession() cannot redirect the
+        // user away from the password form after the hash has been cleaned up.
+        let recoveryFlowStarted = isRecoveryUrl();
+
         function setMessage(message, type = 'error') {
             messageBox.textContent = message;
             messageBox.classList.toggle('success', type === 'success');
@@ -399,18 +404,19 @@
 
         supabaseClient.auth.onAuthStateChange((event) => {
             if (event === 'PASSWORD_RECOVERY') {
+                recoveryFlowStarted = true;
                 clearMessage();
                 showUpdatePasswordForm();
             }
         });
 
-        if (isRecoveryUrl()) {
+        if (recoveryFlowStarted) {
             showUpdatePasswordForm();
         }
 
         // If already logged in, redirect to dashboard unless this is a password recovery session.
         supabaseClient.auth.getSession().then(({ data: { session } }) => {
-            if (session && !isRecoveryUrl()) {
+            if (session && !recoveryFlowStarted) {
                 window.location.href = 'index.html';
             }
         });
