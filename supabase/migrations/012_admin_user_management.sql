@@ -157,6 +157,15 @@ AS $$
         );
 $$;
 
+REVOKE ALL ON FUNCTION public.is_active_user(UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_admin(UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.can_write_project_data(UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.has_project_access(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_active_user(UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.is_admin(UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.can_write_project_data(UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.has_project_access(UUID) TO authenticated, service_role;
+
 -- ----------------------------------------------------------------------------
 -- 3. Audit table and last-admin protection.
 -- ----------------------------------------------------------------------------

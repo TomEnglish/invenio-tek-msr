@@ -118,8 +118,10 @@ async function fetchProfiles(
     .select('id, email, full_name, role, is_active, created_at, updated_at', { count: 'exact' });
 
   if (search) {
-    const escaped = search.replace(/[%_,]/g, (character) => `\\${character}`);
-    query = query.or(`email.ilike.%${escaped}%,full_name.ilike.%${escaped}%`);
+    // Keep the PostgREST OR expression grammar out of the user-controlled
+    // value. Search is convenience filtering, not a free-form query language.
+    const safeSearch = search.replace(/[^a-zA-Z0-9@' -]/g, '').trim();
+    if (safeSearch) query = query.or(`email.ilike.%${safeSearch}%,full_name.ilike.%${safeSearch}%`);
   }
 
   const from = (page - 1) * pageSize;
@@ -203,6 +205,17 @@ async function listUsers(adminClient: SupabaseClient, request: Request): Promise
       totalPages: Math.max(1, Math.ceil(totalItems / params.pageSize)),
     },
   });
+}
+
+async function listProjects(adminClient: SupabaseClient): Promise<Response> {
+  const { data, error } = await adminClient
+    .from('projects')
+    .select('id, name, status')
+    .neq('status', 'archived')
+    .order('name', { ascending: true });
+  if (error) throw new Error(error.message);
+
+  return json({ data: (data || []) as Project[] });
 }
 
 async function audit(adminClient: SupabaseClient, actorUserId: string, targetUserId: string | null, action: string, details: Record<string, unknown>) {
@@ -289,10 +302,9 @@ async function updateUser(adminClient: SupabaseClient, actor: Profile, input: Up
     .single();
   if (updatedError || !updated) throw new Error(updatedError?.message || 'Updated user was not returned');
 
-  if (input.isActive === false) {
-    const { error } = await adminClient.auth.admin.signOut(input.userId, 'global');
-    if (error) throw new Error(error.message);
-  }
+  // Existing access tokens cannot be revoked by user id through the Auth
+  // Admin API. RLS and the page guard enforce is_active immediately; the next
+  // token refresh will also observe the deactivated account.
 
   await audit(adminClient, actor.id, input.userId, input.isActive === false ? 'deactivate' : input.isActive === true ? 'activate' : 'update', {
     changedFields: Object.keys(changes),
@@ -313,7 +325,11 @@ async function handle(request: Request): Promise<Response> {
     const { userClient, adminClient } = createClients(request);
     const actor = await requireAdmin(request, userClient, adminClient);
 
-    if (request.method === 'GET') return await listUsers(adminClient, request);
+    if (request.method === 'GET') {
+      return new URL(request.url).searchParams.get('resource') === 'projects'
+        ? await listProjects(adminClient)
+        : await listUsers(adminClient, request);
+    }
     const body = asRecord(await request.json());
 
     if (request.method === 'POST') {

@@ -17,7 +17,8 @@
         { label: 'GPS Tracking',    icon: 'fa-map-marker-alt',    href: 'samsara-tracking.html', section: 'Field' },
         { label: 'Site Plan',       icon: 'fa-drafting-compass',  href: 'site-plan.html' },
         { label: 'Receiving',       icon: 'fa-clipboard-list',    href: 'receiving.html' },
-        { label: 'Admin',           icon: 'fa-database',          href: 'admin.html', section: 'System' },
+        { label: 'Admin',           icon: 'fa-database',          href: 'admin.html', section: 'System', adminOnly: true },
+        { label: 'User Management', icon: 'fa-users-cog',         href: 'user-admin.html', adminOnly: true },
     ];
 
     // Page title map
@@ -35,6 +36,7 @@
         'site-plan.html':              'Site Plan',
         'receiving.html':              'Receiving',
         'admin.html':                  'Data Browser',
+        'user-admin.html':              'User Management',
     };
 
     function getCurrentPage() {
@@ -51,7 +53,8 @@
                 html += `<div class="nav-section-label">${item.section}</div>\n`;
             }
             const active = current === item.href ? ' active' : '';
-            html += `<a href="${item.href}" class="${active}"><i class="fas ${item.icon}"></i>${item.label}</a>\n`;
+            const adminOnly = item.adminOnly ? ' data-admin-only="true"' : '';
+            html += `<a href="${item.href}" class="${active}"${adminOnly}><i class="fas ${item.icon}"></i>${item.label}</a>\n`;
         });
         return html;
     }
@@ -80,8 +83,17 @@
                         avatarEl.textContent = initials;
                     }
                 }
+                const authReady = window.InvenioAuthReady || Promise.resolve();
+                authReady.then(() => updateAdminNavVisibility(window.InvenioCurrentProfile));
             });
         }
+    }
+
+    function updateAdminNavVisibility(profile) {
+        const canManageUsers = window.InvenioUserAccess?.canAccessAdminPages(profile);
+        document.querySelectorAll('[data-admin-only="true"]').forEach((link) => {
+            link.hidden = !canManageUsers;
+        });
     }
 
     function getInitialTheme() {
