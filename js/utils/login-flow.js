@@ -16,4 +16,3 @@
     global.InvenioLoginFlow = { createLoginFlow };
     if (typeof module !== 'undefined') module.exports = { createLoginFlow };
 })(typeof window !== 'undefined' ? window : globalThis);
-
