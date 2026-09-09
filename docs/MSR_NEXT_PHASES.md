@@ -52,3 +52,10 @@ Local implementation completed on `feature/msr-data-reliability`:
 Release order: verify the live PO natural keys, save the affected tables and constraints outside Git, apply migration 018 with its history record, publish `dist`, and check the live UI. The frontend works before 018 because it reads existing tables; the importer requires 018. Rollback can restore the previous Netlify deployment and, if needed, drop only `import_po_shipment_snapshot(uuid,jsonb,jsonb)` and constraint `purchase_orders_project_po_line_key`. Do not restore the destructive legacy importer or weaken RLS. Migration 018 changes no source records.
 
 Production build configuration correction: the custom `git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF` ignore command cancelled the first production build after a successful preview because the cached preview matched the merged files. Removed that cross-context skip rule so production builds are not suppressed by preview cache state. The verified `dist` build can also be published directly with an explicit MSR site ID.
+
+### Production publication — September 9
+
+- Merged [PR 1](https://github.com/TomEnglish/invenio-tek-msr/pull/1) and pushed the build-configuration correction to `main` (`6922ac8`). The automatic production build succeeded after the correction; verified manual publication `6aa16cb448a933e6da507029` serves the same tested JavaScript.
+- Applied migration 018 and its migration-history entry in one transaction. Verified imports are denied to `anon` and `authenticated` and permitted to `service_role`. Saved affected tables/constraints and release evidence outside Git in `_backups/field-platform/2026-09-09-msr-data-release/`.
+- Verified live [MSR](https://invenio-field-msr.netlify.app): Main Yard heading, 95 POs, 127 shipments, independent source-age labels, and 800 material lines with actual descriptions. The live Materials page has no console errors. No workbook import or Field change was performed.
+- Phase 1 is complete. Phase 2 is the next implementation phase.
