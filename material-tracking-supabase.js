@@ -148,8 +148,8 @@ async function loadPOItems() {
         // Map Supabase fields to expected format with delivery dates
         state.poItems = poResponse.data.map(item => ({
             po_id: item.purchase_order_id,
-            line_item: item.line_item,
-            description: item.description,
+            line_item: item.purchase_order_item,
+            description: item.item_description?.trim() || item.po_description?.trim() || '',
             supplier: item.supplier,
             category: item.category,
             net_value: item.net_value || 0,
@@ -282,6 +282,10 @@ function handleRealtimeUpdate(payload) {
 // RENDERING FUNCTIONS (Same as before)
 // ============================================================================
 
+function escapeMaterialText(value) {
+    return String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
+}
+
 function renderPOItems(items) {
     const container = document.getElementById('poList');
 
@@ -300,7 +304,7 @@ function renderPOItems(items) {
                 const badgeClass = daysAway !== null && daysAway < 7 ? 'delivery-soon' : '';
                 const dateText = d.date ? formatDate(d.date) : 'TBD';
                 const noteText = d.notes ? ` (${d.notes})` : '';
-                return `<span class="item-tag ${badgeClass}" title="${d.package || ''}"🚚 ${dateText}${noteText}</span>`;
+                return `<span class="item-tag ${badgeClass}" title="${escapeMaterialText(d.package)}">🚚 ${escapeMaterialText(dateText)}${escapeMaterialText(noteText)}</span>`;
             }).join('');
             if (item.expected_delivery.length > 2) {
                 deliveryBadges += `<span class="item-tag">+${item.expected_delivery.length - 2} more</span>`;
@@ -309,10 +313,10 @@ function renderPOItems(items) {
 
         return `
             <div class="selection-item" data-index="${index}">
-                <div class="item-title">${item.po_id} - Line ${item.line_item || 'N/A'}</div>
-                <div class="item-detail">${truncate(item.description || 'No description', 80)}</div>
-                <div class="item-detail"><strong>Supplier:</strong> ${item.supplier || 'Unknown'}</div>
-                <span class="item-tag">${item.category || 'Uncategorized'}</span>
+                <div class="item-title">${escapeMaterialText(item.po_id)} - Line ${escapeMaterialText(item.line_item || 'N/A')}</div>
+                <div class="item-detail">${escapeMaterialText(truncate(item.description || 'No description', 80))}</div>
+                <div class="item-detail"><strong>Supplier:</strong> ${escapeMaterialText(item.supplier || 'Unknown')}</div>
+                <span class="item-tag">${escapeMaterialText(item.category || 'Uncategorized')}</span>
                 <span class="item-tag">Net: $${formatNumber(item.net_value)}</span>
                 ${deliveryBadges}
             </div>
@@ -320,8 +324,8 @@ function renderPOItems(items) {
     }).join('');
 
     // Add click handlers
-    container.querySelectorAll('.selection-item').forEach(el => {
-        el.addEventListener('click', () => selectPOItem(el));
+    container.querySelectorAll('.selection-item').forEach((el, index) => {
+        el.addEventListener('click', () => selectPOItem(el, items[index]));
     });
 }
 
@@ -345,8 +349,8 @@ function renderInstallItems(items) {
     `).join('');
 
     // Add click handlers
-    container.querySelectorAll('.selection-item').forEach(el => {
-        el.addEventListener('click', () => selectInstallItem(el));
+    container.querySelectorAll('.selection-item').forEach((el, index) => {
+        el.addEventListener('click', () => selectInstallItem(el, items[index]));
     });
 }
 
@@ -369,7 +373,7 @@ function renderMaterialLinks(links) {
         <tr>
             <td>${link.id}</td>
             <td>${link.po_id}</td>
-            <td>${truncate(link.po_description || 'N/A', 40)}</td>
+            <td>${escapeMaterialText(truncate(link.po_description || 'N/A', 40))}</td>
             <td>${link.install_tag || 'N/A'}</td>
             <td>${link.install_discipline || 'N/A'}</td>
             <td>${link.quantity || 'N/A'} ${link.uom || ''}</td>
@@ -451,7 +455,7 @@ function handleInstallSearch(e) {
     renderInstallItems(filtered);
 }
 
-function selectPOItem(element) {
+function selectPOItem(element, item) {
     // Remove previous selection
     document.querySelectorAll('#poList .selection-item').forEach(el => {
         el.classList.remove('selected');
@@ -460,8 +464,7 @@ function selectPOItem(element) {
     // Add selection
     element.classList.add('selected');
 
-    const index = parseInt(element.dataset.index);
-    state.selectedPO = state.poItems[index];
+    state.selectedPO = item;
 
     // Update display
     document.getElementById('selectedPO').textContent =
@@ -471,7 +474,7 @@ function selectPOItem(element) {
     updateCreateButtonState();
 }
 
-function selectInstallItem(element) {
+function selectInstallItem(element, item) {
     // Remove previous selection
     document.querySelectorAll('#installList .selection-item').forEach(el => {
         el.classList.remove('selected');
@@ -480,8 +483,7 @@ function selectInstallItem(element) {
     // Add selection
     element.classList.add('selected');
 
-    const index = parseInt(element.dataset.index);
-    state.selectedInstall = state.installItems[index];
+    state.selectedInstall = item;
 
     // Update display
     document.getElementById('selectedInstall').textContent =

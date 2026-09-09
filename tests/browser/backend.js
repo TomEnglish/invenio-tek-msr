@@ -11,15 +11,29 @@
     };
     const save = () => sessionStorage.setItem('fixtureState',JSON.stringify(state));
     const success = data => ({ data, error:null });
+    const reportRows = {
+        purchase_orders: [
+            {id:1,project_id:project.id,purchase_order_id:'PO-20001',purchase_order_item:'00010',item_description:'Six-inch isolation valve',po_description:'Mechanical package',supplier:'Yard Supply',net_value:150,status:'Sent'},
+            {id:2,project_id:project.id,purchase_order_id:'PO-20001',purchase_order_item:'00020',item_description:null,po_description:'Cable tray supports',supplier:'Yard Supply',net_value:50,status:'Sent'},
+        ],
+        shipments: [{id:1,project_id:project.id,shipment_number:'SHIP-10',po_number:'PO-20001',status:'Delivered'}, {id:2,project_id:project.id,shipment_number:'SHIP-20',po_number:'PO-20001',status:'In Transit'}],
+        dashboard_metrics: [{id:1,project_id:project.id,project_name:'Wrong imported name',last_updated:'2026-02-22T12:37:00Z',procurement:{total_pos:999},installation:{total_items:0}}],
+        installation_datasets: [{project_id:project.id,dataset_key:'audit_data',payload:{items:[]},updated_at:'2026-02-22T12:37:00Z'}, {project_id:project.id,dataset_key:'discipline_summary',payload:{},updated_at:'2026-02-22T12:37:00Z'}],
+        samsara_trackers: [{id:'gps-1',project_id:project.id,synced_at:new Date().toISOString()}],
+    };
     class Query {
         constructor(table) { this.table=table; this.filters=[]; this.one=false; this.start=0; this.end=1000; }
         select() { return this; } eq(k,v) { this.filters.push(r=>r[k]===v); return this; }
         order(){return this;} range(a,b){this.start=a;this.end=b;return this;} limit(n){this.end=n-1;return this;}
         single(){this.one=true;return this;} maybeSingle(){return this.single();}
         lt(k,v){this.filters.push(r=>r[k]<v);return this;} in(k,v){this.filters.push(r=>v.includes(r[k]));return this;}
-        or(){return this;} on(){return this;} subscribe(){return this;}
+        gte(k,v){this.filters.push(r=>r[k]>=v);return this;}
+        or(){return this;} on(){return this;} subscribe(callback){if(callback)callback('SUBSCRIBED');return this;}
         then(resolve,reject) {
             let rows = this.table==='users' ? [me] : this.table==='projects' ? state.projects : this.table==='user_projects' ? (sessionStorage.getItem('fixtureNoProjects') ? [] : state.projects.map(p=>({user_id:me.id,project_id:p.id,projects:p}))) : this.table==='receiving_records'||this.table==='materials' ? state.records : this.table==='locations' ? [{id:'d1111111-1111-4111-8111-111111111111', project_id:project.id,zone:'A',row:'1',rack:'1'}] : [];
+            const mode = new URLSearchParams(location.search).get('fixture');
+            if (reportRows[this.table]) rows = mode==='empty' ? [] : reportRows[this.table];
+            if ((mode==='error' && this.table==='purchase_orders') || (mode==='gps-error' && this.table==='samsara_trackers')) return Promise.resolve({data:null,error:{message:'Fixture source unavailable'}}).then(resolve,reject);
             rows=rows.filter(r=>this.filters.every(f=>f(r))).slice(this.start,this.end+1);
             return Promise.resolve({data:this.one?rows[0]||null:rows,error:null,count:rows.length}).then(resolve,reject);
         }

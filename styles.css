@@ -26,6 +26,13 @@
 
 .fade-up { animation: fadeUp 0.3s var(--ease-standard) both; }
 
+.data-health { padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.data-freshness { display: flex; flex-wrap: wrap; gap: 1rem 2rem; }
+.data-freshness > div { flex: 1 1 12rem; min-width: 0; }
+.data-freshness dt { font-size: 0.875rem; font-weight: 600; }
+.data-freshness dd { margin: 0.25rem 0 0; font-size: 0.8125rem; overflow-wrap: anywhere; }
+.data-freshness [data-status="stale"], .data-freshness [data-status="unknown"], .data-freshness [data-status="error"] { border-left: 3px solid var(--warn); padding-left: 0.75rem; }
+
 /* ── Tokens — Light theme (default) ─────────────────────────── */
 :root,
 [data-theme="light"] {

@@ -34,24 +34,34 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <!-- Shared Design System -->
-    <link rel="stylesheet" href="styles.css?v=20260908a">
+    <link rel="stylesheet" href="styles.css?v=20260909c">
 </head>
 
 <body>
     <!-- Hero Banner -->
     <div class="hero-banner fade-up">
-        <h1><i class="fas fa-industry"></i>Greenfield LNG Terminal</h1>
+        <h1><i class="fas fa-industry"></i><span id="dashboardProjectName">Project dashboard</span></h1>
         <p>Material Status Report — Comprehensive tracking of procurement, shipments, and installation progress</p>
         <div class="hero-actions">
             <span style="display:flex; align-items:center; gap:8px;">
-                <span id="realtime-indicator" class="badge bg-warning" style="font-size:11px;">Connecting...</span>
-                <span style="color:rgba(255,255,255,0.7); font-size:12px;"><i class="far fa-clock"></i> Last Updated: <span id="lastUpdated">--</span></span>
+                <span id="realtime-indicator" class="badge bg-warning" style="font-size:11px;" title="Connection for receiving changes; source refresh times are shown below.">Connecting...</span>
+                <span style="color:rgba(255,255,255,0.9); font-size:12px;"><i class="far fa-clock"></i> Procurement refresh: <span id="lastUpdated">--</span></span>
             </span>
             <button class="btn btn-primary" onclick="generateMSRReport()">
                 <i class="fas fa-file-pdf"></i> Export PDF
             </button>
         </div>
     </div>
+
+    <section class="data-health mb-4" aria-labelledby="dataHealthTitle">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <h2 id="dataHealthTitle" class="h6 mb-0">Data refresh status</h2>
+            <button class="btn btn-sm btn-outline-primary" onclick="refreshData()">Refresh view</button>
+        </div>
+        <p class="small text-muted mt-2 mb-2">Refreshes older than 24 hours are flagged for review. These times show when data was loaded; source records may be older.</p>
+        <dl id="dataFreshness" class="data-freshness mb-0" aria-live="polite"><div><dt>Checking sources</dt><dd>Loading refresh times…</dd></div></dl>
+        <p id="dashboardDataMessage" class="alert alert-danger mt-3 mb-0" role="alert" hidden></p>
+    </section>
 
     <!-- Tab Navigation -->
     <ul class="nav nav-pills mb-4 fade-up" id="dashboardTabs" role="tablist" style="animation-delay:0.05s;">
@@ -320,6 +330,7 @@
     <script src="js/utils/branding.js?v=20260424f"></script>
     <script src="js/utils/supabase-client.js?v=20260424f"></script>
     <script src="js/utils/project-scope.js?v=20260909a"></script>
+    <script src="js/utils/data-health.js?v=20260909c"></script>
     <script src="js/utils/user-access.js?v=20260908a"></script>
     <script src="js/utils/auth-guard.js?v=20260908a"></script>
     <script src="js/utils/pdf-export.js?v=20260908a"></script>
@@ -327,7 +338,7 @@
     <script src="js/utils/sidebar.js?v=20260908a"></script>
 
     <!-- Dashboard JavaScript -->
-    <script src="dashboard.js?v=20260909b"></script>
+    <script src="dashboard.js?v=20260909c"></script>
 </body>
 
 </html>
