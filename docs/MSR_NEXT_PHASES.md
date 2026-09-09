@@ -2,7 +2,7 @@
 
 September 9, 2026. Continue MSR improvements after the administration and email release. Leave the additional email account unchanged and review Field last.
 
-## Phase 1 — Correct records and safe refreshes (current implementation)
+## Phase 1 — Correct records and safe refreshes (completed)
 
 1. **Material and project labels (small).** Read PO line identifiers from `purchase_order_item`, prefer `item_description` with `po_description` as fallback, and use the selected project for the dashboard heading. Filtered PO/installation selections must retain the exact clicked record; imported descriptions render as text. Verify schema-shaped records and switching projects with behavioral tests and a browser fixture.
 2. **Atomic workbook import (medium).** Validate both sheets before writing; require an explicit project and a server-only credential. Import both tables and recompute procurement metrics in one database transaction. Match PO records by project/PO/line and shipments by their existing unique shipment number, rejecting another project's collision. Preserve IDs, absent records, installation metrics, and operational history. Reject ambiguous duplicates, invalid values, empty sheets, and inactive projects. Default CLI behavior is validation only; `--apply` submits. Verify real PostgreSQL rollback, repeat imports, role denial, and isolation, plus generated workbook tests.
@@ -58,7 +58,7 @@ Production build configuration correction: the custom `git diff --quiet $CACHED_
 - Merged [PR 1](https://github.com/TomEnglish/invenio-tek-msr/pull/1) and pushed the build-configuration correction to `main` (`6922ac8`). The automatic production build succeeded after the correction; verified manual publication `6aa16cb448a933e6da507029` serves the same tested JavaScript.
 - Applied migration 018 and its migration-history entry in one transaction. Verified imports are denied to `anon` and `authenticated` and permitted to `service_role`. Saved affected tables/constraints and release evidence outside Git in `_backups/field-platform/2026-09-09-msr-data-release/`.
 - Verified live [MSR](https://invenio-field-msr.netlify.app): Main Yard heading, 95 POs, 127 shipments, independent source-age labels, and 800 material lines with actual descriptions. The live Materials page has no console errors. No workbook import or Field change was performed.
-- Phase 1 is complete. Phase 2 is the next implementation phase.
+- Phase 1 is complete. Phases 2–4 were subsequently implemented as recorded below.
 
 ## Phases 2–4 implementation and acceptance
 
@@ -66,3 +66,12 @@ Production build configuration correction: the custom `git diff --quiet $CACHED_
 2. Fix PDF selected-project identity, complete pagination, required-query failure, escaping and synchronous popup reservation. Acceptance: independent regression tests for 1,501 PO lines, 1,201 shipments, malicious text, failures after page one, popup blocking, small currency values and local calendar dates.
 3. Add MSR and Field quality workflows, immutable shared-schema baseline, public build manifest and exact-commit deployment smoke. Document integration ownership and prevent the legacy anonymous-key Samsara workflow from appearing usable in the canonical repo. Acceptance: real GitHub Actions runs plus a verified published artifact. No external sync cutover is implied.
 4. Review Field last in a clean worktree, protecting existing design/config edits. Exercise queue, drafts, attachment persistence, force-close recovery, reconnect/retry, identity/project changes and idempotency. Fix reproducible defects with failing-before tests; run lint and all-platform bundles. Inspect a physical device if available. Device update uptake, actual camera capture and offline force-close behavior remain explicitly pending until observed on hardware.
+
+
+## Phases 2–4 release — September 9
+
+- **Phase 2 published:** [MSR PR 2](https://github.com/TomEnglish/invenio-tek-msr/pull/2) merged. The production dashboard shows 3 open/unassigned Main Yard exceptions and 75 pending shipments past ETA; those arrival dates reflect the existing old source data, whose age remains visible. Inbox links, selected-project empty states, explicit source failures and the 390px layout were verified in the browser. PDF regressions pass for complete pagination, selected-project identity, safe rendering and failed-query handling.
+- **Phase 3 active:** [MSR quality and production smoke](https://github.com/TomEnglish/invenio-tek-msr/actions/runs/34366875299) passed on `f862ce3`. The smoke verified 12 exact public asset hashes and seven private-path exclusions. Field CI also passed on its [merged release](https://github.com/TomEnglish/invenio-field-platform/actions/runs/34368635080), running 52 tests, lint and iOS/Android/web exports. Integration ownership and deferred cutovers are recorded in `INTEGRATION_OWNERSHIP.md`.
+- **Phase 4 fixes published:** [Field PR 2](https://github.com/TomEnglish/invenio-field-platform/pull/2) merged at `422f9ff65acc746662a72ed93a9bd0140a072500`. The production EAS update group is `21db04a8-c496-42d2-aea2-741c737724e1`, runtime `1.0.0`, published at 15:12 UTC. Android update: `01a086ba-399d-7d20-a9b6-caeec9b3ce22`; iOS update: `01a086ba-399d-7a2f-ad80-d1ea1974d044`. Offline access recovery, safe queue draining/retry, photo draft ownership and version diagnostics are included. The production bundle contains the intended shared Supabase endpoint and no CI placeholder key.
+- **Device acceptance remains open:** the iPhone was unavailable. Actual update uptake, camera capture, airplane-mode force-close/reopen and hardware reconnect behavior must still follow Field's `docs/FIELD_RECOVERY_REVIEW.md`. Publication and automated/browser checks do not establish hardware acceptance.
+- **Existing work preserved:** the original Field design/config patch was unchanged byte-for-byte after updating the local checkout. No workbook import, external sync cutover, additional user account or invitation was performed.
