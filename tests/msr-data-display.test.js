@@ -15,14 +15,40 @@ function loadScripts(context, files) {
 
 async function loadMaterials(rows) {
   const nodes = new Map();
+  function node() {
+    let markup = '';
+    let cards = [];
+    return {
+      textContent: '',
+      get innerHTML() { return markup; },
+      set innerHTML(value) {
+        markup = value;
+        cards = [...value.matchAll(/class="selection-item" data-index="(\d+)"/g)].map(match => {
+          const listeners = {};
+          const classes = new Set(['selection-item']);
+          return {
+            dataset: { index: match[1] },
+            classList: { add: value => classes.add(value), remove: value => classes.delete(value) },
+            addEventListener(event, callback) { listeners[event] = callback; },
+            click() { assert.ok(listeners.click, 'rendered card has a click handler'); listeners.click(); },
+          };
+        });
+      },
+      querySelectorAll: selector => selector === '.selection-item' ? cards : [],
+    };
+  }
   const context = vm.createContext({
     console: quietConsole,
     InvenioAuthReady: Promise.resolve(true),
     document: {
       addEventListener() {},
       getElementById(id) {
-        if (!nodes.has(id)) nodes.set(id, { innerHTML: '', textContent: '', querySelectorAll: () => [] });
+        if (!nodes.has(id)) nodes.set(id, node());
         return nodes.get(id);
+      },
+      querySelectorAll(selector) {
+        const match = selector.match(/^#(poList|installList) \.selection-item$/);
+        return match ? nodes.get(match[1])?.querySelectorAll('.selection-item') || [] : [];
       },
     },
     projectSupabaseClient: {
@@ -40,7 +66,7 @@ async function loadMaterials(rows) {
   context.window = context;
   loadScripts(context, ['js/utils/formatting.js', 'material-tracking-supabase.js']);
   await context.loadPOItems();
-  return { html: nodes.get('poList').innerHTML, count: nodes.get('poCount').textContent };
+  return { html: nodes.get('poList').innerHTML, count: nodes.get('poCount').textContent, context, nodes };
 }
 
 test('material cards display the imported purchase-order line number', async () => {
@@ -66,6 +92,12 @@ test('material cards prefer the imported item description over the overall PO de
   assert.doesNotMatch(view.html, /Mechanical package|No description/);
 });
 
+test('imported material descriptions are displayed as text, not executable HTML', async () => {
+  const view = await loadMaterials([{ purchase_order_id: 'PO-1', purchase_order_item: '10', item_description: '<img src=x onerror=alert(1)>' }]);
+  assert.match(view.html, /&lt;img/);
+  assert.doesNotMatch(view.html, /<img/);
+});
+
 test('material cards fall back to the PO description when the imported item description is absent', async () => {
   const view = await loadMaterials([{
     purchase_order_id: 'PO-20002',
@@ -81,6 +113,35 @@ test('material cards fall back to the PO description when the imported item desc
   assert.match(view.html, /Cable tray supports/);
   assert.match(view.html, /Instrument mounting brackets/);
   assert.doesNotMatch(view.html, /No description/);
+});
+
+test('clicking a filtered PO card selects that visible row rather than the first unfiltered PO', async () => {
+  const view = await loadMaterials([
+    { purchase_order_id: 'PO-20001', purchase_order_item: '00010', item_description: 'Mounting bolts' },
+    { purchase_order_id: 'PO-20002', purchase_order_item: '00020', item_description: 'Six-inch isolation valve' },
+  ]);
+  view.context.handlePOSearch({ target: { value: 'isolation valve' } });
+  const visibleCards = view.nodes.get('poList').querySelectorAll('.selection-item');
+  assert.equal(visibleCards.length, 1);
+  visibleCards[0].click();
+  assert.equal(vm.runInContext('state.selectedPO.po_id', view.context), 'PO-20002');
+  assert.equal(vm.runInContext('state.selectedPO.line_item', view.context), '00020');
+  assert.equal(view.nodes.get('selectedPO').textContent, 'PO-20002 - Six-inch isolation valve');
+});
+
+test('clicking a filtered installation card selects that visible row rather than the first unfiltered item', async () => {
+  const view = await loadMaterials([]);
+  view.context.installRows = [
+    { tag: 'CIV-001', description: 'Concrete foundation', discipline: 'Civil' },
+    { tag: 'ELEC-002', description: 'Cable tray supports', discipline: 'Electrical' },
+  ];
+  vm.runInContext('state.installItems = installRows; renderInstallItems(state.installItems);', view.context);
+  view.context.handleInstallSearch({ target: { value: 'Cable tray' } });
+  const visibleCards = view.nodes.get('installList').querySelectorAll('.selection-item');
+  assert.equal(visibleCards.length, 1);
+  visibleCards[0].click();
+  assert.equal(vm.runInContext('state.selectedInstall.tag', view.context), 'ELEC-002');
+  assert.equal(view.nodes.get('selectedInstall').textContent, 'ELEC-002 - Cable tray supports');
 });
 
 test('dashboard heading uses the selected assigned project after the auth guard resolves', async () => {

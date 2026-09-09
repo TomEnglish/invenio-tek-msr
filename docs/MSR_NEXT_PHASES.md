@@ -4,7 +4,7 @@ September 9, 2026. Continue MSR improvements after the administration and email 
 
 ## Phase 1 — Correct records and safe refreshes (current implementation)
 
-1. **Material and project labels (small).** Read PO line identifiers from `purchase_order_item`, prefer `item_description` with `po_description` as fallback, and use the selected project for the dashboard heading. Verify schema-shaped records and switching projects with behavioral tests and a browser fixture.
+1. **Material and project labels (small).** Read PO line identifiers from `purchase_order_item`, prefer `item_description` with `po_description` as fallback, and use the selected project for the dashboard heading. Filtered PO/installation selections must retain the exact clicked record; imported descriptions render as text. Verify schema-shaped records and switching projects with behavioral tests and a browser fixture.
 2. **Atomic workbook import (medium).** Validate both sheets before writing; require an explicit project and a server-only credential. Import both tables and recompute procurement metrics in one database transaction. Match PO records by project/PO/line and shipments by their existing unique shipment number, rejecting another project's collision. Preserve IDs, absent records, installation metrics, and operational history. Reject ambiguous duplicates, invalid values, empty sheets, and inactive projects. Default CLI behavior is validation only; `--apply` submits. Verify real PostgreSQL rollback, repeat imports, role denial, and isolation, plus generated workbook tests.
 3. **Honest dashboard freshness (medium).** Separate the realtime connection label from source timestamps. Show procurement import, installation snapshot, and GPS freshness with an explicit 24-hour review threshold. Missing data, stale data, future timestamps, and query errors must remain distinguishable. Load paginated PO/shipment records and derive procurement counts from the records actually shown. Verify stale/empty/error states and a narrow browser viewport.
 
@@ -12,7 +12,7 @@ September 9, 2026. Continue MSR improvements after the administration and email 
 
 `public.import_po_shipment_snapshot(p_project_id uuid, p_purchase_orders jsonb, p_shipments jsonb)` is executable only by `service_role`. Each array contains 1–10,000 allowlisted records using existing table column names; the server supplies project, IDs, and timestamps. Successful response contains `purchase_orders`, `shipments`, and `synced_at`. It never deletes absent rows. All validations, upserts, and metric changes commit or roll back together. PostgreSQL serializes imports per project, and unique constraints protect stable identifiers. The existing globally unique shipment identifier remains in force; cross-project collisions fail safely.
 
-`python3 sync_po_shipment_data.py --file <workbook> --project-id <uuid>` validates without contacting Supabase. Add `--apply` only for an intended import; the server URL must use HTTPS and `SUPABASE_SERVICE_ROLE_KEY` must be supplied outside source control. The legacy anonymous-key/delete-and-reinsert path is removed. There is no unattended import schedule in this phase.
+Install the CLI dependencies with `python3 -m pip install -r requirements-import.txt` in a virtual environment. `python3 sync_po_shipment_data.py --file <workbook> --project-id <uuid>` validates without contacting Supabase. Add `--apply` only for an intended import; the server URL must use HTTPS and `SUPABASE_SERVICE_ROLE_KEY` must be supplied outside source control. The legacy anonymous-key/delete-and-reinsert path is removed. There is no unattended import schedule in this phase. Missing optional columns preserve existing fields; explicit blank cells clear the matching optional field. Recalculate and save formula cells before importing; spreadsheet errors and missing formula results are rejected.
 
 ### Checkpoint
 
@@ -23,7 +23,7 @@ September 9, 2026. Continue MSR improvements after the administration and email 
 
 ## Phase 2 — Dashboard decisions
 
-Bring existing Work Inbox exceptions, owners, due dates, and overdue work onto the dashboard; add upcoming arrivals and direct links to the underlying records. Verify counts against the inbox and selected project, including empty states. Use that release for stakeholder feedback before defining additional approval or purchase-order feedback workflows; the earlier meaning of “PO feedback” is still unspecified.
+Bring existing Work Inbox exceptions, owners, due dates, and overdue work onto the dashboard; add upcoming arrivals and direct links to the underlying records. Align the shared PDF export's project labeling and pagination with the dashboard (the older shared export still prefers branding labels and fetches a single page). Verify counts against the inbox and selected project, including empty states. Use that release for stakeholder feedback before defining additional approval or purchase-order feedback workflows; the earlier meaning of “PO feedback” is still unspecified.
 
 ## Phase 3 — Repeatable releases
 
@@ -41,4 +41,12 @@ Verify uptake of the published update on a physical device, then test receiving 
 
 ## Verification record
 
-Implementation and verification in progress on `feature/msr-data-reliability`.
+Local implementation completed on `feature/msr-data-reliability`:
+
+- 25 JavaScript test entries pass, including independent failing-before/fixed-after display and filtered-selection regressions, data-age handling, pagination, and the private publication boundary.
+- 15 generated-workbook/CLI tests pass, with no live HTTP calls.
+- 11 PostgreSQL suites pass in a disposable database. An injected failure after PO/shipment writes proves complete rollback. Five actual concurrent-session checks pass, including serial same-project imports and cross-project shipment collision rollback.
+- Real browser checks pass for correct project switching, empty projects, stale versus recent sources, visible query failure, material labels, filtered selection, and a 390px viewport without horizontal overflow. Normal dashboard and Materials pages have no console errors.
+- The current local workbook was not imported. Validation stops at spreadsheet error cell `PO Parts Log!H71`; an independent identifier audit also found repeated shipment identifiers. Source reconciliation remains a prerequisite to importing that workbook.
+
+Release order: verify the live PO natural keys, save the affected tables and constraints outside Git, apply migration 018 with its history record, publish `dist`, and check the live UI. The frontend works before 018 because it reads existing tables; the importer requires 018. Rollback can restore the previous Netlify deployment and, if needed, drop only `import_po_shipment_snapshot(uuid,jsonb,jsonb)` and constraint `purchase_orders_project_po_line_key`. Do not restore the destructive legacy importer or weaken RLS. Migration 018 changes no source records.

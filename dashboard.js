@@ -42,7 +42,7 @@ function setupRealtimeSubscriptions() {
         'material_issues', 'shipments_out', 'audit_log',
         // MSR tables that Python sync scripts update
         'purchase_orders', 'shipments', 'dashboard_metrics',
-        'samsara_trackers', 'delivery_dates'
+        'samsara_trackers', 'delivery_dates', 'installation_datasets'
     ];
 
     watchTables.forEach(table => {
@@ -60,7 +60,7 @@ function setupRealtimeSubscriptions() {
             indicator.className = status === 'SUBSCRIBED'
                 ? 'badge bg-success' : 'badge bg-warning';
             indicator.textContent = status === 'SUBSCRIBED'
-                ? 'LIVE' : 'Connecting...';
+                ? 'Connected' : ['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(status) ? 'Disconnected' : 'Connecting...';
         }
     });
 }
@@ -121,42 +121,24 @@ async function loadAllData() {
     try {
         console.log('Loading data from Supabase...');
 
-        // Load metrics from dashboard_metrics table
-        const { data: metricsData, error: metricsError } = await projectSupabaseClient.from('dashboard_metrics')
-            .select('*')
-            .order('last_updated', { ascending: false })
-            .limit(1)
-            .single();
-
-        if (metricsError) throw metricsError;
-
-        // Load shipments
-        const { data: shipments, error: shipmentsError } = await projectSupabaseClient.from('shipments')
-            .select('*')
-            .order('delivery_date', { ascending: false, nullsFirst: false });
-
-        if (shipmentsError) throw shipmentsError;
-
-        // Load PO data
-        const { data: poData, error: poError } = await projectSupabaseClient.from('purchase_orders')
-            .select('*')
-            .order('created_on', { ascending: false, nullsFirst: false });
-
-        if (poError) throw poError;
-
-        const [auditDataset, disciplineSummaryDataset] = await Promise.all([
-            projectSupabaseClient.from('installation_datasets')
-                .select('payload')
-                .eq('dataset_key', 'audit_data')
-                .maybeSingle(),
-            projectSupabaseClient.from('installation_datasets')
-                .select('payload')
-                .eq('dataset_key', 'discipline_summary')
-                .maybeSingle()
+        const [metricsResponse, shipments, poData, auditDataset, disciplineSummaryDataset, gpsResponse] = await Promise.all([
+            projectSupabaseClient.from('dashboard_metrics').select('*')
+                .order('last_updated', { ascending: false }).limit(1).maybeSingle(),
+            InvenioDataHealth.loadAllRows(projectSupabaseClient, 'shipments'),
+            InvenioDataHealth.loadAllRows(projectSupabaseClient, 'purchase_orders'),
+            projectSupabaseClient.from('installation_datasets').select('payload,updated_at')
+                .eq('dataset_key', 'audit_data').maybeSingle(),
+            projectSupabaseClient.from('installation_datasets').select('payload,updated_at')
+                .eq('dataset_key', 'discipline_summary').maybeSingle(),
+            projectSupabaseClient.from('samsara_trackers').select('synced_at')
+                .order('synced_at', { ascending: false, nullsFirst: false }).limit(1).maybeSingle(),
         ]);
-
+        if (metricsResponse.error) throw metricsResponse.error;
         if (auditDataset.error) throw auditDataset.error;
         if (disciplineSummaryDataset.error) throw disciplineSummaryDataset.error;
+        const metricsData = metricsResponse.data || {};
+        shipments.sort((a, b) => (b.delivery_date || '').localeCompare(a.delivery_date || ''));
+        poData.sort((a, b) => (b.created_on || '').localeCompare(a.created_on || ''));
         const auditData = auditDataset.data?.payload || {};
         const disciplineSummary = disciplineSummaryDataset.data?.payload || {};
 
@@ -169,10 +151,9 @@ async function loadAllData() {
         };
         const metrics = {
             last_updated: metricsData.last_updated,
-            project_name: metricsData.project_name || 'Greenfield LNG Terminal',
-            procurement: parseField(metricsData.procurement, {}),
+            project_name: InvenioProjectScope.activeProject.name,
+            ...InvenioDataHealth.procurementSummary(poData, shipments),
             installation: parseField(metricsData.installation, disciplineSummary || { total_items: 0, by_discipline: {} }),
-            status_counts: parseField(metricsData.status_counts, { po_status: {}, shipment_status: {} })
         };
 
         dashboardData = {
@@ -189,6 +170,13 @@ async function loadAllData() {
         // Update all dashboard components
         updateKPICards();
         updateLastUpdated();
+        document.getElementById('dashboardDataMessage').hidden = true;
+        renderDataFreshness([
+            { name: 'Procurement metrics refreshed', timestamp: metricsData.last_updated },
+            { name: 'Installation items loaded', timestamp: auditDataset.data?.updated_at },
+            { name: 'Installation summary loaded', timestamp: disciplineSummaryDataset.data?.updated_at },
+            { name: 'Latest GPS import', timestamp: gpsResponse.data?.synced_at, error: gpsResponse.error },
+        ]);
         createCharts();
         populatePOTable();
         populateShipmentTable();
@@ -197,7 +185,10 @@ async function loadAllData() {
 
     } catch (error) {
         console.error('Error loading dashboard data:', error);
-        showError('Failed to load dashboard data from Supabase. Please check the console for details.');
+        const message = document.getElementById('dashboardDataMessage');
+        message.textContent = 'Unable to refresh this project. Any values still shown are from the previous successful load. Please refresh the view to retry.';
+        message.hidden = false;
+        renderDataFreshness([{ name: 'Refresh status', error: true }]);
     }
 }
 
@@ -216,6 +207,23 @@ function updateKPICards() {
 function updateLastUpdated() {
     const timestamp = dashboardData.metrics.last_updated;
     document.getElementById('lastUpdated').textContent = formatDateTime(timestamp);
+}
+
+// Source data is untrusted: create text nodes instead of inserting HTML.
+function renderDataFreshness(sources) {
+    const container = document.getElementById('dataFreshness');
+    container.replaceChildren();
+    for (const source of sources) {
+        const health = source.error ? { status: 'error', label: 'Unable to check refresh' } : InvenioDataHealth.freshness(source.timestamp);
+        const row = document.createElement('div');
+        row.dataset.status = health.status;
+        const title = document.createElement('dt');
+        title.textContent = source.name;
+        const detail = document.createElement('dd');
+        detail.textContent = health.label + (source.timestamp && health.status !== 'unknown' ? ` · ${formatDateTime(source.timestamp)}` : '');
+        row.append(title, detail);
+        container.appendChild(row);
+    }
 }
 
 // Create all charts
