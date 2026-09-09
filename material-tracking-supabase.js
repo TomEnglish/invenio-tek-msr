@@ -22,6 +22,7 @@ let state = {
 // ============================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
+    if (!(await window.InvenioAuthReady)) return;
     console.log('Material Tracking System (Supabase) initializing...');
 
     // Check if Supabase is configured
@@ -54,6 +55,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ============================================================================
 
 async function checkSupabaseConnection() {
+    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
     try {
         // Try to query the material_links table (should work even if empty)
         const { data, error } = await projectSupabaseClient.from('material_links')
@@ -113,6 +115,7 @@ function showConfigurationError() {
 // ============================================================================
 
 async function loadPOItems() {
+    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
     try {
         // Load PO items and delivery dates from Supabase
         const [poResponse, deliveryResponse] = await Promise.all([
@@ -166,6 +169,7 @@ async function loadPOItems() {
 }
 
 async function loadInstallItems() {
+    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
     try {
         // Load from local JSON file (same as before)
         const response = await fetch('dashboard_data/audit_data.json');
@@ -206,6 +210,7 @@ async function loadInstallItems() {
 }
 
 async function loadMaterialLinks() {
+    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
     try {
         // Query Supabase for material links
         const { data, error } = await projectSupabaseClient.from('material_links')
@@ -495,6 +500,7 @@ function updateCreateButtonState() {
 // ============================================================================
 
 async function createMaterialLink() {
+    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
     if (!state.selectedPO || !state.selectedInstall) {
         alert('Please select both a PO item and an installation item');
         return;
@@ -540,6 +546,7 @@ async function createMaterialLink() {
 }
 
 async function updateLinkStatus(linkId, currentStatus) {
+    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
     const statuses = ['ordered', 'shipped', 'received', 'installed'];
     const currentIndex = statuses.indexOf(currentStatus);
 
@@ -592,6 +599,7 @@ async function updateLinkStatus(linkId, currentStatus) {
 }
 
 async function deleteLink(linkId) {
+    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
     if (!confirm(`Are you sure you want to delete link #${linkId}? This action cannot be undone.`)) {
         return;
     }
@@ -630,6 +638,7 @@ function applyFilters() {
 }
 
 async function exportToExcel() {
+    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
     try {
         // Get current filtered data
         const statusFilter = document.getElementById('filterStatus').value;

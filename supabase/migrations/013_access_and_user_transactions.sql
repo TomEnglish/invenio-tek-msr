@@ -4,6 +4,9 @@ BEGIN;
 ALTER TABLE public.users ADD COLUMN invitation_status text NOT NULL DEFAULT 'accepted'
   CHECK (invitation_status IN ('pending','accepted','cancelled'));
 ALTER TABLE public.users ADD COLUMN invitation_expires_at timestamptz;
+-- Previously sent but never confirmed invitations need a fresh setup link.
+UPDATE public.users u SET invitation_status='pending',invitation_expires_at=now()
+ FROM auth.users a WHERE a.id=u.id AND a.invited_at IS NOT NULL AND a.email_confirmed_at IS NULL;
 
 CREATE OR REPLACE FUNCTION public.handle_new_user() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$

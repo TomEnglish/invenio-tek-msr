@@ -66,6 +66,9 @@
                     page: params.page || 1,
                     pageSize: params.pageSize || 50,
                     search: params.search || '',
+                    role: params.role,
+                    status: params.status,
+                    projectId: params.projectId,
                 });
             },
             listProjects() {
@@ -77,6 +80,10 @@
             updateUser(input) {
                 return invoke('PATCH', input);
             },
+            resendInvitation(userId) { return invoke('POST', { action: 'resend_invite', userId }); },
+            cancelInvitation(userId) { return invoke('POST', { action: 'cancel_invite', userId }); },
+            listAudit(params = {}) { return invoke('GET', undefined, { resource: 'audit', ...params }); },
+            saveProject(input) { return invoke(input.projectId ? 'PATCH' : 'POST', { resource: 'projects', ...input }); },
         };
     }
 

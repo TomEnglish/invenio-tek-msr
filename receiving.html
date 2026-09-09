@@ -30,7 +30,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- Shared Design System -->
-    <link rel="stylesheet" href="styles.css?v=20260424g">
+    <link rel="stylesheet" href="styles.css?v=20260908a">
 
     <style>
         /* ── Receiving Wizard ─────────────────────────────────────── */
@@ -496,6 +496,7 @@
                         </div>
                     </div>
 
+                    <div id="acceptedQtyGroup" class="mb-3" hidden><label for="acceptedQty" class="form-label">Accepted quantity</label><input id="acceptedQty" class="form-control" type="number" min="1" step="1"><div id="accepted_qtyError" class="text-danger small"></div></div>
                     <div class="auto-exception-alert" id="autoExceptionAlert" style="display: none;">
                         <i class="fas fa-exclamation-triangle me-2"></i>
                         <strong>Exception auto-flagged</strong> because the material is damaged or failed inspection.
@@ -586,14 +587,14 @@
     <script src="js/utils/formatting.js?v=20260424f"></script>
     <script src="js/utils/branding.js?v=20260424f"></script>
     <script src="js/utils/supabase-client.js?v=20260424f"></script>
-    <script src="js/utils/project-scope.js?v=20260428a"></script>
-    <script src="js/utils/user-access.js?v=20260812a"></script>
-    <script src="js/utils/auth-guard.js?v=20260424f"></script>
+    <script src="js/utils/project-scope.js?v=20260908a"></script>
+    <script src="js/utils/user-access.js?v=20260908a"></script>
+    <script src="js/utils/auth-guard.js?v=20260908a"></script>
     <script src="js/utils/export.js?v=20260424f"></script>
-    <script src="js/utils/sidebar.js?v=20260424f"></script>
+    <script src="js/utils/sidebar.js?v=20260908a"></script>
 
     <!-- Receiving Wizard JS -->
-    <script src="receiving.js?v=20260424f"></script>
+    <script src="receiving.js?v=20260908a"></script>
 </body>
 
 </html>

@@ -114,6 +114,7 @@ document.head.appendChild(toastStyle);
 
 // Load all data from Supabase
 async function loadAllData() {
+    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
     try {
         console.log('Loading data from Supabase...');
 
@@ -691,6 +692,7 @@ function refreshData() {
 
 // Load upcoming milestones for widget
 async function loadUpcomingMilestones() {
+    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
     try {
         console.log('Loading upcoming milestones...');
 

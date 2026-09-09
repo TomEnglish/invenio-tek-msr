@@ -282,6 +282,15 @@ const TABLE_CONFIG = {
         searchColumns: ['activity_id', 'activity_name', 'category'],
     },
 };
+// Corrections to physical records use audited operations; history remains read-only.
+for (const [table, config] of Object.entries(TABLE_CONFIG)) {
+    config.canDelete = false;
+    if (['receiving_records','qr_codes','material_movements','material_issues','shipments_out','audit_log'].includes(table)) {
+        config.canInsert = false; config.columns.forEach(c => { c.editable = false; });
+    }
+    if (table === 'materials') config.columns.forEach(c => { c.editable = ['material_type','size','grade','spec','weight'].includes(c.key); });
+}
+
 
 // ── State ──
 
@@ -374,6 +383,7 @@ function bindEvents() {
 // ── Data Loading ──
 
 async function loadData() {
+    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
     const tableName = state.currentTable;
     const config = TABLE_CONFIG[tableName];
     if (!config) return;
@@ -534,6 +544,7 @@ function openEditModal(rowIndex) {
     const hasEditable = config.columns.some(c => c.editable);
     document.getElementById('btnSaveRecord').style.display = hasEditable ? 'inline-block' : 'none';
 
+    state.operationId = crypto.randomUUID();
     renderEditForm(config, record);
 
     const modal = new bootstrap.Modal(document.getElementById('editModal'));
@@ -605,12 +616,14 @@ function renderEditForm(config, record) {
         html += `</div>`;
     });
 
+    if (state.currentTable === 'materials') html += '<div class="field-group"><label for="correctionReason">Reason for correction</label><textarea id="correctionReason" class="form-control" minlength="5" required></textarea></div>';
     body.innerHTML = html;
 }
 
 // ── Save / Insert ──
 
 async function saveRecord() {
+    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
     const config = TABLE_CONFIG[state.currentTable];
     const changes = {};
 
@@ -642,6 +655,11 @@ async function saveRecord() {
                 .from(state.currentTable)
                 .insert(changes);
             if (error) throw error;
+        } else if (state.currentTable === 'materials') {
+            const reason = document.getElementById('correctionReason').value.trim();
+            if (reason.length < 5) throw new Error('Explain the correction in at least five characters.');
+            const { error } = await supabaseClient.rpc('apply_field_operation', { p_operation_id: state.operationId, p_project_id: InvenioProjectScope.getActiveProjectId(), p_action: 'correct_material', p_payload: { materialId: state.editRecord.id, changes, reason } });
+            if (error) throw error;
         } else {
             const id = state.editRecord[config.idField];
             const { error } = await projectSupabaseClient
@@ -664,6 +682,7 @@ async function saveRecord() {
 // ── Delete ──
 
 async function deleteRecord() {
+    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
     const config = TABLE_CONFIG[state.currentTable];
     const id = state.editRecord[config.idField];
 

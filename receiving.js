@@ -25,6 +25,8 @@ const STEP_COUNT = 6;
 // ── Wizard State ──
 
 let wizardState = {
+    operationId: crypto.randomUUID(),
+    submittedPayload: null,
     currentStep: 0,
     qrCodeValue: '',
     qrCodeId: null,
@@ -68,6 +70,8 @@ document.addEventListener('DOMContentLoaded', () => {
     buildMaterialTypeGrid();
     buildDataLists();
     bindEvents();
+    document.addEventListener('input', () => { window.InvenioUnsavedChanges = true; });
+    window.addEventListener('beforeunload', event => { if (window.InvenioUnsavedChanges || wizardState.submittedPayload) { event.preventDefault(); event.returnValue = ''; } });
 });
 
 function buildMaterialTypeGrid() {
@@ -202,7 +206,7 @@ function updateStepIndicator(activeStep) {
 function collectStepData(step) {
     switch (step) {
         case 0:
-            wizardState.material.qty = parseInt(document.getElementById('inputQty').value) || 1;
+            wizardState.material.qty = Number(document.getElementById('inputQty').value);
             wizardState.material.size = document.getElementById('inputSize').value.trim();
             wizardState.material.grade = document.getElementById('inputGrade').value.trim();
             const weight = parseFloat(document.getElementById('inputWeight').value);
@@ -215,6 +219,9 @@ function collectStepData(step) {
             wizardState.po.po_number = document.getElementById('inputPONumber').value.trim();
             wizardState.po.delivery_ticket = document.getElementById('inputDeliveryTicket').value.trim();
             wizardState.po.carrier = document.getElementById('inputCarrier').value.trim();
+            break;
+        case 4:
+            wizardState.decision.accepted_qty = wizardState.decision.status === 'partially_accepted' ? Number(document.getElementById('acceptedQty').value) : undefined;
             break;
         case 3:
             wizardState.inspection.damage_notes = document.getElementById('inputDamageNotes').value.trim();
@@ -231,11 +238,12 @@ function validateStep(step) {
             if (!wizardState.material.material_type) {
                 errors.material_type = 'Please select a material type';
             }
-            if (!wizardState.material.qty || wizardState.material.qty < 1) {
+            if (!Number.isInteger(wizardState.material.qty) || wizardState.material.qty < 1) {
                 errors.qty = 'Quantity must be at least 1';
             }
             break;
         case 4:
+            if (wizardState.decision.status === 'partially_accepted' && (!Number.isInteger(wizardState.decision.accepted_qty) || wizardState.decision.accepted_qty <= 0 || wizardState.decision.accepted_qty >= wizardState.material.qty)) errors.accepted_qty = 'Enter a whole accepted quantity between zero and delivered quantity';
             if (wizardState.decision.has_exception && !wizardState.decision.exception_type) {
                 errors.exception_type = 'Please select an exception type';
             }
@@ -250,6 +258,7 @@ function validateStep(step) {
 }
 
 function showValidationErrors(step, errors) {
+    if (errors.accepted_qty) { const hint = document.getElementById('accepted_qtyError'); hint.textContent = errors.accepted_qty; hint.style.display = 'block'; }
     if (errors.material_type) {
         document.getElementById('materialTypeError').style.display = 'block';
     }
@@ -306,6 +315,7 @@ function selectStatus(btn) {
     });
     const value = btn.dataset.value;
     wizardState.decision.status = value;
+    document.getElementById('acceptedQtyGroup').hidden = value !== 'partially_accepted';
 
     if (value === 'accepted') btn.classList.add('selected-success');
     else if (value === 'rejected') btn.classList.add('selected-danger');
@@ -422,6 +432,7 @@ function formatPhotoType(type) {
 // ── Location Loading ──
 
 async function loadLocations() {
+    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
     const loading = document.getElementById('locationLoading');
     const errorEl = document.getElementById('locationError');
     const list = document.getElementById('locationList');
@@ -482,43 +493,11 @@ function selectLocation(id) {
     renderLocationList();
 }
 
-// ── Supabase: QR Code Lookup/Create ──
-
-async function lookupOrCreateQRCode(codeValue) {
-    const { data: existing } = await projectSupabaseClient.from('qr_codes')
-        .select('*')
-        .eq('code_value', codeValue)
-        .single();
-
-    if (existing) {
-        return { id: existing.id, isNew: false };
-    }
-
-    const { data: created, error } = await projectSupabaseClient.from('qr_codes')
-        .insert({ code_value: codeValue, entity_type: 'item' })
-        .select()
-        .single();
-
-    if (error) throw new Error('Failed to create QR code: ' + error.message);
-    return { id: created.id, isNew: true };
-}
-
-// ── Supabase: Photo Upload ──
-
-async function uploadPhoto(photo, receivingRecordId) {
-    const fileName = `${receivingRecordId}/${Date.now()}_${photo.photo_type}.jpg`;
-
-    const { error } = await supabaseClient.storage
-        .from('inspection-photos')
-        .upload(fileName, photo.file, { contentType: photo.file.type || 'image/jpeg' });
-
-    if (error) throw new Error('Photo upload failed: ' + error.message);
-    return fileName;
-}
-
 // ── Submission ──
 
 async function handleSubmit() {
+    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
+    if (wizardState.submitting) return;
     collectStepData(wizardState.currentStep);
 
     const validation = validateStep(5);
@@ -541,91 +520,28 @@ async function handleSubmit() {
         if (!session) throw new Error('Not authenticated. Please sign in again.');
         const userId = session.user.id;
 
-        // Lookup or create QR code
-        const qr = await lookupOrCreateQRCode(wizardState.qrCodeValue);
-        wizardState.qrCodeId = qr.id;
-
-        // Insert receiving record
-        const { data: record, error: recordError } = await projectSupabaseClient.from('receiving_records')
-            .insert({
-                qr_code_id: wizardState.qrCodeId,
-                status: wizardState.decision.status,
-                material_type: wizardState.material.material_type,
-                size: wizardState.material.size || null,
-                grade: wizardState.material.grade || null,
-                qty: wizardState.material.qty,
-                weight: wizardState.material.weight,
-                description: wizardState.material.description || null,
-                spec: wizardState.material.spec || null,
-                vendor: wizardState.po.vendor || null,
-                po_number: wizardState.po.po_number || null,
-                delivery_ticket: wizardState.po.delivery_ticket || null,
-                carrier: wizardState.po.carrier || null,
-                condition: wizardState.inspection.condition,
-                damage_notes: wizardState.inspection.damage_notes || null,
-                inspection_pass: wizardState.inspection.inspection_pass,
-                has_exception: wizardState.decision.has_exception,
-                exception_type: wizardState.decision.exception_type || null,
-                exception_resolved: false,
-                location_id: wizardState.location.location_id,
-                created_by: userId,
-            })
-            .select()
-            .single();
-
-        if (recordError) throw new Error('Failed to save record: ' + recordError.message);
-
-        // Upload photos
-        for (const photo of wizardState.photos) {
-            try {
-                const storagePath = await uploadPhoto(photo, record.id);
-                await projectSupabaseClient.from('inspection_photos')
-                    .insert({
-                        receiving_record_id: record.id,
-                        storage_path: storagePath,
-                        photo_type: photo.photo_type,
-                    });
-            } catch (photoErr) {
-                console.warn('Photo upload/save warning:', photoErr.message);
-            }
-        }
-
-        // Link QR code to receiving record
-        await projectSupabaseClient.from('qr_codes')
-            .update({ entity_id: record.id })
-            .eq('id', wizardState.qrCodeId);
-
-        // Auto-create material if accepted
-        if (wizardState.decision.status === 'accepted' || wizardState.decision.status === 'partially_accepted') {
-            await projectSupabaseClient.from('materials').insert({
-                receiving_record_id: record.id,
-                qr_code_id: wizardState.qrCodeId,
-                material_type: wizardState.material.material_type,
-                size: wizardState.material.size || null,
-                grade: wizardState.material.grade || null,
-                qty: wizardState.material.qty,
-                current_quantity: wizardState.material.qty,
-                weight: wizardState.material.weight,
-                spec: wizardState.material.spec || null,
-                location_id: wizardState.location.location_id,
-                status: 'in_yard',
-            });
-        }
-
-        // Audit log
-        await supabaseClient.from('audit_log').insert({
-            user_id: userId,
-            action: 'receiving_created',
-            entity_type: 'receiving_record',
-            entity_id: record.id,
-            details: {
-                project_id: InvenioProjectScope.getActiveProjectId(),
-                material_type: wizardState.material.material_type,
-                qty: wizardState.material.qty,
-                status: wizardState.decision.status,
-                has_exception: wizardState.decision.has_exception,
-            },
+        const scope = InvenioProjectScope.getActiveProjectId();
+        if (!wizardState.submittedPayload) wizardState.submittedPayload = JSON.parse(JSON.stringify({
+            qrCodeValue: wizardState.qrCodeValue, material: wizardState.material, po: wizardState.po,
+            inspection: wizardState.inspection, location: wizardState.location, decision: wizardState.decision,
+        }));
+        // Preserve the first request on an uncertain outcome. Retries cannot turn into a new receipt.
+        const { data: record, error } = await supabaseClient.rpc('apply_field_operation', {
+            p_operation_id: wizardState.operationId, p_project_id: scope, p_action: 'receiving', p_payload: wizardState.submittedPayload,
         });
+        if (error) {
+            if (['22023','22P02','22003','23514','42501','23503'].includes(error.code)) wizardState.submittedPayload = null;
+            throw new Error(error.message);
+        }
+        for (const [index, photo] of wizardState.photos.entries()) {
+            const path = `${record.id}/${wizardState.operationId}-${index}-${photo.photo_type}`;
+            const { error: uploadError } = await supabaseClient.storage.from('inspection-photos').upload(path, photo.file, { contentType: photo.file.type || 'image/jpeg', upsert: true });
+            if (uploadError) throw new Error('Receipt saved. Keep this page open and retry to finish photos: ' + uploadError.message);
+            const { error: referenceError } = await supabaseClient.rpc('attach_inspection_photo', { p_record_id: record.id, p_path: path, p_type: photo.photo_type });
+            if (referenceError) throw new Error('Receipt saved. Retry to finish photo references: ' + referenceError.message);
+        }
+        wizardState.submittedPayload = null;
+        window.InvenioUnsavedChanges = false;
 
         // Show success
         document.getElementById('wizardContainer').style.display = 'none';
@@ -647,7 +563,10 @@ async function handleSubmit() {
 // ── Reset ──
 
 function resetWizard() {
+    window.InvenioUnsavedChanges = false;
     wizardState = {
+        operationId: crypto.randomUUID(),
+        submittedPayload: null,
         currentStep: 0,
         qrCodeValue: '',
         qrCodeId: null,

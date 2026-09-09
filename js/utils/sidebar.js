@@ -17,8 +17,11 @@
         { label: 'GPS Tracking',    icon: 'fa-map-marker-alt',    href: 'samsara-tracking.html', section: 'Field' },
         { label: 'Site Plan',       icon: 'fa-drafting-compass',  href: 'site-plan.html' },
         { label: 'Receiving',       icon: 'fa-clipboard-list',    href: 'receiving.html' },
-        { label: 'Admin',           icon: 'fa-database',          href: 'admin.html', section: 'System', adminOnly: true },
-        { label: 'User Management', icon: 'fa-users-cog',         href: 'user-admin.html', adminOnly: true },
+        { label: 'Data Browser',           icon: 'fa-database',          href: 'admin.html', section: 'System', adminOnly: true },
+        { label: 'Users & Access', icon: 'fa-users-cog',         href: 'user-admin.html', adminOnly: true },
+        { label: 'Projects', icon: 'fa-folder', href: 'projects.html', adminOnly: true },
+        { label: 'Activity & Audit', icon: 'fa-history', href: 'audit.html', adminOnly: true },
+        { label: 'Work Inbox', icon: 'fa-inbox', href: 'work-inbox.html' },
     ];
 
     // Page title map
@@ -36,7 +39,10 @@
         'site-plan.html':              'Site Plan',
         'receiving.html':              'Receiving',
         'admin.html':                  'Data Browser',
-        'user-admin.html':              'User Management',
+        'user-admin.html':              'Users & Access',
+        'projects.html': 'Projects', 'audit.html': 'Activity & Audit', 'access-pending.html': 'Access pending', 'search.html': 'Search',
+        'record.html': 'Record details',
+        'work-inbox.html': 'Work Inbox',
     };
 
     function getCurrentPage() {
@@ -139,7 +145,7 @@
         <div class="app-shell">
             <!-- Sidebar -->
             <aside class="sidebar" id="app-sidebar">
-                <div class="sidebar-logo">
+                <div class="sidebar-logo"><button type="button" id="sidebar-close" class="sidebar-close" aria-label="Close navigation">×</button>
                     <img src="${logo}" alt="Invenio" class="lockup">
                 </div>
                 <nav class="sidebar-nav">
@@ -167,18 +173,18 @@
                         <i class="fas fa-bars"></i>
                     </button>
                     <span class="page-title">${getPageTitle()}</span>
-                    <div class="header-search-wrap">
+                    <select id="active-project" class="form-select form-select-sm" aria-label="Active project" style="width:auto;max-width:240px" hidden></select>
+                    <form class="header-search-wrap" action="search.html" role="search">
                         <i class="fas fa-search"></i>
-                        <input type="text" class="header-search" placeholder="Search..." id="header-search">
-                    </div>
+                        <input type="text" class="header-search" placeholder="Search records..." aria-label="Search records" name="q" id="header-search">
+                    </form>
                     <button class="theme-toggle" id="theme-toggle" title="Toggle color theme" aria-label="Toggle color theme">
                         <i class="icon-moon fas fa-moon"></i>
                         <i class="icon-sun fas fa-sun"></i>
                     </button>
-                    <button class="header-icon-btn" title="Notifications">
+                    <a class="header-icon-btn" href="work-inbox.html" title="Work inbox" aria-label="Work inbox">
                         <i class="far fa-bell"></i>
-                        <span class="notif-dot"></span>
-                    </button>
+                    </a>
                 </header>
 
                 <!-- Page Content -->
@@ -194,12 +200,19 @@
         const toggleBtn = document.getElementById('sidebar-toggle');
         const sidebar = document.getElementById('app-sidebar');
         if (toggleBtn && sidebar) {
-            toggleBtn.addEventListener('click', () => {
-                sidebar.classList.toggle('collapsed');
-                const icon = toggleBtn.querySelector('i');
-                icon.classList.toggle('fa-bars');
-                icon.classList.toggle('fa-times');
-            });
+            const mobile = window.matchMedia('(max-width: 768px)');
+            const setCollapsed = collapsed => {
+                sidebar.classList.toggle('collapsed', collapsed);
+                sidebar.inert = collapsed;
+                toggleBtn.setAttribute('aria-expanded', String(!collapsed));
+            };
+            toggleBtn.setAttribute('aria-label', 'Toggle navigation');
+            toggleBtn.setAttribute('aria-controls', 'app-sidebar');
+            setCollapsed(mobile.matches);
+            mobile.addEventListener('change', () => setCollapsed(mobile.matches));
+            toggleBtn.addEventListener('click', () => setCollapsed(!sidebar.classList.contains('collapsed')));
+            document.getElementById('sidebar-close').onclick = () => { setCollapsed(true); toggleBtn.focus(); };
+            document.addEventListener('keydown', event => { if (event.key === 'Escape' && mobile.matches) { setCollapsed(true); toggleBtn.focus(); } });
         }
 
         // Theme toggle — cycles between light/dark, persists choice
@@ -211,8 +224,25 @@
             });
         }
 
+        document.addEventListener('input', event => { if (event.target.closest('#main-content form')) window.InvenioUnsavedChanges = true; });
         // Load user info
         getUserInitials();
+        (window.InvenioAuthReady || Promise.resolve(false)).then(ready => {
+            if (!ready) return;
+            const scope = window.InvenioProjectScope;
+            const selector = document.getElementById('active-project');
+            for (const project of scope.availableProjects) {
+                const option = document.createElement('option'); option.value = project.id; option.textContent = project.name;
+                selector.appendChild(option);
+            }
+            selector.hidden = !scope.availableProjects.length;
+            selector.value = scope.activeProject?.id || '';
+            selector.onchange = () => {
+                if (window.InvenioUnsavedChanges && !confirm('Switch project and leave unsaved work on this page?')) { selector.value = scope.activeProject?.id || ''; return; }
+                scope.setActiveProjectId(selector.value); location.reload();
+            };
+            if (scope.activeProject) document.title = `${getPageTitle()} — ${scope.activeProject.name} — Invenio`;
+        });
     }
 
     // Provide global signOut if not already defined

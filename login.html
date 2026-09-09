@@ -23,7 +23,7 @@
     <title>Login - Invenio Field MSR</title>
 
     <!-- Shared Design System -->
-    <link rel="stylesheet" href="styles.css?v=20260424g">
+    <link rel="stylesheet" href="styles.css?v=20260908a">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <style>
@@ -327,10 +327,12 @@
     </div>
 
     <script>document.documentElement.classList.add('auth-ready');</script>
+    <script src="js/utils/login-flow.js"></script>
+    <script>window.loginFlow = InvenioLoginFlow.createLoginFlow(location.hash, location.search);</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js?v=20260424f"></script>
     <script src="js/utils/supabase-client.js?v=20260424f"></script>
-    <script src="js/utils/project-scope.js?v=20260428a"></script>
+    <script src="js/utils/project-scope.js?v=20260908a"></script>
     <script>
         const loginForm = document.getElementById('login-form');
         const resetRequestForm = document.getElementById('reset-request-form');
@@ -339,14 +341,7 @@
         const subtitle = document.querySelector('.login-card .subtitle');
         const messageBox = document.getElementById('login-error');
 
-        function isRecoveryUrl() {
-            return window.location.hash.includes('type=recovery') || window.location.search.includes('type=recovery');
-        }
-
-        // Supabase consumes the recovery hash while establishing the session.
-        // Capture this before that happens so getSession() cannot redirect the
-        // user away from the password form after the hash has been cleaned up.
-        let recoveryFlowStarted = isRecoveryUrl();
+        const loginFlow = window.loginFlow;
 
         function setMessage(message, type = 'error') {
             messageBox.textContent = message;
@@ -385,7 +380,7 @@
         }
 
         function showUpdatePasswordForm() {
-            title.textContent = 'Set new password';
+            title.textContent = loginFlow.mode === 'invite' ? 'Finish your invitation' : 'Set new password';
             subtitle.textContent = 'Choose a new password for your account.';
             loginForm.classList.add('hidden');
             resetRequestForm.classList.remove('active');
@@ -403,23 +398,25 @@
         }
 
         supabaseClient.auth.onAuthStateChange((event) => {
+            loginFlow.handleEvent(event);
             if (event === 'PASSWORD_RECOVERY') {
-                recoveryFlowStarted = true;
                 clearMessage();
                 showUpdatePasswordForm();
             }
         });
 
-        if (recoveryFlowStarted) {
+        if (loginFlow.mode !== 'login' && !loginFlow.error) {
             showUpdatePasswordForm();
         }
 
         // If already logged in, redirect to dashboard unless this is a password recovery session.
         supabaseClient.auth.getSession().then(({ data: { session } }) => {
-            if (session && !recoveryFlowStarted) {
+            if (loginFlow.shouldRedirect(session)) {
                 window.location.href = 'index.html';
             }
         });
+
+        if (loginFlow.error) setMessage(loginFlow.error);
 
         document.getElementById('forgot-password-btn').addEventListener('click', showResetRequestForm);
         document.getElementById('back-to-login-btn').addEventListener('click', () => {
@@ -485,7 +482,10 @@
 
             setButtonLoading('update-password-btn', 'update-password-text', 'update-password-spinner', true);
 
-            const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+            let { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+            if (!error) {
+                ({ error } = await supabaseClient.rpc('complete_invitation'));
+            }
 
             setButtonLoading('update-password-btn', 'update-password-text', 'update-password-spinner', false);
 

@@ -82,3 +82,31 @@ Deno.test('accepts the shared all-zero default project UUID', () => {
     throw new Error('default project UUID should be accepted');
   }
 });
+
+Deno.test('preserves supported list filters and rejects unknown role status and project filters', () => {
+  const projectId = '00000000-0000-0000-0000-000000000000';
+  const params = parseListParams(new URL(`https://example.test/admin-users?role=office_staff&status=expired&projectId=${projectId}`));
+  if (params.role !== 'office_staff' || params.status !== 'expired' || params.projectId !== projectId) {
+    throw new Error('Supported filters were not preserved');
+  }
+  expectValidationError(() => parseListParams(new URL('https://example.test/?role=owner')), 'INVALID_ROLE');
+  expectValidationError(() => parseListParams(new URL('https://example.test/?status=deleted')), 'INVALID_STATUS');
+  expectValidationError(() => parseListParams(new URL('https://example.test/?projectId=invalid')), 'INVALID_PROJECT_ID');
+});
+
+Deno.test('retains the optimistic update version and rejects invalid version values', () => {
+  const base = { userId: '00000000-0000-0000-0000-000000000000', isActive: false };
+  const version = '2026-09-09T01:02:03.456Z';
+  if (validateUpdateInput({ ...base, expectedUpdatedAt: version }).expectedUpdatedAt !== version) {
+    throw new Error('Update version was not retained');
+  }
+  for (const expectedUpdatedAt of ['not-a-date', '', null, 42]) {
+    expectValidationError(() => validateUpdateInput({ ...base, expectedUpdatedAt }), 'INVALID_VERSION');
+  }
+});
+
+Deno.test('an update version alone does not count as a profile change', () => {
+  expectValidationError(() => validateUpdateInput({
+    userId: '00000000-0000-0000-0000-000000000000', expectedUpdatedAt: '2026-09-09T01:02:03.456Z',
+  }), 'EMPTY_UPDATE');
+});

@@ -1,0 +1,24 @@
+BEGIN;
+\ir admin-fixtures.sql
+UPDATE public.users SET invitation_status='pending',invitation_expires_at=now()+interval '1 hour' WHERE id='f1111111-1111-4111-8111-111111111111';
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','f1111111-1111-4111-8111-111111111111',true);
+SELECT pg_temp.assert_true(NOT public.has_project_access('b1111111-1111-4111-8111-111111111111'),'Pending invitation has no project access');
+SELECT pg_temp.expect_error('SELECT public.complete_invitation()','42501','Password and confirmed email required');
+RESET ROLE;
+UPDATE auth.users SET encrypted_password='test-hash',email_confirmed_at=now() WHERE id='f1111111-1111-4111-8111-111111111111';
+UPDATE public.users SET invitation_expires_at=now()-interval '1 hour' WHERE id='f1111111-1111-4111-8111-111111111111';
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.expect_error('SELECT public.complete_invitation()','42501','Expired invitation cannot activate access');
+RESET ROLE;
+UPDATE public.users SET invitation_expires_at=now()+interval '1 hour' WHERE id='f1111111-1111-4111-8111-111111111111';
+SET LOCAL ROLE authenticated;
+SELECT public.complete_invitation();
+SELECT public.complete_invitation();
+SELECT pg_temp.assert_true(public.has_project_access('b1111111-1111-4111-8111-111111111111'),'Valid invitation activates assigned project access');
+RESET ROLE;
+SELECT pg_temp.assert_true((SELECT count(*)=1 FROM public.user_admin_audit WHERE action='accept_invite'),'Repeated completion creates one acceptance event');
+UPDATE public.users SET invitation_status='cancelled',is_active=false WHERE id='f1111111-1111-4111-8111-111111111111';
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.expect_error('SELECT public.complete_invitation()','42501','Cancelled invitation cannot reactivate');
+ROLLBACK;

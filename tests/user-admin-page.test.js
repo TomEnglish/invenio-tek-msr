@@ -5,7 +5,7 @@ const page = fs.readFileSync('user-admin.html', 'utf8');
 const guard = fs.readFileSync('js/utils/auth-guard.js', 'utf8');
 const sidebar = fs.readFileSync('js/utils/sidebar.js', 'utf8');
 
-assert.match(page, /<body data-required-role="admin">/);
+assert.match(page, /<body data-required-role="admin"/);
 assert.match(page, /id="btnInviteUser"/);
 assert.match(page, /id="userTableBody"/);
 assert.match(page, /id="userForm"/);

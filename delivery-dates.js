@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Load delivery dates from Supabase
 async function loadDeliveryDates() {
+    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
     try {
         console.log('Loading delivery dates from Supabase...');
 

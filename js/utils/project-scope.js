@@ -8,6 +8,15 @@
     const DEFAULT_PROJECT_ID = '00000000-0000-0000-0000-000000000000';
 
     const PROJECT_SCOPED_TABLES = new Set([
+        'vw_po_summary',
+        'vw_shipment_summary',
+        'inventory_records',
+        'outside_shop_inventory',
+        'audit_log',
+        'v_aging_report',
+        'v_inventory_summary',
+        'v_exception_summary',
+        'v_yard_overview',
         'locations',
         'qr_codes',
         'receiving_records',
@@ -28,29 +37,21 @@
         'vw_samsara_tracker_stats',
     ]);
 
-    function configuredDefaultProjectId() {
-        return global.SUPABASE_CONFIG?.defaultProjectId || DEFAULT_PROJECT_ID;
-    }
-
+    let currentUserId = null;
     function getActiveProjectId() {
-        try {
-            const saved = global.localStorage?.getItem('invenio-active-project-id');
-            if (saved) return saved;
-        } catch (error) {
-            // localStorage can be blocked in private browsing or strict modes.
-        }
-
-        return configuredDefaultProjectId();
+        return api.activeProject?.id || null;
     }
 
     function setActiveProjectId(projectId) {
-        if (!projectId) return;
+        const project = api.availableProjects.find(item => item.id === projectId);
+        if (!project) throw new Error('This project is not assigned to your account.');
+        api.activeProject = project;
+        try { global.localStorage?.setItem(`invenio-project-${currentUserId}`, projectId); } catch (_) {}
+    }
 
-        try {
-            global.localStorage?.setItem('invenio-active-project-id', projectId);
-        } catch (error) {
-            // Non-fatal; current page can still use the in-memory/default value.
-        }
+    function requireProject(projectId) {
+        if (!projectId) throw new Error('No project access is assigned. Contact your administrator.');
+        return projectId;
     }
 
     function isProjectScopedTable(table) {
@@ -59,6 +60,7 @@
 
     function withProjectId(table, payload, projectId = getActiveProjectId()) {
         if (!isProjectScopedTable(table)) return payload;
+        requireProject(projectId);
 
         if (Array.isArray(payload)) {
             return payload.map((record) => ({ ...record, project_id: projectId }));
@@ -68,7 +70,7 @@
     }
 
     function scopeSelect(table, query, projectId = getActiveProjectId()) {
-        return isProjectScopedTable(table) ? query.eq('project_id', projectId) : query;
+        return isProjectScopedTable(table) ? query.eq('project_id', requireProject(projectId)) : query;
     }
 
     function projectChangeOptions(table, event = '*', projectId = getActiveProjectId()) {
@@ -79,7 +81,7 @@
         };
 
         if (isProjectScopedTable(table)) {
-            options.filter = `project_id=eq.${projectId}`;
+            options.filter = `project_id=eq.${requireProject(projectId)}`;
         }
 
         return options;
@@ -112,41 +114,20 @@
     }
 
     async function initializeProjectScope(supabaseClient, userId) {
-        if (!supabaseClient || !userId) return getActiveProjectId();
-
-        const fallbackProjectId = getActiveProjectId();
-
-        try {
-            const { data, error } = await supabaseClient
-                .from('user_projects')
-                .select('project_id, projects(id, name, status)')
-                .eq('user_id', userId);
-
-            if (error) {
-                console.warn('Project scope lookup failed:', error.message);
-                return fallbackProjectId;
-            }
-
-            const activeAssignments = (data || []).filter((assignment) => {
-                return assignment.project_id && assignment.projects?.status !== 'archived';
-            });
-
-            const saved = getActiveProjectId();
-            const savedStillAllowed = activeAssignments.some((assignment) => assignment.project_id === saved);
-            const selected = savedStillAllowed
-                ? saved
-                : activeAssignments[0]?.project_id || fallbackProjectId;
-
-            setActiveProjectId(selected);
-            global.InvenioProjectScope.activeProject = activeAssignments.find(
-                (assignment) => assignment.project_id === selected
-            )?.projects || { id: selected, name: 'Default Project' };
-
-            return selected;
-        } catch (error) {
-            console.warn('Project scope initialization failed:', error.message);
-            return fallbackProjectId;
-        }
+        api.activeProject = null;
+        api.availableProjects = [];
+        currentUserId = userId;
+        if (!supabaseClient || !userId) return null;
+        const { data, error } = await supabaseClient.from('user_projects')
+            .select('project_id, projects(id, name, status)').eq('user_id', userId);
+        if (error) throw new Error('Unable to load project access. Please try again.');
+        api.availableProjects = (data || []).map(row => row.projects)
+            .filter(project => project && project.status !== 'archived');
+        let saved;
+        try { saved = global.localStorage?.getItem(`invenio-project-${userId}`); } catch (_) {}
+        const selected = api.availableProjects.find(project => project.id === saved) || api.availableProjects[0];
+        if (selected) setActiveProjectId(selected.id);
+        return getActiveProjectId();
     }
 
     const api = {
@@ -161,6 +142,7 @@
         createProjectScopedClient,
         initializeProjectScope,
         activeProject: null,
+        availableProjects: [],
     };
 
     global.InvenioProjectScope = api;

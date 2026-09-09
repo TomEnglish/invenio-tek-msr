@@ -13,7 +13,7 @@ assert.equal(isProjectScopedTable('materials'), true);
 assert.equal(isProjectScopedTable('purchase_orders'), true);
 assert.equal(isProjectScopedTable('vw_active_samsara_trackers'), true);
 assert.equal(isProjectScopedTable('inspection_photos'), false);
-assert.equal(isProjectScopedTable('audit_log'), false);
+assert.equal(isProjectScopedTable('audit_log'), true);
 
 assert.deepEqual(
   withProjectId('receiving_records', { material_type: 'Pipe' }, DEFAULT_PROJECT_ID),
@@ -27,7 +27,7 @@ assert.deepEqual(
 
 assert.deepEqual(
   withProjectId('audit_log', { action: 'receiving_created' }, 'project-1'),
-  { action: 'receiving_created' },
+  { action: 'receiving_created', project_id: 'project-1' },
 );
 
 assert.deepEqual(projectChangeOptions('materials', 'INSERT', 'project-1'), {
@@ -41,6 +41,7 @@ assert.deepEqual(projectChangeOptions('audit_log', '*', 'project-1'), {
   event: '*',
   schema: 'public',
   table: 'audit_log',
+  filter: 'project_id=eq.project-1',
 });
 
 const calls = [];
@@ -79,6 +80,7 @@ assert.deepEqual(calls, [
   ['insert', { material_type: 'Valve', project_id: 'project-1' }],
   ['from', 'audit_log'],
   ['select', '*', undefined],
+  ['eq', 'project_id', 'project-1'],
 ]);
 
 console.log('project-scope tests passed');

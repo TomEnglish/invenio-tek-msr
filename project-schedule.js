@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Load schedule data from Supabase
 async function loadScheduleData() {
+    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
     try {
         console.log('Loading project schedule from Supabase...');
 
@@ -927,6 +928,7 @@ function exportToExcel() {
 
 // Load integration insights
 async function loadIntegrationInsights() {
+    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
     try {
         console.log('Loading integration insights...');
 

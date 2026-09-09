@@ -1,7 +1,8 @@
 /* global bootstrap, createAdminUsersClient, supabaseClient */
 
 (async function initUserAdminPage() {
-    if (window.InvenioAuthReady) await window.InvenioAuthReady;
+    if (document.readyState === 'loading') await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve, { once: true }));
+    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
 
     const client = createAdminUsersClient({ supabaseClient });
     const state = {
@@ -12,6 +13,7 @@
         totalPages: 1,
         search: '',
         editingUser: null,
+        requestId: 0,
     };
 
     const elements = {
@@ -106,10 +108,11 @@
             role.appendChild(makeBadge(roleLabel(user.role), 'role-badge'));
 
             const status = document.createElement('td');
-            status.appendChild(makeBadge(user.isActive ? 'Active' : 'Inactive', user.isActive ? 'active' : 'inactive'));
+            const statusLabel = user.invitationStatus === 'cancelled' ? 'Cancelled' : !user.isActive ? 'Inactive' : user.invitationStatus === 'pending' ? (user.invitationExpiresAt && new Date(user.invitationExpiresAt) < new Date() ? 'Expired invite' : 'Invitation pending') : 'Active';
+            status.appendChild(makeBadge(statusLabel, statusLabel === 'Active' ? 'active' : 'inactive'));
 
             const projects = document.createElement('td');
-            projects.textContent = `${user.projectIds?.length || 0} assigned`;
+            projects.textContent = (user.projectIds || []).map(id => state.projects.find(p => p.id === id)?.name || 'Archived project').join(', ') || 'Access pending';
 
             const lastSignIn = document.createElement('td');
             lastSignIn.textContent = formatDate(user.lastSignInAt);
@@ -121,6 +124,29 @@
             edit.textContent = 'Edit';
             edit.addEventListener('click', () => openEditModal(user));
             actions.appendChild(edit);
+            const history = document.createElement('a');
+            history.className = 'btn btn-sm btn-outline-secondary ms-1';
+            history.href = `audit.html?userId=${encodeURIComponent(user.id)}`;
+            history.textContent = 'History';
+            actions.appendChild(history);
+            if (user.invitationStatus === 'pending') {
+                for (const [label, method] of [['Resend', 'resendInvitation'], ['Cancel invite', 'cancelInvitation']]) {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'btn btn-sm btn-outline-secondary mt-1 me-1';
+                    button.textContent = label;
+                    button.addEventListener('click', async () => {
+                        if (method === 'cancelInvitation' && !confirm(`Cancel the invitation for ${user.email}?`)) return;
+                        button.disabled = true;
+                        try {
+                            await client[method](user.id);
+                            await loadUsers();
+                            setMessage(elements.message, method === 'resendInvitation' ? 'Invitation email sent.' : 'Invitation cancelled.', 'success');
+                        } catch (error) { setMessage(elements.message, error.message); button.disabled = false; }
+                    });
+                    actions.appendChild(button);
+                }
+            }
 
             row.append(identity, role, status, projects, lastSignIn, actions);
             elements.tableBody.appendChild(row);
@@ -159,9 +185,15 @@
     async function loadProjects() {
         const result = await client.listProjects();
         state.projects = result.data || [];
+        const filter = document.getElementById('userProjectFilter');
+        for (const project of state.projects) {
+            const option = document.createElement('option'); option.value = project.id; option.textContent = project.name;
+            filter.appendChild(option);
+        }
     }
 
     async function loadUsers() {
+        const requestId = ++state.requestId;
         setMessage(elements.message, '');
         elements.tableBody.replaceChildren();
         const row = document.createElement('tr');
@@ -173,11 +205,13 @@
         elements.tableBody.appendChild(row);
 
         try {
-            const result = await client.listUsers({ page: state.page, pageSize: state.pageSize, search: state.search });
+            const result = await client.listUsers({ page: state.page, pageSize: state.pageSize, search: state.search, role: document.getElementById('userRoleFilter').value, status: document.getElementById('userStatusFilter').value, projectId: document.getElementById('userProjectFilter').value });
+            if (requestId !== state.requestId) return;
             state.users = result.data || [];
             state.totalPages = result.pagination?.totalPages || 1;
             renderUsers();
         } catch (error) {
+            if (requestId !== state.requestId) return;
             state.users = [];
             renderUsers();
             setMessage(elements.message, error.message || 'Unable to load users.');
@@ -190,6 +224,7 @@
         elements.form.reset();
         elements.email.disabled = false;
         elements.isActive.checked = true;
+        elements.isActive.disabled = true;
         elements.role.value = 'field_worker';
         setMessage(elements.formMessage, '');
         renderProjects([]);
@@ -205,6 +240,7 @@
         elements.fullName.value = user.fullName || '';
         elements.role.value = user.role;
         elements.isActive.checked = user.isActive;
+        elements.isActive.disabled = user.invitationStatus === 'cancelled';
         setMessage(elements.formMessage, '');
         renderProjects(user.projectIds || []);
         modal.show();
@@ -231,6 +267,7 @@
             if (isEditing) {
                 result = await client.updateUser({
                     userId: state.editingUser.id,
+                    expectedUpdatedAt: state.editingUser.updatedAt,
                     fullName: elements.fullName.value.trim(),
                     role: elements.role.value,
                     isActive: nextActive,
@@ -245,9 +282,12 @@
                 });
             }
 
+            if (elements.modal.contains(document.activeElement)) document.activeElement.blur();
             modal.hide();
-            setMessage(elements.message, isEditing ? 'User updated.' : 'Invitation sent.', 'success');
+            window.InvenioUnsavedChanges = false;
             if (result?.data) await loadUsers();
+            setMessage(elements.message, isEditing ? 'User updated.' : 'Invitation sent.', 'success');
+            if (result?.data?.id === window.InvenioCurrentProfile.id && (!result.data.isActive || result.data.role !== 'admin')) location.href = 'index.html';
         } catch (error) {
             setMessage(elements.formMessage, error.message || 'Unable to save user.');
         } finally {
@@ -268,9 +308,11 @@
     elements.previous.addEventListener('click', () => { if (state.page > 1) { state.page -= 1; loadUsers(); } });
     elements.next.addEventListener('click', () => { if (state.page < state.totalPages) { state.page += 1; loadUsers(); } });
     elements.form.addEventListener('submit', saveUser);
+    for (const id of ['userRoleFilter','userStatusFilter','userProjectFilter']) document.getElementById(id).addEventListener('change', () => { state.page = 1; loadUsers(); });
 
     try {
-        await Promise.all([loadProjects(), loadUsers()]);
+        await loadProjects();
+        await loadUsers();
         renderProjects([]);
     } catch (error) {
         setMessage(elements.message, error.message || 'Unable to initialize user management.');

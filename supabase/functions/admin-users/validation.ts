@@ -29,12 +29,16 @@ export interface UpdateInput {
   role?: UserRole;
   isActive?: boolean;
   projectIds?: string[];
+  expectedUpdatedAt?: string;
 }
 
 export interface ListParams {
   page: number;
   pageSize: number;
   search: string;
+  role?: UserRole;
+  status?: string;
+  projectId?: string;
 }
 
 function asObject(input: unknown): Record<string, unknown> {
@@ -114,6 +118,12 @@ export function validateUpdateInput(input: unknown): UpdateInput {
   if (Object.keys(result).length === 1) {
     throw new ValidationError('EMPTY_UPDATE', 'Provide at least one user field to update');
   }
+  if (body.expectedUpdatedAt !== undefined) {
+    if (typeof body.expectedUpdatedAt !== 'string' || !Number.isFinite(Date.parse(body.expectedUpdatedAt))) {
+      throw new ValidationError('INVALID_VERSION', 'A valid update timestamp is required');
+    }
+    result.expectedUpdatedAt = body.expectedUpdatedAt;
+  }
   return result;
 }
 
@@ -121,11 +131,22 @@ export function parseListParams(url: URL): ListParams {
   const requestedPage = Number.parseInt(url.searchParams.get('page') || '1', 10);
   const requestedPageSize = Number.parseInt(url.searchParams.get('pageSize') || '50', 10);
   const search = (url.searchParams.get('search') || '').trim().slice(0, 100);
+  const role = url.searchParams.get('role') || undefined;
+  const status = url.searchParams.get('status') || undefined;
+  const projectId = url.searchParams.get('projectId') || undefined;
+  if (role) normalizeRole(role);
+  if (status && !['active', 'inactive', 'pending', 'expired', 'cancelled'].includes(status)) {
+    throw new ValidationError('INVALID_STATUS', 'Invalid user status');
+  }
+  if (projectId && !isUuid(projectId)) throw new ValidationError('INVALID_PROJECT_ID', 'Invalid project id');
 
   return {
     page: Number.isFinite(requestedPage) ? Math.max(1, Math.min(requestedPage, 100000)) : 1,
     pageSize: Number.isFinite(requestedPageSize) ? Math.max(1, Math.min(requestedPageSize, 100)) : 50,
     search,
+    role: role as UserRole | undefined,
+    status,
+    projectId,
   };
 }
 

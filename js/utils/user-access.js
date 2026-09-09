@@ -14,7 +14,7 @@
             id: profile.id || '',
             fullName: String(profile.full_name || '').trim(),
             role: APP_ROLES.has(profile.role) ? profile.role : null,
-            isActive: profile.is_active === true,
+            isActive: profile.is_active === true && profile.invitation_status === 'accepted',
         };
     }
 

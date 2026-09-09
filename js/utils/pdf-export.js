@@ -5,6 +5,7 @@
  */
 
 async function generateMSRReport() {
+    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
     const btn = document.getElementById('export-pdf-btn');
     if (btn) {
         btn.disabled = true;

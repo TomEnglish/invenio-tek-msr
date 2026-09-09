@@ -1171,3 +1171,21 @@ canvas { background: transparent !important; }
         print-color-adjust: exact;
     }
 }
+
+/* Project navigation and wide directories remain usable on small screens. */
+.main-area, .main-content { min-width: 0; }
+.user-card { position: relative; min-width: 0; }
+.sidebar-close { display: none; }
+@media (max-width: 768px) {
+    .sidebar-logo { position: relative; padding-right: 52px; }
+    .sidebar-close { display: block; position: absolute; right: 12px; top: 14px; border: 0; background: transparent; color: var(--text); font-size: 28px; }
+    .top-header { height: auto; min-height: 104px; padding: 10px 12px; gap: 10px; flex-wrap: wrap; }
+    .top-header .page-title { min-width: 0; }
+    .top-header #active-project { order: 5; flex: 1 1 42%; width: 0 !important; max-width: none !important; min-width: 0; }
+    .top-header .header-search-wrap { order: 6; flex: 1 1 42%; min-width: 0; }
+    .top-header .header-search { width: 100%; }
+    .main-content { padding: 16px; }
+}
+@media (max-width: 768px) {
+    .top-header .page-title { flex: 1 0 calc(100% - 130px); font-size: 14px; }
+}

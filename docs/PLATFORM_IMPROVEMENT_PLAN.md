@@ -72,3 +72,9 @@ Browser verification uses localhost with a fixture backend for admin UI interact
 ## Implementation record
 
 Progress, commands, results, and any remaining environment limitations will be recorded here as each task completes. No stage is marked complete based only on source-text assertions or a mocked happy path.
+
+### Completed implementation
+
+Tasks 1-13 are implemented and locally verified. Migrations 013-015 contain access controls, atomic administration, physical operations, invitation completion and office exception support. Both clients now use the corresponding APIs. The implementation also fixes the DOM-ready initialization race exposed by browser fixtures and the Expo/Zustand web-bundle error exposed after the initial SSR fix.
+
+See [PLATFORM_RELEASE.md](PLATFORM_RELEASE.md) for the verification matrix, exact commands, shared migration ownership, rollout sequence and remaining production/device checks. Local tests do not claim real invitation delivery or a production deployment. The release remains a coordinated action across the shared database and both applications.

@@ -24,6 +24,7 @@ let state = {
 // INITIALIZATION
 // ============================================================================
 document.addEventListener('DOMContentLoaded', async () => {
+    if (!(await window.InvenioAuthReady)) return;
     console.log('Samsara Tracker Dashboard initializing...');
 
     // Initialize map
@@ -77,6 +78,7 @@ function initializeMap() {
 // DATA LOADING
 // ============================================================================
 async function loadTrackers() {
+    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
     try {
         console.log('Loading tracker data from Supabase...');
 

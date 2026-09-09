@@ -1,0 +1,69 @@
+# Administration and reliability release
+
+Implementation is complete locally on `feature/platform-access-reliability` in both repositories. No production migration, Edge Function deployment, site publication, real invitation email, or native-device test was performed by this work.
+
+## What users receive
+
+- **Users & Access:** searchable and filterable directory, roles, active/inactive access, named project memberships, invitation expiry, resend/cancel, conflict handling, and per-user history.
+- **Projects:** create, edit, complete, and archive projects. The active project is visible and selectable; an account without available assignments receives an access-pending screen.
+- **Activity & Audit:** attributable administrative changes and before/after values. Physical stock transactions and descriptive material corrections also write protected audit records.
+- **Search and work inbox:** project-scoped materials, receipts, purchase orders, shipments and QR results link to readable record pages. Office users can assign exception owners/dates, keep an item open on hold, or close it after release/return.
+- **Field reliability:** account/project-specific drafts, caches and queues; stable submission IDs; atomic receiving, transfer, issue and shipment; accepted quantity for partial deliveries; retained photos with repeatable upload paths; a visible retry screen; corrected admin fields and role gates.
+- **Web startup:** server rendering does not touch browser storage; Expo transforms the `import.meta` used by Zustand middleware. The production web export succeeds.
+
+## Verification completed
+
+| Layer | Evidence |
+|---|---|
+| MSR JavaScript | 12 Node test entries pass, including URL cleanup/recovery and project initialization/account switching. Existing source-contract tests are retained alongside behavioral tests. |
+| Admin Edge Function | 29 Deno tests pass: real handler authorization, role/status denials, transactional request contract, HTTP conflict handling, filters, invitation state transitions. No network permission is granted to these tests. |
+| Field logic | 26 Node tests pass against real TypeScript modules and real Zustand persistence where relevant. Coverage includes draft restoration, account/project isolation, stable retries, upload/reference errors, and account changes during asynchronous photo operations. |
+| Database | Nine SQL integration suites run against disposable PostgreSQL 17 with Supabase-compatible auth/storage roles and fixtures. They exercise RLS, storage restrictions, rollback, invitation acceptance, exceptions, corrections, audit and operation idempotency. |
+| Concurrency | Separate PostgreSQL connections demonstrably block each other: concurrent self-demotions retain an admin, competing issues cannot overdraw stock, duplicate operations deduct once. |
+| Build | Field `npm run lint` and `npx expo export --platform web` pass (35 generated routes). Deno typecheck and whitespace checks pass. |
+| Browser | Real MSR page scripts with a fixture backend: invite, edit, role filter, resend, cancel, project creation, audit, search-to-record navigation, exception ownership/date/hold, unauthorized admin redirect, and no-project redirect. Checked desktop and 390px phone layout, including navigation and internal table scrolling. Field login starts without console errors. |
+
+The browser fixture validates UI wiring, not Supabase delivery or RLS. The PostgreSQL harness validates SQL, not hosted Supabase's complete Auth/Storage implementation. These checks complement each other; they do not replace release smoke tests.
+
+## Rollout sequence
+
+1. **Coordinate both applications.** Stop operational writes during the migration/release window and require old Field builds to update. Existing mobile clients use unsafe direct writes that 013 intentionally denies. Record database backup and both prior deployment IDs.
+2. **Confirm the shared database baseline.** Field owns historical migrations 001-011; MSR owns 012-015. Do not independently push the two migration directories into the same database. Inspect migration history before applying only missing migrations. The historical fresh-install dependency (011 definitions before 010 policies) is reproduced explicitly in `tests/database/run.sh`.
+3. **Inspect data.** Run `supabase/release-preflight.sql` after confirming baseline 012. Resolve missing administrator access/memberships, duplicate photo paths, and legacy path differences with a reviewed data migration. Preserve original data. Legacy unconfirmed invitations become pending/expired in 013 and need a new link.
+4. **Apply 013, 014, 015 in order.** Each new migration is transactional. Confirm reporting views use caller permissions, the photo bucket is private, inactive accounts cannot read project data, and the legacy quantity function is no longer executable by browser roles.
+5. **Deploy `admin-users`.** Use Supabase's server-side service credential in the function environment. The function verifies the caller with Auth and rechecks the administrator in transactional RPCs. Configure `INVITATION_TTL_SECONDS` to match the hosted Auth email-link expiry (default 3600 seconds), and allow the production `/login.html` and `/login.html?setup=invite` redirect URLs. Configure the actual mail provider and invitation/password-recovery templates.
+6. **Publish MSR and the compatible Field build.** Shared asset versions are bumped to `20260908a`. Confirm that `/user-admin.html`, `/projects.html`, `/audit.html`, `/search.html`, `/work-inbox.html`, and `/record.html` serve the new release. Check all integrations use server credentials for server-owned sync tables.
+7. **Smoke-test with designated accounts.** Invite and accept one new account; expire/resend/cancel another; test administrator, office, field and inactive access. Submit partial receiving with photos, retry an interrupted request, and verify one receipt/history entry. On a physical device, test offline camera photos across force-close/reopen, account/project switching, reconnect, and sync retry. Confirm a completed project remains readable and an archived project cannot be operated.
+
+Keep the database permissions and operation RPCs in place when rolling a frontend forward to repair a defect. Reverting to an old client while retaining new permissions stops old writes; reversing the new permission migration would reopen known access vulnerabilities. Restore a backup only as a separately reviewed data-recovery action with an explicit treatment of records created since that backup.
+
+## Practical limits and retained data
+
+- Invitations depend on hosted Auth settings and email delivery; no real email was sent during verification. Cancelled invitations remain blocked; accepted inactive users can be reactivated by an administrator.
+- Native photos are copied to the app's document directory; web photos are stored as data URLs. Device/browser storage quotas still apply. Queue persistence must succeed before the receiving draft resets. Do not clear app storage while submissions remain pending.
+- Legacy queue/draft data without account/project context is retained and never replayed under a guessed identity. A site administrator must review the original device to recover it. Successfully uploaded native photo files are retained rather than deleted automatically.
+- MSR receiving preserves a stable request while the page remains open and warns before leaving unsaved work. Offline queueing and restartable drafts are provided by Field; the MSR wizard is not a second offline client.
+- Descriptive material corrections require an administrator and a reason. Quantities and physical history are changed through receiving/issue/shipment/transfer operations. Data Browser does not offer arbitrary history deletion.
+- Existing icon, theme/layout, app configuration, build configuration and Card changes that were already in the Field working tree are preserved. They are not part of this feature's commits.
+
+## Repeatable checks
+
+From MSR:
+
+```sh
+node --test tests/*.test.js
+deno test --allow-env=SUPABASE_URL,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_SECRET_KEY,INVITATION_TTL_SECONDS tests/admin-users-handler.test.ts tests/admin-users-validation.test.ts
+deno check supabase/functions/admin-users/index.ts
+bash tests/database/run.sh
+python3 tests/browser/serve.py
+```
+
+The fixture server listens locally on port 8092; open `http://localhost:8092/user-admin.html`. It substitutes only the Supabase boundary and preserves actual page scripts/styles. Changes are stored in that tab's session storage. It cannot send mail or mutate production. `fixtureRole` and `fixtureNoProjects` session-storage values can exercise access gates.
+
+From Field:
+
+```sh
+node --test tests/*.test.cjs
+npm run lint
+npx expo export --platform web
+```
