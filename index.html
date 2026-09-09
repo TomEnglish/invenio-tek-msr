@@ -34,7 +34,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <!-- Shared Design System -->
-    <link rel="stylesheet" href="styles.css?v=20260909c">
+    <link rel="stylesheet" href="styles.css?v=20260909d">
 </head>
 
 <body>
@@ -47,7 +47,7 @@
                 <span id="realtime-indicator" class="badge bg-warning" style="font-size:11px;" title="Connection for receiving changes; source refresh times are shown below.">Connecting...</span>
                 <span style="color:rgba(255,255,255,0.9); font-size:12px;"><i class="far fa-clock"></i> Procurement refresh: <span id="lastUpdated">--</span></span>
             </span>
-            <button class="btn btn-primary" onclick="generateMSRReport()">
+            <button id="export-pdf-btn" class="btn btn-primary" onclick="generateMSRReport()">
                 <i class="fas fa-file-pdf"></i> Export PDF
             </button>
         </div>
@@ -125,6 +125,31 @@
                     </div>
                     <div class="kpi-icon purple"><i class="fas fa-hard-hat"></i></div>
                 </div>
+            </div>
+
+            <div class="row g-4 mb-4">
+                <section class="col-lg-6" aria-labelledby="workTitle">
+                    <div class="card h-100">
+                        <div class="card-header"><h2 id="workTitle" class="h5 mb-0">Work needing attention</h2><a href="work-inbox.html">Work Inbox</a></div>
+                        <div class="card-body">
+                            <p class="small text-muted">Open receiving exceptions, including items on hold. Earliest due dates appear first.</p>
+                            <div id="workCounts" class="action-counts"></div>
+                            <p id="workMessage" role="status">Loading exceptions…</p>
+                            <ul id="workItems" class="action-items"></ul>
+                        </div>
+                    </div>
+                </section>
+                <section class="col-lg-6" aria-labelledby="arrivalTitle">
+                    <div class="card h-100">
+                        <div class="card-header"><h2 id="arrivalTitle" class="h5 mb-0">Expected arrivals</h2><a href="shipment-visibility.html">All shipments</a></div>
+                        <div class="card-body">
+                            <p class="small text-muted">Past ETA, today, and the next 7 days. Delivered and cancelled shipments are excluded.</p>
+                            <div id="arrivalCounts" class="action-counts"></div>
+                            <p id="arrivalMessage" role="status">Loading arrivals…</p>
+                            <ul id="arrivalItems" class="action-items"></ul>
+                        </div>
+                    </div>
+                </section>
             </div>
 
             <!-- Charts Row -->
@@ -330,15 +355,16 @@
     <script src="js/utils/branding.js?v=20260424f"></script>
     <script src="js/utils/supabase-client.js?v=20260424f"></script>
     <script src="js/utils/project-scope.js?v=20260909a"></script>
-    <script src="js/utils/data-health.js?v=20260909c"></script>
+    <script src="js/utils/data-health.js?v=20260909d"></script>
     <script src="js/utils/user-access.js?v=20260908a"></script>
     <script src="js/utils/auth-guard.js?v=20260908a"></script>
-    <script src="js/utils/pdf-export.js?v=20260908a"></script>
+    <script src="js/utils/work-summary.js?v=20260909d"></script>
+    <script src="js/utils/pdf-export.js?v=20260909d"></script>
     <script src="js/utils/export.js?v=20260424f"></script>
     <script src="js/utils/sidebar.js?v=20260908a"></script>
 
     <!-- Dashboard JavaScript -->
-    <script src="dashboard.js?v=20260909c"></script>
+    <script src="dashboard.js?v=20260909d"></script>
 </body>
 
 </html>

@@ -11,12 +11,12 @@
             : { status: 'recent', label: 'Within 24 hours' };
     }
 
-    async function loadAllRows(client, table, columns = '*') {
+    async function loadAllRows(client, table, columns = '*', configure = query => query) {
         const rows = [];
         const pageSize = 500;
         // Never silently report a partial total when a project exceeds this bound.
         for (let start = 0; start <= 10000; start += pageSize) {
-            const { data, error } = await client.from(table).select(columns).order('id').range(start, start + pageSize - 1);
+            const { data, error } = await configure(client.from(table).select(columns)).order('id').range(start, start + pageSize - 1);
             if (error) throw error;
             rows.push(...(data || []));
             if (rows.length > 10000) throw new Error('This project exceeds the 10,000-record dashboard limit.');

@@ -33,14 +33,14 @@ for (const privateDirectory of ['archive', 'dashboard_data', 'docs', 'scripts', 
 
 const forbiddenExtensions = new Set(['.sql', '.xlsx', '.xls', '.py', '.ts']);
 assert.deepEqual(published.filter((filePath) => forbiddenExtensions.has(path.extname(filePath))), []);
-assert.deepEqual(published.filter((filePath) => path.extname(filePath) === '.json'), ['manifest.json']);
+assert.deepEqual(published.filter((filePath) => path.extname(filePath) === '.json'), ['manifest.json', 'release.json']);
 
 const indexPage = fs.readFileSync('dist/index.html', 'utf8');
 const materialTrackingPage = fs.readFileSync('dist/material-tracking.html', 'utf8');
 const projectSchedulePage = fs.readFileSync('dist/project-schedule.html', 'utf8');
 assert.match(indexPage, /project-scope\.js\?v=20260909a/);
-assert.match(indexPage, /dashboard\.js\?v=20260909c/);
-assert.match(indexPage, /data-health\.js\?v=20260909c/);
+assert.match(indexPage, /dashboard\.js\?v=20260909d/);
+assert.match(indexPage, /data-health\.js\?v=20260909d/);
 assert.match(materialTrackingPage, /material-tracking-supabase\.js\?v=20260909c/);
 assert.match(projectSchedulePage, /project-schedule\.js\?v=20260909a/);
 

@@ -118,6 +118,7 @@ document.head.appendChild(toastStyle);
 // Load all data from Supabase
 async function loadAllData() {
     if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
+    void loadWorkSummary();
     try {
         console.log('Loading data from Supabase...');
 
@@ -169,6 +170,7 @@ async function loadAllData() {
 
         // Update all dashboard components
         updateKPICards();
+        renderArrivalSummary(shipments);
         updateLastUpdated();
         document.getElementById('dashboardDataMessage').hidden = true;
         renderDataFreshness([
@@ -189,6 +191,9 @@ async function loadAllData() {
         message.textContent = 'Unable to refresh this project. Any values still shown are from the previous successful load. Please refresh the view to retry.';
         message.hidden = false;
         renderDataFreshness([{ name: 'Refresh status', error: true }]);
+        document.getElementById('arrivalCounts').replaceChildren();
+        document.getElementById('arrivalItems').replaceChildren();
+        document.getElementById('arrivalMessage').textContent = 'Arrivals could not be refreshed. Use Refresh view to retry.';
     }
 }
 
@@ -794,5 +799,60 @@ async function loadUpcomingMilestones() {
         console.error('Error loading upcoming milestones:', error);
         const container = document.getElementById('upcomingMilestonesWidget');
         container.innerHTML = '<p class="text-danger mb-0">Error loading milestones</p>';
+    }
+}
+
+function actionNode(tag, text, className = '') {
+    const node = document.createElement(tag); node.textContent = text; node.className = className; return node;
+}
+function actionCounts(id, counts, labels, link) {
+    const container = document.getElementById(id); container.replaceChildren();
+    for (const [key, count] of Object.entries(counts)) {
+        const item = actionNode(link ? 'a' : 'div', '');
+        if (link) item.href = link(key);
+        item.append(actionNode('strong', count), actionNode('span', labels[key])); container.append(item);
+    }
+}
+let workLoad = 0;
+async function loadWorkSummary() {
+    const request = ++workLoad;
+    try {
+        const [records, staff] = await Promise.all([
+            InvenioDataHealth.loadAllRows(projectSupabaseClient, 'receiving_records', '*', query =>
+                InvenioWorkSummary.applyInboxFilter(query, 'open', InvenioCurrentProfile.id)),
+            supabaseClient.rpc('project_staff', { p_project_id: InvenioProjectScope.getActiveProjectId() }),
+        ]);
+        if (request !== workLoad) return;
+        const summary = InvenioWorkSummary.exceptionSummary(records, InvenioCurrentProfile.id);
+        actionCounts('workCounts', summary.counts, {open:'Open',mine:'Assigned to me',overdue:'Overdue',unassigned:'Unassigned'}, key => `work-inbox.html?filter=${key}`);
+        document.getElementById('workMessage').textContent = (summary.items.length ? `Showing ${Math.min(5, summary.items.length)} of ${summary.counts.open} open exceptions.` : 'No open exceptions in this project.') + (staff.error ? ' Owner names unavailable; refresh to retry.' : '');
+        const list = document.getElementById('workItems'); list.replaceChildren();
+        for (const record of summary.items.slice(0, 5)) {
+            const row = actionNode('li', '');
+            const link = actionNode('a', `${record.material_type || 'Receiving record'} · ${record.exception_type || 'Inspection exception'}`);
+            link.href = `record.html?type=receiving_records&id=${encodeURIComponent(record.id)}`;
+            const owner = (staff.data || []).find(s => s.id === record.exception_owner_id)?.full_name || (record.exception_owner_id ? 'Assigned' : 'Unassigned');
+            const due = record.exception_due_date || 'Not set';
+            const overdue = record.exception_due_date && record.exception_due_date < InvenioWorkSummary.localDate();
+            row.append(link, actionNode('small', `${record.exception_resolution === 'hold' ? 'On hold · ' : ''}${owner} · Due ${due}${overdue ? ' · Overdue' : ''}`));
+            list.append(row);
+        }
+    } catch (error) {
+        if (request !== workLoad) return;
+        document.getElementById('workCounts').replaceChildren(); document.getElementById('workItems').replaceChildren();
+        document.getElementById('workMessage').textContent = 'Exceptions could not be loaded. Use Refresh view to retry.';
+        console.error('Work summary unavailable:', error);
+    }
+}
+function renderArrivalSummary(shipments) {
+    const summary = InvenioWorkSummary.arrivalSummary(shipments);
+    actionCounts('arrivalCounts', summary.counts, {late:'Past ETA',upcoming:'Today + 7 days',undated:'No valid ETA'});
+    document.getElementById('arrivalMessage').textContent = summary.items.length ? `Showing ${Math.min(5, summary.items.length)} of ${summary.items.length} expected arrivals, earliest first.` : 'No dated arrivals due in this period.';
+    const list = document.getElementById('arrivalItems'); list.replaceChildren();
+    for (const shipment of summary.items.slice(0, 5)) {
+        const row = actionNode('li', '');
+        const link = actionNode('a', `${shipment.shipment_number || 'Shipment'} · ${shipment.supplier || shipment.po_number || 'Supplier not set'}`);
+        link.href = `record.html?type=shipments&id=${encodeURIComponent(shipment.id)}`;
+        row.append(link, actionNode('small', `ETA ${shipment.eta} · ${shipment.status || 'Status not set'}${shipment.eta < InvenioWorkSummary.localDate() ? ' · Past ETA' : ''}`)); list.append(row);
     }
 }
