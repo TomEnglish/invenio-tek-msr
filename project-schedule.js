@@ -933,22 +933,23 @@ async function loadIntegrationInsights() {
         console.log('Loading integration insights...');
 
         // Load POs, Shipments, and Installation data from Supabase
-        const [posResult, shipmentsResult] = await Promise.all([
+        const [posResult, shipmentsResult, installationResult] = await Promise.all([
             projectSupabaseClient.from('purchase_orders').select('*'),
-            projectSupabaseClient.from('shipments').select('*')
+            projectSupabaseClient.from('shipments').select('*'),
+            projectSupabaseClient.from('installation_datasets')
+                .select('payload')
+                .eq('dataset_key', 'audit_data')
+                .maybeSingle()
         ]);
 
         const poData = posResult.data || [];
         const shipmentData = shipmentsResult.data || [];
-
-        // Also try to load installation data from JSON (fallback)
-        let installationData = [];
-        try {
-            const installResp = await fetch('dashboard_data/audit_data.json');
-            installationData = await installResp.json();
-        } catch (e) {
-            console.log('Installation data not available');
-        }
+        if (installationResult.error) throw installationResult.error;
+        const installationPayload = installationResult.data?.payload;
+        const installationData = Array.isArray(installationPayload)
+            ? installationPayload
+            : installationPayload?.items || Object.values(installationPayload || {})
+                .flatMap(items => Array.isArray(items) ? items : []);
 
         renderProcurementIntegration(poData);
         renderTransportationIntegration(shipmentData);

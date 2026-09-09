@@ -55,6 +55,8 @@ test_*.py
 *.db
 *.sqlite
 *.sqlite3
+.netlify/
+supabase/.temp/
 
 # Backend (Flask - no longer needed with Supabase)
 backend/material_tracking.db

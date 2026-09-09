@@ -271,3 +271,23 @@ Deno.test('resending an expired pending invitation refreshes expiry and uses a s
   if (!(Date.parse(String(changes.invitation_expires_at)) > Date.now())) throw new Error('Expiry was not renewed');
   equal(calls.mail, [{ kind: 'invite', email: 'worker@example.test' }]);
 });
+
+Deno.test('disabled invitation email reports capability and rejects sends before mutation', async () => {
+  const previous = Deno.env.get('INVITATION_EMAIL_ENABLED');
+  Deno.env.set('INVITATION_EMAIL_ENABLED', 'false');
+  try {
+    const { clients, calls } = setup();
+    const listing = await handle(request(), clients);
+    equal((await listing.json()).capabilities, { invitationEmailEnabled: false });
+    for (const action of ['invite', 'resend_invite']) {
+      const result = await handle(request('POST', { action, userId: TARGET }), clients);
+      equal(result.status, 503);
+      equal((await result.json()).error.code, 'EMAIL_NOT_CONFIGURED');
+    }
+    equal(calls.rpc.length, 0);
+    equal(calls.mail.length, 0);
+  } finally {
+    if (previous === undefined) Deno.env.delete('INVITATION_EMAIL_ENABLED');
+    else Deno.env.set('INVITATION_EMAIL_ENABLED', previous);
+  }
+});

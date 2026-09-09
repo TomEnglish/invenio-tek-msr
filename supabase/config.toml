@@ -1,0 +1,4 @@
+project_id = "invenio-field-msr"
+
+[functions.admin-users]
+verify_jwt = true

@@ -14,10 +14,13 @@
         search: '',
         editingUser: null,
         requestId: 0,
+        invitationEmailEnabled: false,
     };
 
     const elements = {
         message: document.getElementById('userPageMessage'),
+        invite: document.getElementById('btnInviteUser'),
+        emailNotice: document.getElementById('invitationEmailNotice'),
         formMessage: document.getElementById('formMessage'),
         search: document.getElementById('userSearch'),
         tableBody: document.getElementById('userTableBody'),
@@ -135,6 +138,7 @@
                     button.type = 'button';
                     button.className = 'btn btn-sm btn-outline-secondary mt-1 me-1';
                     button.textContent = label;
+                    button.disabled = method === 'resendInvitation' && !state.invitationEmailEnabled;
                     button.addEventListener('click', async () => {
                         if (method === 'cancelInvitation' && !confirm(`Cancel the invitation for ${user.email}?`)) return;
                         button.disabled = true;
@@ -209,6 +213,9 @@
             if (requestId !== state.requestId) return;
             state.users = result.data || [];
             state.totalPages = result.pagination?.totalPages || 1;
+            state.invitationEmailEnabled = result.capabilities?.invitationEmailEnabled !== false;
+            elements.invite.disabled = !state.invitationEmailEnabled;
+            elements.emailNotice.classList.toggle('d-none', state.invitationEmailEnabled);
             renderUsers();
         } catch (error) {
             if (requestId !== state.requestId) return;
@@ -219,6 +226,7 @@
     }
 
     function openInviteModal() {
+        if (!state.invitationEmailEnabled) return;
         state.editingUser = null;
         elements.modalTitle.textContent = 'Invite User';
         elements.form.reset();

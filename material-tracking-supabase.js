@@ -171,11 +171,12 @@ async function loadPOItems() {
 async function loadInstallItems() {
     if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
     try {
-        // Load from local JSON file (same as before)
-        const response = await fetch('dashboard_data/audit_data.json');
-        if (!response.ok) throw new Error('Failed to load installation data');
-
-        const data = await response.json();
+        const { data: dataset, error } = await projectSupabaseClient.from('installation_datasets')
+            .select('payload')
+            .eq('dataset_key', 'audit_data')
+            .maybeSingle();
+        if (error) throw error;
+        const data = dataset?.payload || {};
 
         // Handle both array and object formats
         let rawItems = [];

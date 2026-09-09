@@ -204,7 +204,7 @@ async function getAuthUsers(adminClient: SupabaseClient, profiles: Profile[]): P
   return users;
 }
 
-async function listUsers(adminClient: SupabaseClient, request: Request): Promise<Response> {
+async function listUsers(adminClient: SupabaseClient, request: Request, invitationEmailEnabled: boolean): Promise<Response> {
   const params = parseListParams(new URL(request.url));
   const { profiles, totalItems } = await fetchProfiles(adminClient, params.page, params.pageSize, params.search, params);
   const projectMap = await fetchProjects(adminClient, profiles.map((profile) => profile.id));
@@ -218,6 +218,7 @@ async function listUsers(adminClient: SupabaseClient, request: Request): Promise
 
   return json({
     data,
+    capabilities: { invitationEmailEnabled },
     pagination: {
       page: params.page,
       pageSize: params.pageSize,
@@ -363,17 +364,21 @@ export async function handle(request: Request, clients?: { userClient: SupabaseC
   try {
     const { userClient, adminClient } = clients || createClients(request);
     const actor = await requireAdmin(request, userClient, adminClient);
+    const invitationEmailEnabled = Deno.env.get('INVITATION_EMAIL_ENABLED') !== 'false';
 
     if (request.method === 'GET') {
       const resource = new URL(request.url).searchParams.get('resource');
       if (resource === 'projects') return await listProjects(adminClient);
       if (resource === 'audit') return await listAudit(adminClient, request);
-      return await listUsers(adminClient, request);
+      return await listUsers(adminClient, request, invitationEmailEnabled);
     }
     const body = asRecord(await request.json());
 
     if (body.resource === 'projects') return await saveProject(adminClient, actor, body);
     if (request.method === 'POST') {
+      if (!invitationEmailEnabled && ['invite', 'resend_invite'].includes(String(body.action))) {
+        throw { status: 503, code: 'EMAIL_NOT_CONFIGURED', message: 'Invitation emails are unavailable until the administrator configures email delivery.' } satisfies AppError;
+      }
       if (body.action === 'resend_invite' || body.action === 'cancel_invite') return await invitationAction(adminClient, actor, body);
       if (body.action !== 'invite') {
         throw new ValidationError('INVALID_ACTION', 'POST action must be invite');

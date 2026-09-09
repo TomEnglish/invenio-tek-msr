@@ -27,6 +27,7 @@
         'purchase_orders',
         'shipments',
         'dashboard_metrics',
+        'installation_datasets',
         'material_links',
         'material_status_history',
         'samsara_trackers',

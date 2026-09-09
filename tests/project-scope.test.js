@@ -14,6 +14,7 @@ assert.equal(isProjectScopedTable('purchase_orders'), true);
 assert.equal(isProjectScopedTable('vw_active_samsara_trackers'), true);
 assert.equal(isProjectScopedTable('inspection_photos'), false);
 assert.equal(isProjectScopedTable('audit_log'), true);
+assert.equal(isProjectScopedTable('installation_datasets'), true);
 
 assert.deepEqual(
   withProjectId('receiving_records', { material_type: 'Pipe' }, DEFAULT_PROJECT_ID),
@@ -58,6 +59,10 @@ const query = {
     calls.push(['select', columns, options]);
     return this;
   },
+  maybeSingle() {
+    calls.push(['maybeSingle']);
+    return this;
+  },
 };
 
 const baseClient = {
@@ -71,6 +76,7 @@ const scoped = createProjectScopedClient(baseClient, () => 'project-1');
 scoped.from('materials').select('*', { count: 'exact' });
 scoped.from('materials').insert({ material_type: 'Valve' });
 scoped.from('audit_log').select('*');
+scoped.from('installation_datasets').select('payload').eq('dataset_key', 'audit_data').maybeSingle();
 
 assert.deepEqual(calls, [
   ['from', 'materials'],
@@ -81,6 +87,11 @@ assert.deepEqual(calls, [
   ['from', 'audit_log'],
   ['select', '*', undefined],
   ['eq', 'project_id', 'project-1'],
+  ['from', 'installation_datasets'],
+  ['select', 'payload', undefined],
+  ['eq', 'project_id', 'project-1'],
+  ['eq', 'dataset_key', 'audit_data'],
+  ['maybeSingle'],
 ]);
 
 console.log('project-scope tests passed');

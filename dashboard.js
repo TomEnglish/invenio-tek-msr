@@ -141,14 +141,21 @@ async function loadAllData() {
 
         if (poError) throw poError;
 
-        // Load installation data from local JSON files (not migrated to Supabase yet)
-        const [auditDataResp, disciplineSummaryResp] = await Promise.all([
-            fetch('dashboard_data/audit_data.json'),
-            fetch('dashboard_data/discipline_summary.json')
+        const [auditDataset, disciplineSummaryDataset] = await Promise.all([
+            projectSupabaseClient.from('installation_datasets')
+                .select('payload')
+                .eq('dataset_key', 'audit_data')
+                .maybeSingle(),
+            projectSupabaseClient.from('installation_datasets')
+                .select('payload')
+                .eq('dataset_key', 'discipline_summary')
+                .maybeSingle()
         ]);
 
-        const auditData = await auditDataResp.json();
-        const disciplineSummary = await disciplineSummaryResp.json();
+        if (auditDataset.error) throw auditDataset.error;
+        if (disciplineSummaryDataset.error) throw disciplineSummaryDataset.error;
+        const auditData = auditDataset.data?.payload || {};
+        const disciplineSummary = disciplineSummaryDataset.data?.payload || {};
 
         // Build metrics object from Supabase data
         // Parse JSONB fields that may come back as strings
@@ -169,8 +176,8 @@ async function loadAllData() {
             metrics,
             shipments: shipments || [],
             poData: poData || [],
-            auditData: auditData || [],
-            disciplineSummary: disciplineSummary || {}
+            auditData,
+            disciplineSummary
         };
 
         console.log('Data loaded successfully from Supabase:', dashboardData);
