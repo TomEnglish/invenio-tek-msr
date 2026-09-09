@@ -26,6 +26,8 @@ test('arrivals distinguish late, next seven days and missing ETA, excluding deli
     const summary=arrivalSummary(records,today);
     assert.deepEqual(summary.counts,{late:1,upcoming:2,undated:2});
     assert.deepEqual(summary.items.map(r=>r.id),[1,2,3]);
+    assert.deepEqual(summary.upcoming.map(r=>r.id),[2,3]);
+    assert.deepEqual(summary.confirmation.map(r=>r.id),[1,7,8]);
 });
 test('inbox queries share explicit local calendar cutoff and validate URL filters', () => {
     const calls=[]; const query={eq(...args){calls.push(['eq',...args]);return this;},lt(...args){calls.push(['lt',...args]);return this;},is(...args){calls.push(['is',...args]);return this;}};

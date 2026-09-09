@@ -6,13 +6,14 @@
 (function () {
     const NAV_ITEMS = [
         { label: 'Dashboard',       icon: 'fa-tachometer-alt',    href: 'index.html' },
+        { label: 'Work Inbox', icon: 'fa-inbox', href: 'work-inbox.html' },
         { label: 'Shipments',       icon: 'fa-shipping-fast',     href: 'shipment-visibility.html', section: 'Logistics' },
-        { label: 'Inventory',       icon: 'fa-warehouse',         href: 'inventory.html' },
+        { label: 'Yard Inventory',       icon: 'fa-warehouse',         href: 'inventory.html' },
         { label: 'Outside Shops',   icon: 'fa-store',             href: 'outside-shop-inventory.html' },
         { label: 'Shop Contacts',   icon: 'fa-address-book',      href: 'shop-contacts.html' },
         { label: 'Gap Analysis',    icon: 'fa-clipboard-check',   href: 'gap-analysis.html', section: 'Planning' },
-        { label: 'Materials',       icon: 'fa-cubes',             href: 'material-tracking.html' },
-        { label: 'Deliveries',      icon: 'fa-truck',             href: 'delivery-dates.html' },
+        { label: 'PO & Installation',       icon: 'fa-cubes',             href: 'material-tracking.html' },
+        { label: 'Delivery Dates',      icon: 'fa-truck',             href: 'delivery-dates.html' },
         { label: 'Schedule',        icon: 'fa-calendar-alt',      href: 'project-schedule.html' },
         { label: 'GPS Tracking',    icon: 'fa-map-marker-alt',    href: 'samsara-tracking.html', section: 'Field' },
         { label: 'Site Plan',       icon: 'fa-drafting-compass',  href: 'site-plan.html' },
@@ -21,18 +22,17 @@
         { label: 'Users & Access', icon: 'fa-users-cog',         href: 'user-admin.html', adminOnly: true },
         { label: 'Projects', icon: 'fa-folder', href: 'projects.html', adminOnly: true },
         { label: 'Activity & Audit', icon: 'fa-history', href: 'audit.html', adminOnly: true },
-        { label: 'Work Inbox', icon: 'fa-inbox', href: 'work-inbox.html' },
     ];
 
     // Page title map
     const PAGE_TITLES = {
         'index.html':                   'Dashboard',
         'shipment-visibility.html':     'Shipment Visibility',
-        'inventory.html':               'Master Inventory',
+        'inventory.html':               'Yard Inventory',
         'outside-shop-inventory.html':  'Outside Shop Inventory',
         'shop-contacts.html':           'Shop Contacts',
         'gap-analysis.html':            'Gap Analysis',
-        'material-tracking.html':       'Material Tracking',
+        'material-tracking.html':       'PO & Installation',
         'delivery-dates.html':          'Delivery Dates',
         'project-schedule.html':        'Project Schedule',
         'samsara-tracking.html':        'GPS Tracking',

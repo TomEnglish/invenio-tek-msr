@@ -34,13 +34,24 @@
         const through = end.toISOString().slice(0, 10);
         const pending = records.filter(r => !['delivered', 'cancelled', 'canceled'].includes(String(r.status || '').trim().toLowerCase()));
         const dated = pending.filter(r => validDate(r.eta));
+        const byDate = (a, b) => a.eta.localeCompare(b.eta) || String(a.id).localeCompare(String(b.id));
+        const upcoming = dated.filter(r => r.eta >= today && r.eta <= through).sort(byDate);
+        const confirmation = [...dated.filter(r => r.eta < today).sort(byDate), ...pending.filter(r => !validDate(r.eta))];
         return { through, counts: {
             late: dated.filter(r => r.eta < today).length,
             upcoming: dated.filter(r => r.eta >= today && r.eta <= through).length,
             undated: pending.length - dated.length,
-        }, items: dated.filter(r => r.eta <= through).sort((a, b) => a.eta.localeCompare(b.eta) || String(a.id).localeCompare(String(b.id))) };
+        }, upcoming, confirmation, items: dated.filter(r => r.eta <= through).sort(byDate) };
     }
-    const api = { filters, localDate, applyInboxFilter, exceptionSummary, arrivalSummary };
+    function exceptionLabel(value) {
+        return ({ wrong_type: 'Wrong material', wrong_count: 'Quantity mismatch', damage: 'Damage', missing_docs: 'Missing documents', other: 'Other exception' })[value]
+            || (value ? String(value).replaceAll('_', ' ') : 'Inspection exception');
+    }
+    function poLabel(value) {
+        if (!value) return 'PO not recorded';
+        return /^PO(?:\b|[-_])/i.test(String(value)) ? String(value) : `PO ${value}`;
+    }
+    const api = { filters, localDate, validDate, applyInboxFilter, exceptionSummary, arrivalSummary, exceptionLabel, poLabel };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
     root.InvenioWorkSummary = api;
 })(typeof window !== 'undefined' ? window : globalThis);

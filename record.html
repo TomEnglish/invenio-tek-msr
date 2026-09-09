@@ -6,43 +6,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <meta name="theme-color" content="#0369a1">
-    <title>Users &amp; Access - Invenio Field MSR</title>
+    <title>Record details - Invenio Field MSR</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="styles.css?v=20260908a">
+    <link rel="stylesheet" href="styles.css?v=20260909ui">
     <style>html:not(.auth-ready) body { visibility: hidden; }</style>
-    <style>
-        .user-admin-header { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; margin-bottom:1.5rem; }
-        .user-admin-header h1 { font-size:1.6rem; margin:0 0 .35rem; }
-        .user-admin-header p { margin:0; color:var(--text-muted); }
-        .user-toolbar { display:flex; gap:.75rem; align-items:end; flex-wrap:wrap; margin-bottom:1rem; }
-        .user-toolbar .search-wrap { flex:1 1 260px; }
-        .user-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
-        .user-table { width:100%; border-collapse:collapse; }
-        .user-table th { background:var(--raised); color:var(--text-muted); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; padding:.75rem 1rem; white-space:nowrap; }
-        .user-table td { border-top:1px solid var(--border); padding:.8rem 1rem; vertical-align:middle; }
-        .user-table tbody tr:hover { background:var(--border-light); }
-        .user-name { font-weight:600; color:var(--text-primary); }
-        .user-email { color:var(--text-muted); font-size:.8rem; }
-        .user-badge { display:inline-flex; align-items:center; gap:.35rem; border-radius:999px; padding:.22rem .6rem; font-size:.75rem; font-weight:600; white-space:nowrap; }
-        .user-badge.active { color:#166534; background:#dcfce7; }
-        .user-badge.inactive { color:#991b1b; background:#fee2e2; }
-        .role-badge { color:var(--primary); background:var(--primary-light); }
-        [data-theme="dark"] .user-badge.active { color:#bbf7d0; background:#14532d; }
-        [data-theme="dark"] .user-badge.inactive { color:#fecaca; background:#7f1d1d; }
-        .user-empty { padding:3rem 1rem; text-align:center; color:var(--text-muted); }
-        .user-empty i { font-size:2rem; margin-bottom:.75rem; opacity:.55; }
-        .user-pagination { display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:.85rem 1rem; border-top:1px solid var(--border); color:var(--text-muted); font-size:.85rem; }
-        .project-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.5rem; max-height:220px; overflow:auto; padding:.25rem; }
-        .project-option { border:1px solid var(--border); border-radius:8px; padding:.65rem .75rem; display:flex; gap:.55rem; align-items:flex-start; cursor:pointer; }
-        .project-option:hover { background:var(--border-light); }
-        .project-option small { display:block; color:var(--text-muted); }
-        @media (max-width:768px) { .user-admin-header { flex-direction:column; } .user-table { min-width:760px; } .user-card { overflow-x:auto; } .user-pagination { min-width:760px; } }
-    </style>
+
 </head>
 
 <body>
-<section class="user-card p-4"><a href="search.html">Search records</a><h1 class="h3 mt-3" id="recordTitle">Record details</h1><p id="pageMessage" role="status" aria-live="polite"></p><dl id="recordDetails" class="row"></dl><div id="recordPhotos" class="d-flex gap-3 flex-wrap"></div></section>
+<section class="work-page">
+    <a href="search.html">Search records</a>
+    <header class="work-page-header mt-3"><div><p class="eyebrow" id="recordKind">Project record</p><h1 id="recordTitle">Record details</h1><p id="recordSubtitle" class="text-muted"></p></div><div id="recordActions" class="d-flex gap-2 flex-wrap"></div></header>
+    <p id="pageMessage" role="status" aria-live="polite"></p>
+    <div id="recordDetails" class="record-groups"></div>
+    <section id="photoSection" class="record-section mt-3" hidden><h2>Inspection photos</h2><div id="recordPhotos" class="record-photos"></div></section>
+</section>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js?v=20260424f"></script>
@@ -53,8 +32,9 @@
     <script src="js/utils/project-scope.js?v=20260908a"></script>
     <script src="js/utils/user-access.js?v=20260908a"></script>
     <script src="js/utils/auth-guard.js?v=20260908a"></script>
-    <script src="js/utils/sidebar.js?v=20260908a"></script>
+    <script src="js/utils/sidebar.js?v=20260909ui"></script>
     <script src="js/utils/admin-users-client.js?v=20260908a"></script>
-    <script src="work-pages.js?v=20260909d"></script>
+    <script src="js/utils/work-summary.js?v=20260909ui"></script>
+    <script src="work-pages.js?v=20260909ui"></script>
 </body>
 </html>

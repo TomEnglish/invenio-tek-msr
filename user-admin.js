@@ -106,6 +106,16 @@
             email.className = 'user-email';
             email.textContent = user.email;
             identity.append(name, email);
+            const expand = document.createElement('button');
+            expand.type = 'button'; expand.className = 'btn btn-sm btn-outline-primary user-expand';
+            expand.textContent = 'Access details'; expand.setAttribute('aria-expanded', 'false');
+            expand.setAttribute('aria-label', `Access details for ${user.fullName || user.email}`);
+            expand.addEventListener('click', () => {
+                const expanded = row.classList.toggle('user-expanded');
+                expand.setAttribute('aria-expanded', String(expanded));
+                expand.textContent = expanded ? 'Hide details' : 'Access details';
+            });
+            identity.appendChild(expand);
 
             const role = document.createElement('td');
             role.appendChild(makeBadge(roleLabel(user.role), 'role-badge'));
@@ -152,6 +162,10 @@
                 }
             }
 
+            identity.className = 'user-identity';
+            for (const [cell, label] of [[role,'Role'],[status,'Status'],[projects,'Projects'],[lastSignIn,'Last sign-in'],[actions,'Actions']]) cell.dataset.label = label;
+            for (const cell of [projects,lastSignIn,actions]) cell.classList.add('user-extra');
+            actions.classList.add('user-actions');
             row.append(identity, role, status, projects, lastSignIn, actions);
             elements.tableBody.appendChild(row);
         });
