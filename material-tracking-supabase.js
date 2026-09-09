@@ -148,8 +148,8 @@ async function loadPOItems() {
         // Map Supabase fields to expected format with delivery dates
         state.poItems = poResponse.data.map(item => ({
             po_id: item.purchase_order_id,
-            line_item: item.line_item,
-            description: item.description,
+            line_item: item.purchase_order_item,
+            description: item.item_description?.trim() || item.po_description?.trim() || '',
             supplier: item.supplier,
             category: item.category,
             net_value: item.net_value || 0,

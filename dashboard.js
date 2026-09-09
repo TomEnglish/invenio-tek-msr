@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     if (!(await window.InvenioAuthReady)) return;
 
+    document.getElementById('dashboardProjectName').textContent = InvenioProjectScope.activeProject.name;
     loadAllData();
     setupRealtimeSubscriptions();
 });
