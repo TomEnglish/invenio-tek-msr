@@ -332,12 +332,30 @@ My account email: [your email address]</textarea>
                     <input type="email" id="reset-email" placeholder="you@company.com" required>
                 </div>
                 <button type="submit" class="login-btn" id="reset-request-btn">
-                    <span id="reset-request-text">Send Reset Link</span>
+                    <span id="reset-request-text">Send Reset Code</span>
                     <span id="reset-request-spinner" style="display:none;"><span class="spinner-sm"></span></span>
                 </button>
                 <div class="form-actions">
                     <button type="button" class="link-button" id="back-to-login-btn">Back to sign in</button>
                 </div>
+            </form>
+
+            <form id="verify-code-form" class="reset-form">
+                <div class="form-group">
+                    <label for="verify-email">Invited email address</label>
+                    <input type="email" id="verify-email" autocomplete="email" placeholder="you@company.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="verify-code">Email code</label>
+                    <input type="text" id="verify-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" maxlength="10" required aria-describedby="code-help">
+                    <p id="code-help">Use the code from your newest email. Opening the email or this page does not use the code.</p>
+                </div>
+                <button type="submit" class="login-btn" id="verify-code-btn">
+                    <span id="verify-code-text">Verify code</span>
+                    <span id="verify-code-spinner" style="display:none;"><span class="spinner-sm"></span></span>
+                </button>
+                <div class="form-actions"><button type="button" class="link-button" id="code-sign-in-btn">Already set a password? Sign in</button></div>
+                <div class="form-actions"><button type="button" class="link-button" id="code-help-btn">Need a new code?</button></div>
             </form>
 
             <form id="update-password-form" class="reset-form">
@@ -358,7 +376,7 @@ My account email: [your email address]</textarea>
     </div>
 
     <script>document.documentElement.classList.add('auth-ready');</script>
-    <script src="js/utils/login-flow.js?v=20260909-invite-help"></script>
+    <script src="js/utils/login-flow.js?v=20260909-invite-code"></script>
     <script>window.loginFlow = InvenioLoginFlow.createLoginFlow(location.hash, location.search);</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js?v=20260424f"></script>
@@ -368,6 +386,8 @@ My account email: [your email address]</textarea>
         const loginForm = document.getElementById('login-form');
         const resetRequestForm = document.getElementById('reset-request-form');
         const updatePasswordForm = document.getElementById('update-password-form');
+        const verifyCodeForm = document.getElementById('verify-code-form');
+        let verificationType = window.loginFlow.verificationType;
         const title = document.querySelector('.login-card h2');
         const subtitle = document.querySelector('.login-card .subtitle');
         const messageBox = document.getElementById('login-error');
@@ -376,6 +396,7 @@ My account email: [your email address]</textarea>
         const linkHelpPanel = document.getElementById('link-help');
 
         function showLinkHelp(help) {
+            verifyCodeForm.classList.remove('active');
             title.textContent = help.title;
             subtitle.textContent = 'You can still finish getting access.';
             loginForm.classList.add('hidden');
@@ -429,6 +450,7 @@ My account email: [your email address]</textarea>
         }
 
         function showLoginForm() {
+            verifyCodeForm.classList.remove('active');
             linkHelpPanel.hidden = true;
             title.textContent = 'Welcome back';
             subtitle.textContent = 'Sign in to your Invenio Field MSR';
@@ -441,10 +463,11 @@ My account email: [your email address]</textarea>
         }
 
         function showResetRequestForm() {
+            verifyCodeForm.classList.remove('active');
             linkHelpPanel.hidden = true;
             clearMessage();
             title.textContent = 'Reset password';
-            subtitle.textContent = 'Enter your email and we will send a reset link.';
+            subtitle.textContent = 'Enter your email and we will send a reset code.';
             loginForm.classList.add('hidden');
             resetRequestForm.classList.add('active');
             updatePasswordForm.classList.remove('active');
@@ -456,6 +479,7 @@ My account email: [your email address]</textarea>
         }
 
         function showUpdatePasswordForm() {
+            verifyCodeForm.classList.remove('active');
             linkHelpPanel.hidden = true;
             title.textContent = loginFlow.mode === 'invite' ? 'Finish your invitation' : 'Set new password';
             subtitle.textContent = 'Choose a new password for your account.';
@@ -468,6 +492,28 @@ My account email: [your email address]</textarea>
             document.getElementById('new-password').focus();
         }
 
+        function showVerifyCodeForm() {
+            linkHelpPanel.hidden = true;
+            loginForm.classList.add('hidden');
+            resetRequestForm.classList.remove('active');
+            updatePasswordForm.classList.remove('active');
+            verifyCodeForm.classList.add('active');
+            title.textContent = 'Enter your email code';
+            subtitle.textContent = 'Verify your email to continue setting up your password.';
+            document.getElementById('verify-email').focus();
+        }
+
+        function showAuthError(error) {
+            const help = InvenioLoginFlow.emailLinkHelp(loginFlow.mode, error.message, error.code);
+            if (help) showLinkHelp(help);
+            else setMessage(error.message || 'Unable to finish signing in. Please try again.');
+        }
+
+        async function finishSignIn() {
+            await InvenioLoginFlow.completeSignIn(supabaseClient);
+            window.location.href = 'index.html';
+        }
+
         function setButtonLoading(buttonId, textId, spinnerId, isLoading) {
             document.getElementById(buttonId).disabled = isLoading;
             document.getElementById(textId).style.display = isLoading ? 'none' : 'inline';
@@ -476,22 +522,19 @@ My account email: [your email address]</textarea>
 
         supabaseClient.auth.onAuthStateChange((event) => {
             loginFlow.handleEvent(event);
-            if (event === 'PASSWORD_RECOVERY') {
+            if (event === 'PASSWORD_RECOVERY' && !verifyCodeForm.classList.contains('active')) {
                 clearMessage();
                 showUpdatePasswordForm();
             }
         });
 
-        if (loginFlow.mode !== 'login' && !loginFlow.error) {
-            showUpdatePasswordForm();
-        }
+        if (verificationType && !loginFlow.error) showVerifyCodeForm();
+        else if (loginFlow.mode !== 'login' && !loginFlow.error) showUpdatePasswordForm();
 
         // If already logged in, redirect to dashboard unless this is a password recovery session.
-        supabaseClient.auth.getSession().then(({ data: { session } }) => {
-            if (loginFlow.shouldRedirect(session)) {
-                window.location.href = 'index.html';
-            }
-        });
+        supabaseClient.auth.getSession().then(async ({ data: { session } }) => {
+            if (loginFlow.shouldRedirect(session)) await finishSignIn();
+        }).catch(showAuthError);
 
         if (loginFlow.linkHelp) showLinkHelp(loginFlow.linkHelp);
         else if (loginFlow.error) setMessage(loginFlow.error);
@@ -511,13 +554,14 @@ My account email: [your email address]</textarea>
             clearMessage();
             setButtonLoading('login-btn', 'login-text', 'login-spinner', true);
 
-            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-
-            if (error) {
-                setMessage(error.message);
+            try {
+                const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                if (error) throw error;
+                await finishSignIn();
+            } catch (error) {
+                showAuthError(error);
+            } finally {
                 setButtonLoading('login-btn', 'login-text', 'login-spinner', false);
-            } else {
-                window.location.href = 'index.html';
             }
         });
 
@@ -540,7 +584,38 @@ My account email: [your email address]</textarea>
                 return;
             }
 
-            setMessage('Password reset link sent. Check your email for the next step.', 'success');
+            verificationType = 'recovery';
+            document.getElementById('verify-email').value = email;
+            showVerifyCodeForm();
+            setMessage('If this email has an account, a reset code has been sent. Check your newest email.', 'success');
+        });
+
+        document.getElementById('code-sign-in-btn').addEventListener('click', () => {
+            clearMessage();
+            document.getElementById('email').value = document.getElementById('verify-email').value;
+            showLoginForm();
+            document.getElementById('email').focus();
+        });
+        document.getElementById('code-help-btn').addEventListener('click', () => {
+            if (loginFlow.mode === 'invite') {
+                showLinkHelp({ kind:'invite', title:'Request a new invitation code', explanation:'Ask your administrator to resend the invitation, then use the code in the newest email.' });
+            } else showResetRequestForm();
+        });
+        verifyCodeForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearMessage();
+            setButtonLoading('verify-code-btn', 'verify-code-text', 'verify-code-spinner', true);
+            try {
+                await InvenioLoginFlow.verifyEmailCode(supabaseClient, verificationType,
+                    document.getElementById('verify-email').value, document.getElementById('verify-code').value);
+                document.getElementById('verify-code').value = '';
+                showUpdatePasswordForm();
+            } catch (error) {
+                // Keep the form available so a mistyped code can be corrected.
+                setMessage(error.code === 'otp_expired' ? 'This code is incorrect, expired or already used. Check the newest email, or request a new code.' : (error.message || 'Unable to verify the code. Please try again.'));
+            } finally {
+                setButtonLoading('verify-code-btn', 'verify-code-text', 'verify-code-spinner', false);
+            }
         });
 
         updatePasswordForm.addEventListener('submit', async (e) => {
