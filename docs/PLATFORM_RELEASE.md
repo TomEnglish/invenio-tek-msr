@@ -15,12 +15,12 @@ The administration and reliability feature is implemented in both repositories. 
 
 | Layer | Evidence |
 |---|---|
-| MSR JavaScript | 12 Node test entries pass, including URL cleanup/recovery and project initialization/account switching. Existing source-contract tests are retained alongside behavioral tests. |
+| MSR JavaScript | 15 Node test entries pass, including URL cleanup/recovery, project initialization/account switching, and deferred dashboard startup. Existing source-contract tests are retained alongside behavioral tests. |
 | Admin Edge Function | 30 Deno tests pass: real handler authorization, role/status denials, transactional request contract, HTTP conflict handling, filters, invitation state transitions. No network permission is granted to these tests. |
 | Field logic | 26 Node tests pass against real TypeScript modules and real Zustand persistence where relevant. Coverage includes draft restoration, account/project isolation, stable retries, upload/reference errors, and account changes during asynchronous photo operations. |
 | Database | Ten SQL integration suites run against disposable PostgreSQL 17 with Supabase-compatible auth/storage roles and fixtures. They exercise RLS, storage restrictions, rollback, invitation acceptance, exceptions, corrections, audit and operation idempotency. |
 | Concurrency | Separate PostgreSQL connections demonstrably block each other: concurrent self-demotions retain an admin, competing issues cannot overdraw stock, duplicate operations deduct once. |
-| Build | Field `npm run lint` and `npx expo export --platform web` pass (35 generated routes). Deno typecheck and whitespace checks pass. |
+| Build | Field `npm run lint` and production exports for iOS, Android, and web pass (35 generated web routes). Deno typecheck and whitespace checks pass. |
 | Browser | Real MSR page scripts with a fixture backend: invite, edit, role filter, resend, cancel, project creation, audit, search-to-record navigation, exception ownership/date/hold, unauthorized admin redirect, and no-project redirect. Checked desktop and 390px phone layout, including navigation and internal table scrolling. Field login starts without console errors. |
 
 The browser fixture validates UI wiring, not Supabase delivery or RLS. The PostgreSQL harness validates SQL, not hosted Supabase's complete Auth/Storage implementation. These checks complement each other; they do not replace release smoke tests.
@@ -34,7 +34,7 @@ The browser fixture validates UI wiring, not Supabase delivery or RLS. The Postg
 5. **Deploy `admin-users`.** Use Supabase's server-side service credential in the function environment. The function verifies the caller with Auth and rechecks the administrator in transactional RPCs. Configure `INVITATION_TTL_SECONDS` to match the hosted Auth email-link expiry (default 3600 seconds), and allow the production `/login.html` and `/login.html?setup=invite` redirect URLs. Configure the actual mail provider and invitation/password-recovery templates.
 6. **Publish MSR and the compatible Field update.** MSR builds browser assets with `node scripts/build-site.mjs` and publishes `dist/`. Database scripts, spreadsheets, and source installation JSON are excluded. Load installation datasets from the project-protected `installation_datasets` table. The Field Netlify site publishes documentation; distribute the app through EAS production updates with the production environment, runtime `1.0.0`, from a clean checkout. No native dependencies or configuration change in this release.
 
-   **Publish checks:** Shared asset versions are bumped to `20260908a`. Confirm that `/user-admin.html`, `/projects.html`, `/audit.html`, `/search.html`, `/work-inbox.html`, and `/record.html` serve the new release. Check all integrations use server credentials for server-owned sync tables.
+   **Publish checks:** Changed browser assets use September 8/9 cache versions; the dashboard startup fix uses `dashboard.js?v=20260909b`. Confirm that `/user-admin.html`, `/projects.html`, `/audit.html`, `/search.html`, `/work-inbox.html`, and `/record.html` serve the new release. Check all integrations use server credentials for server-owned sync tables.
 7. **Smoke-test with designated accounts.** Invite and accept one new account; expire/resend/cancel another; test administrator, office, field and inactive access. Submit partial receiving with photos, retry an interrupted request, and verify one receipt/history entry. On a physical device, test offline camera photos across force-close/reopen, account/project switching, reconnect, and sync retry. Confirm a completed project remains readable and an archived project cannot be operated.
 
 Keep the database permissions and operation RPCs in place when rolling a frontend forward to repair a defect. Reverting to an old client while retaining new permissions stops old writes; reversing the new permission migration would reopen known access vulnerabilities. Restore a backup only as a separately reviewed data-recovery action with an explicit treatment of records created since that backup.
@@ -84,3 +84,13 @@ npx expo export --platform web
 - User priority: MSR dashboard and PO feedback first; review Field last. The exact intended PO-feedback workflow is still awaiting clarification.
 
 The static installation snapshots and older workbooks are still present in Git history and may exist in historical deployments. Excluding them from the current website does not erase those historical copies. Repository cleanup remains deferred.
+
+## Production publication — September 9, 2026
+
+- Merged and pushed both applications to GitHub `main`: MSR release `752437c1acf58ef64258ac44ca1ea272c4067407` and Field `a3515a24a4c976b6afb6b17aadb95b71da17d9dd`. The subsequent dashboard startup fix waits for the Auth/project guard before starting subscriptions; its two regression cases failed before the fix and pass afterward.
+- Applied migrations 012–017 and imported both legacy installation snapshots in one transaction. Verified migration history, three preserved active administrators, two project-protected datasets, caller-permission reporting views, a private inspection bucket, and denied browser writes to users and installation snapshots.
+- Published `admin-users` version 3 with gateway JWT verification enabled. Authenticated directory, project, and audit reads returned successfully. The live Users & Access page shows all four existing users and the email-configuration notice without console errors.
+- Published the MSR site at `https://invenio-field-msr.netlify.app` (initial production deploy `6aa1599f66089c0ebb29e187`). All six new administration/workflow routes return HTTP 200; installation JSON, environment files, and backend/documentation paths return HTTP 404. The backup release record tracks subsequent deployment IDs.
+- Published Field update group `2b3b0f24-1a2f-4e48-b713-ff3ddb3b5e4f` to EAS branch/channel `production`, runtime `1.0.0`, for both iOS and Android. This makes the update available to compatible installed builds; device uptake and physical offline/photo workflows remain unverified. No new native binary or App Store submission was made.
+- The Field documentation site also deployed from `a3515a2` (Netlify deployment `6aa159a07cb2e0000855768c`). It remains a documentation site, separate from app distribution.
+- Email onboarding remains incomplete pending Resend/SMTP configuration and designated-recipient invitation/recovery checks. Prioritize MSR feedback; review the Field experience last.
