@@ -1,3 +1,5 @@
+import http from 'node:http';
+import https from 'node:https';
 import { createHash } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
@@ -8,7 +10,26 @@ export async function smokeDeploy(base, expectedCommit, attempts = 1) {
     if (origin.username || origin.password || origin.pathname !== '/' || origin.search || origin.hash) throw new Error('Supply only the site origin');
     if (!/^[a-f0-9]{40}$/.test(expectedCommit)) throw new Error('Expected commit must be a full Git SHA');
     if (!Number.isInteger(attempts) || attempts < 1 || attempts > 90) throw new Error('Attempts must be between 1 and 90');
-    const get = path => fetch(new URL(path, origin), { redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(10000) });
+    // Read the original HTTP entity with no intermediary fetch transformation.
+    // Redirects are deliberately not followed; a login/SPA response must not pass.
+    const get = path => new Promise((resolve, reject) => {
+        const url = new URL(path, origin);
+        const client = url.protocol === 'https:' ? https : http;
+        const request = client.get(url, { signal: AbortSignal.timeout(10000), headers: { 'Accept-Encoding': 'identity', 'Cache-Control': 'no-cache' } }, response => {
+            const chunks = []; let size = 0;
+            response.on('data', chunk => {
+                size += chunk.length;
+                if (size > 50 * 1024 * 1024) response.destroy(new Error('Asset exceeds smoke-test size limit'));
+                else chunks.push(chunk);
+            });
+            response.on('error', reject);
+            response.on('end', () => {
+                const body = Buffer.concat(chunks), status = response.statusCode;
+                resolve({ status, ok: status >= 200 && status < 300, json: async () => JSON.parse(body.toString('utf8')), arrayBuffer: async () => body });
+            });
+        });
+        request.on('error', reject);
+    });
     let release;
     for (let attempt = 0; attempt < attempts; attempt++) {
         try {
