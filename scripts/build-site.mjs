@@ -1,4 +1,6 @@
-import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import { cpSync, readFileSync, writeFileSync, existsSync, lstatSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -32,3 +34,12 @@ for (const page of ['index.html', 'login.html', 'user-admin.html', 'projects.htm
     if (!existsSync(join(output, page))) throw new Error(`Required release page missing: ${page}`);
 }
 console.log(`Built MSR browser assets in ${output}`);
+
+const commit = process.env.COMMIT_REF || process.env.GITHUB_SHA || execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+if (!/^[a-f0-9]{40}$/.test(commit)) throw new Error('Release commit must be a full Git SHA');
+const assets = Object.fromEntries([
+    'index.html', 'login.html', 'work-inbox.html', 'record.html', 'dashboard.js', 'work-pages.js',
+    'styles.css', 'js/utils/data-health.js', 'js/utils/work-summary.js', 'js/utils/pdf-export.js',
+    'js/utils/auth-guard.js', 'js/utils/project-scope.js',
+].map(file => [file, createHash('sha256').update(readFileSync(join(output, file))).digest('hex')]));
+writeFileSync(join(output, 'release.json'), JSON.stringify({ commit, assets }, null, 2) + '\n');

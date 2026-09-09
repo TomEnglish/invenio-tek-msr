@@ -1,0 +1,82 @@
+name: Quality and release checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: msr
+          persist-credentials: false
+      - name: Check out the shared database baseline
+        uses: actions/checkout@v4
+        with:
+          repository: TomEnglish/invenio-field-platform
+          ref: a3515a24a4c976b6afb6b17aadb95b71da17d9dd
+          path: field-baseline
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: msr/requirements-import.txt
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Browser logic and publication boundary
+        working-directory: msr
+        run: node --test tests/*.test.js
+      - name: Edge function validation and behavior
+        working-directory: msr
+        run: |
+          deno test --allow-env=SUPABASE_URL,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_SECRET_KEY,INVITATION_TTL_SECONDS,INVITATION_EMAIL_ENABLED tests/admin-users-handler.test.ts tests/admin-users-validation.test.ts
+          deno check supabase/functions/admin-users/index.ts
+      - name: Workbook validation and transactional import contract
+        working-directory: msr
+        run: |
+          python -m pip install -r requirements-import.txt
+          python -m unittest discover -s tests -p '*_test.py'
+      - name: PostgreSQL setup
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-16
+          echo /usr/lib/postgresql/16/bin >> "$GITHUB_PATH"
+      - name: Permissions, operations, imports, and actual concurrent transactions
+        working-directory: msr
+        env:
+          FIELD_REPO_PATH: ${{ github.workspace }}/field-baseline
+        run: bash tests/database/run.sh
+      - name: Publish only checked browser assets
+        working-directory: msr
+        run: node scripts/build-site.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: msr-browser-${{ github.sha }}
+          path: msr/dist
+          retention-days: 7
+  production-smoke:
+    needs: quality
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Wait for this commit and verify deployed assets and private-file exclusions
+        run: node scripts/smoke-deploy.mjs https://invenio-field-msr.netlify.app "$GITHUB_SHA" 90

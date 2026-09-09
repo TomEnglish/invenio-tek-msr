@@ -87,21 +87,22 @@
     }
     if ($('inboxEntries')) {
         let offset = 0, busy = false, staff = [], operationIds = new Map();
-        if (office) {
+        const requestedFilter = new URLSearchParams(location.search).get('filter');
+        if (InvenioWorkSummary.filters.includes(requestedFilter)) $('inboxFilter').value = requestedFilter;
+        {
             const result = await supabaseClient.rpc('project_staff', { p_project_id: projectId });
             if (result.error) message('Staff choices could not be loaded; refresh to retry.');
             else staff = result.data || [];
         }
         async function load(append = false) {
             if (busy) return;
-            busy = true; $('inboxMore').disabled = true;
+            busy = true; $('inboxMore').disabled = true; $('inboxFilter').disabled = true;
             if (!append) { offset = 0; $('inboxEntries').replaceChildren(); }
             try {
-                let query = projectSupabaseClient.from('receiving_records').select('*').eq('has_exception', true).order('created_at', { ascending: false }).range(offset, offset + 24);
                 const filter = $('inboxFilter').value;
-                if (filter !== 'all') query = query.eq('exception_resolved', false);
-                if (filter === 'mine') query = query.eq('exception_owner_id', profile.id);
-                if (filter === 'overdue') query = query.lt('exception_due_date', new Date().toLocaleDateString('en-CA'));
+                const query = InvenioWorkSummary.applyInboxFilter(
+                    projectSupabaseClient.from('receiving_records').select('*'), filter, profile.id)
+                    .order('created_at', { ascending: false }).order('id').range(offset, offset + 24);
                 const { data, error } = await query;
                 if (error) throw error;
                 for (const record of data) render(record);
@@ -109,7 +110,7 @@
                 $('inboxMore').hidden = data.length < 25;
                 message(offset ? `${offset} exceptions shown.` : 'No exceptions match this view.');
             } catch (error) { message(`Could not load exceptions: ${error.message}`); }
-            finally { busy = false; $('inboxMore').disabled = false; }
+            finally { busy = false; $('inboxMore').disabled = false; $('inboxFilter').disabled = false; }
         }
         function render(record) {
             const card = el('article', '', 'border-bottom py-4');
@@ -148,6 +149,6 @@
             }
             $('inboxEntries').append(card);
         }
-        $('inboxFilter').onchange = () => load(); $('inboxMore').onclick = () => load(true); await load();
+        $('inboxFilter').onchange = () => { history.replaceState(null, '', `work-inbox.html?filter=${encodeURIComponent($('inboxFilter').value)}`); void load(); }; $('inboxMore').onclick = () => load(true); await load();
     }
 })().catch(error => { const message = document.getElementById('pageMessage'); if (message) message.textContent = error.message; });

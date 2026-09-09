@@ -1196,3 +1196,12 @@ canvas { background: transparent !important; }
 @media (max-width: 768px) {
     .top-header .page-title { flex: 1 0 calc(100% - 130px); font-size: 14px; }
 }
+
+/* Dashboard actions use links and text that remain readable on narrow screens. */
+.action-counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: .5rem; margin-bottom: 1rem; }
+.action-counts > * { padding: .6rem; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); }
+.action-counts strong { display: block; font-size: 1.4rem; }
+.action-counts span { font-size: .8rem; }
+.action-items { list-style: none; padding: 0; margin: 0; }
+.action-items li { padding: .75rem 0; border-top: 1px solid var(--border); overflow-wrap: anywhere; }
+.action-items small { display: block; color: var(--text-muted); margin-top: .25rem; }
