@@ -100,6 +100,7 @@
             justify-content: center;
             padding: 3rem;
             background: var(--canvas);
+            overflow-y: auto;
         }
 
         .login-card {
@@ -158,7 +159,7 @@
             width: 100%;
             height: 44px;
             background: var(--primary);
-            color: #fff;
+            color: var(--text-inverse);
             border: none;
             border-radius: var(--radius-md);
             font-size: 15px;
@@ -181,6 +182,17 @@
             transform: none;
         }
 
+        .link-help[hidden], .link-help [hidden] { display: none; }
+        .link-help { color: var(--text); font-size: 14px; }
+        .link-help p { margin: 0 0 1rem; }
+        .link-help .link-button { min-height: 44px; }
+        .invitation-request { margin-top: 1rem; padding: 1rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--raised); }
+        .invitation-request label { display: block; font-weight: 600; margin-bottom: .5rem; }
+        .invitation-request textarea { width: 100%; min-height: 150px; padding: .75rem; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); resize: vertical; }
+        .invitation-request .request-note { font-size: 13px; color: var(--text-muted); margin: .75rem 0; }
+        .login-card { margin-block: auto; }
+        .login-btn:focus-visible, .link-button:focus-visible, .invitation-request textarea:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
+
         .login-error {
             background: var(--danger-soft);
             color: var(--danger);
@@ -192,6 +204,7 @@
             display: none;
         }
         .login-error.show { display: block; }
+        .login-error.link-expired { color: var(--text); background: var(--raised); border-color: var(--warn); border-left-width: 4px; }
         .login-error.success {
             background: var(--success-soft);
             color: var(--success);
@@ -251,6 +264,7 @@
             .login-brand .mark-svg { width: 64px; height: 64px; margin-bottom: 1rem; }
             .login-brand h1 { font-size: 22px; }
             .login-card { padding: 2rem; }
+            .login-form-panel { padding: 1rem; overflow-y: visible; }
         }
     </style>
 </head>
@@ -275,7 +289,24 @@
             <h2>Welcome back</h2>
             <p class="subtitle">Sign in to your Invenio Field MSR</p>
 
-            <div id="login-error" class="login-error"></div>
+            <div id="login-error" class="login-error" role="alert"></div>
+
+            <section id="link-help" class="link-help" aria-label="Email link help" hidden>
+                <p id="link-next-step">Ask the administrator who invited you to resend your invitation. Open the newest email and finish setup promptly.</p>
+                <button type="button" class="login-btn" id="request-invitation-btn" aria-expanded="false" aria-controls="invitation-request">Request another invitation</button>
+                <div id="invitation-request" class="invitation-request" hidden>
+                    <p>Copy this message and send it by email or chat to the administrator who invited you. Add the email address they invited.</p>
+                    <label for="invitation-request-message">Message for your administrator</label>
+                    <textarea id="invitation-request-message" rows="6">Hello, my Invenio Field MSR invitation link is no longer valid. Please resend my invitation from Users &amp; Access.
+
+My account email: [your email address]</textarea>
+                    <p class="request-note">This prepares a request for you to send. It does not send an email automatically.</p>
+                    <button type="button" class="login-btn" id="copy-invitation-request">Copy request message</button>
+                    <p id="invitation-request-status" class="request-note" role="status" aria-live="polite"></p>
+                </div>
+                <div class="form-actions"><button type="button" class="link-button" id="link-reset-btn">Need a password reset instead?</button></div>
+                <div class="form-actions"><button type="button" class="link-button" id="link-sign-in-btn">Already set a password? Sign in</button></div>
+            </section>
 
             <form id="login-form" class="login-form">
                 <div class="form-group">
@@ -327,7 +358,7 @@
     </div>
 
     <script>document.documentElement.classList.add('auth-ready');</script>
-    <script src="js/utils/login-flow.js"></script>
+    <script src="js/utils/login-flow.js?v=20260909-invite-help"></script>
     <script>window.loginFlow = InvenioLoginFlow.createLoginFlow(location.hash, location.search);</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js?v=20260424f"></script>
@@ -342,6 +373,49 @@
         const messageBox = document.getElementById('login-error');
 
         const loginFlow = window.loginFlow;
+        const linkHelpPanel = document.getElementById('link-help');
+
+        function showLinkHelp(help) {
+            title.textContent = help.title;
+            subtitle.textContent = 'You can still finish getting access.';
+            loginForm.classList.add('hidden');
+            resetRequestForm.classList.remove('active');
+            updatePasswordForm.classList.remove('active');
+            linkHelpPanel.hidden = false;
+            document.getElementById('invitation-request').hidden = true;
+            document.getElementById('request-invitation-btn').setAttribute('aria-expanded', 'false');
+            document.getElementById('invitation-request-status').textContent = '';
+            document.getElementById('request-invitation-btn').hidden = help.kind === 'recovery';
+            document.getElementById('link-next-step').textContent = help.kind === 'recovery'
+                ? 'Request a new password reset link, then use the newest email to set your password.'
+                : 'Ask the administrator who invited you to resend your invitation. Open the newest email and finish setup promptly.';
+            document.getElementById('link-reset-btn').textContent = help.kind === 'recovery' ? 'Request a new password link' : 'Need a password reset instead?';
+            setMessage(help.explanation);
+            messageBox.classList.add('link-expired');
+            title.tabIndex = -1;
+            title.focus();
+        }
+
+        document.getElementById('request-invitation-btn').addEventListener('click', () => {
+            const button = document.getElementById('request-invitation-btn');
+            const panel = document.getElementById('invitation-request');
+            panel.hidden = !panel.hidden;
+            button.setAttribute('aria-expanded', String(!panel.hidden));
+            if (!panel.hidden) document.getElementById('invitation-request-message').focus();
+        });
+        document.getElementById('copy-invitation-request').addEventListener('click', async () => {
+            const request = document.getElementById('invitation-request-message');
+            const status = document.getElementById('invitation-request-status');
+            try {
+                await navigator.clipboard.writeText(request.value);
+                status.textContent = 'Copied. Send this message to the administrator who invited you.';
+            } catch {
+                request.focus(); request.select();
+                status.textContent = 'Copy was unavailable. The message is selected; copy it manually and send it to your administrator.';
+            }
+        });
+        document.getElementById('link-reset-btn').addEventListener('click', showResetRequestForm);
+        document.getElementById('link-sign-in-btn').addEventListener('click', () => { clearMessage(); showLoginForm(); document.getElementById('email').focus(); });
 
         function setMessage(message, type = 'error') {
             messageBox.textContent = message;
@@ -350,11 +424,12 @@
         }
 
         function clearMessage() {
-            messageBox.classList.remove('show', 'success');
+            messageBox.classList.remove('show', 'success', 'link-expired');
             messageBox.textContent = '';
         }
 
         function showLoginForm() {
+            linkHelpPanel.hidden = true;
             title.textContent = 'Welcome back';
             subtitle.textContent = 'Sign in to your Invenio Field MSR';
             loginForm.classList.remove('hidden');
@@ -366,6 +441,7 @@
         }
 
         function showResetRequestForm() {
+            linkHelpPanel.hidden = true;
             clearMessage();
             title.textContent = 'Reset password';
             subtitle.textContent = 'Enter your email and we will send a reset link.';
@@ -380,6 +456,7 @@
         }
 
         function showUpdatePasswordForm() {
+            linkHelpPanel.hidden = true;
             title.textContent = loginFlow.mode === 'invite' ? 'Finish your invitation' : 'Set new password';
             subtitle.textContent = 'Choose a new password for your account.';
             loginForm.classList.add('hidden');
@@ -416,7 +493,8 @@
             }
         });
 
-        if (loginFlow.error) setMessage(loginFlow.error);
+        if (loginFlow.linkHelp) showLinkHelp(loginFlow.linkHelp);
+        else if (loginFlow.error) setMessage(loginFlow.error);
 
         document.getElementById('forgot-password-btn').addEventListener('click', showResetRequestForm);
         document.getElementById('back-to-login-btn').addEventListener('click', () => {
@@ -456,7 +534,9 @@
             setButtonLoading('reset-request-btn', 'reset-request-text', 'reset-request-spinner', false);
 
             if (error) {
-                setMessage(error.message);
+                const help = InvenioLoginFlow.emailLinkHelp(loginFlow.mode, error.message, error.code);
+                if (help) showLinkHelp(help);
+                else setMessage(error.message);
                 return;
             }
 
@@ -490,7 +570,9 @@
             setButtonLoading('update-password-btn', 'update-password-text', 'update-password-spinner', false);
 
             if (error) {
-                setMessage(error.message);
+                const help = InvenioLoginFlow.emailLinkHelp(loginFlow.mode, error.message, error.code);
+                if (help) showLinkHelp(help);
+                else setMessage(error.message);
                 return;
             }
 
