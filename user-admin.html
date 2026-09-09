@@ -9,7 +9,7 @@
     <title>Users &amp; Access - Invenio Field MSR</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="styles.css?v=20260908a">
+    <link rel="stylesheet" href="styles.css?v=20260909ui">
     <style>html:not(.auth-ready) body { visibility: hidden; }</style>
     <style>
         .user-admin-header { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; margin-bottom:1.5rem; }
@@ -37,7 +37,25 @@
         .project-option { border:1px solid var(--border); border-radius:8px; padding:.65rem .75rem; display:flex; gap:.55rem; align-items:flex-start; cursor:pointer; }
         .project-option:hover { background:var(--border-light); }
         .project-option small { display:block; color:var(--text-muted); }
-        @media (max-width:768px) { .user-admin-header { flex-direction:column; } .user-table { min-width:760px; } .user-card { overflow-x:auto; } .user-pagination { min-width:760px; } }
+        .user-expand { display:none; }
+        .user-email,.user-name { overflow-wrap:anywhere; }
+        .user-actions { min-width:140px; }
+        @media (max-width:768px) {
+            .user-admin-header { flex-direction:column; }
+            .user-toolbar > div { flex:1 1 100%; min-width:0; }
+            .user-pagination { flex-wrap:wrap; }
+            .user-table,.user-table tbody { display:block; }
+            .user-table thead { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+            .user-table tr { display:grid; grid-template-columns:1fr 1fr; border-top:1px solid var(--border); padding:.75rem; gap:.75rem; }
+            .user-table td { display:block; border:0; padding:0; min-width:0; overflow-wrap:anywhere; }
+            .user-table td[data-label]::before { content:attr(data-label); display:block; font-size:.75rem; color:var(--text-muted); margin-bottom:.25rem; }
+            .user-table .user-identity,.user-table .user-extra,.user-table .user-empty { grid-column:1 / -1; }
+            .user-table .user-extra { display:none; }
+            .user-table .user-expanded .user-extra { display:block; }
+            .user-expand { display:inline-flex; margin-top:.75rem; min-height:44px; }
+            .user-actions .btn { min-height:44px; margin-bottom:.5rem; }
+            .project-list { grid-template-columns:1fr; }
+        }
     </style>
 </head>
 
@@ -71,7 +89,7 @@
             <span class="text-muted small" id="userCount"></span>
         </div>
         <div class="table-responsive">
-            <table class="user-table">
+            <table class="user-table"><caption class="visually-hidden">Users, roles, project access and account actions</caption>
                 <thead><tr><th scope="col">User</th><th scope="col">Role</th><th scope="col">Status</th><th scope="col">Projects</th><th scope="col">Last sign-in</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
                 <tbody id="userTableBody"><tr><td colspan="6" class="user-empty"><i class="fas fa-spinner fa-spin d-block"></i>Loading users...</td></tr></tbody>
             </table>
@@ -111,8 +129,8 @@
     <script src="js/utils/project-scope.js?v=20260908a"></script>
     <script src="js/utils/user-access.js?v=20260908a"></script>
     <script src="js/utils/auth-guard.js?v=20260908a"></script>
-    <script src="js/utils/sidebar.js?v=20260908a"></script>
+    <script src="js/utils/sidebar.js?v=20260909ui"></script>
     <script src="js/utils/admin-users-client.js?v=20260908a"></script>
-    <script src="user-admin.js?v=20260909a"></script>
+    <script src="user-admin.js?v=20260909ui"></script>
 </body>
 </html>

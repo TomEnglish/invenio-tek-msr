@@ -7,11 +7,12 @@
         projects: [project,other], audit: [],
         users: [{ id:me.id, email:me.email, fullName:me.full_name, role:me.role, isActive:true, invitationStatus:'accepted', projectIds:[project.id,other.id], updatedAt:'2026-09-08T12:00:00Z', lastSignInAt:'2026-09-08T12:00:00Z' },
         { id:'f1111111-1111-4111-8111-111111111111', email:'worker@example.test', fullName:'Jordan Field', role:'field_worker', isActive:true, invitationStatus:'pending', invitationExpiresAt:'2020-01-01T00:00:00Z', projectIds:[project.id], updatedAt:'2026-09-08T12:00:00Z' }],
-        records: [{ id:'c1111111-1111-4111-8111-111111111111', project_id:project.id, material_type:'Steel Pipe', qty:10, current_quantity:8, po_number:'PO-100', status:'accepted', vendor:'Yard Supply', has_exception:true, exception_resolved:false, exception_type:'damage', damage_notes:'Inspect the bent end before release.', created_at:'2026-09-08T12:00:00Z' }],
+        records: [{ id:'c1111111-1111-4111-8111-111111111111', project_id:project.id, qr_code_id:'q1111111-1111-4111-8111-111111111111', receiving_record_id:'c1111111-1111-4111-8111-111111111111', material_type:'Steel Pipe', qty:10, current_quantity:8, po_number:'PO-100', status:'accepted', vendor:'Yard Supply', has_exception:true, exception_resolved:false, exception_type:'damage', damage_notes:'Inspect the bent end before release.', created_at:'2026-09-08T12:00:00Z' }],
     };
     const save = () => sessionStorage.setItem('fixtureState',JSON.stringify(state));
     const success = data => ({ data, error:null });
     const reportRows = {
+        qr_codes: [{id:'q1111111-1111-4111-8111-111111111111',project_id:project.id,code_value:'QR-TEST',entity_type:'item',entity_id:'not-a-receipt-id'}],
         purchase_orders: [
             {id:1,project_id:project.id,purchase_order_id:'PO-20001',purchase_order_item:'00010',item_description:'Six-inch isolation valve',po_description:'Mechanical package',supplier:'Yard Supply',net_value:150,status:'Sent'},
             {id:2,project_id:project.id,purchase_order_id:'PO-20001',purchase_order_item:'00020',item_description:null,po_description:'Cable tray supports',supplier:'Yard Supply',net_value:50,status:'Sent'},
@@ -44,6 +45,7 @@
         auth: { getSession:async()=>success({session}),getUser:async()=>success({user:me}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}}), signOut:async()=>success(null), updateUser:async()=>success({user:me}) },
         rpc:async(name,payload)=>{
             window.fixture.calls.push({name,payload});
+            if(name==='project_staff' && new URLSearchParams(location.search).get('fixture')==='staff-error') return {data:null,error:{message:'Fixture staff unavailable'}};
             if(name==='project_staff') return success([{id:me.id,full_name:me.full_name}]);
             if(name==='apply_field_operation') {
                 if(payload.p_action==='exception') Object.assign(state.records[0],{exception_owner_id:payload.p_payload.ownerId,exception_due_date:payload.p_payload.dueDate,exception_notes:payload.p_payload.notes,exception_resolution:payload.p_payload.resolution,exception_resolved:payload.p_payload.resolution!=='hold'});
