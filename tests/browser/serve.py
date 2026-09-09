@@ -11,7 +11,8 @@ class Handler(SimpleHTTPRequestHandler):
         elif path.endswith('.html'):
             file = Path('.' + path)
             if not file.is_file(): return super().do_GET()
-            body = file.read_text().replace('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2','/tests/browser/backend.js').encode()
+            backend = '/tests/browser/login-backend.js' if path == '/login.html' else '/tests/browser/backend.js'
+            body = file.read_text().replace('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',backend).encode()
         else: return super().do_GET()
         self.send_response(200); self.send_header('Content-Type','text/html' if path.endswith('.html') else 'text/javascript'); self.send_header('Cache-Control','no-store'); self.end_headers(); self.wfile.write(body)
     def log_message(self,*args): pass

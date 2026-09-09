@@ -40,6 +40,6 @@ if (!/^[a-f0-9]{40}$/.test(commit)) throw new Error('Release commit must be a fu
 const assets = Object.fromEntries([
     'index.html', 'login.html', 'work-inbox.html', 'record.html', 'dashboard.js', 'work-pages.js',
     'styles.css', 'js/utils/data-health.js', 'js/utils/work-summary.js', 'js/utils/pdf-export.js',
-    'js/utils/auth-guard.js', 'js/utils/project-scope.js',
+    'js/utils/auth-guard.js', 'js/utils/project-scope.js', 'js/utils/login-flow.js',
 ].map(file => [file, createHash('sha256').update(readFileSync(join(output, file))).digest('hex')]));
 writeFileSync(join(output, 'release.json'), JSON.stringify({ commit, assets }, null, 2) + '\n');
