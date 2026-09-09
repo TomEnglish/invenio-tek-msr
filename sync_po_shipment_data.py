@@ -1,350 +1,225 @@
+"""Validate an MSR workbook, then optionally import both sheets atomically.
+
+Default: validation only. Apply requires an explicit project, HTTPS Supabase URL,
+and a server-only SUPABASE_SERVICE_ROLE_KEY. No rows are deleted.
 """
-Sync PO & Shipment Data from Excel to Supabase
-Reads "PO & Shipment Log.xlsx" and uploads to Supabase for auto-updating dashboard
-"""
+import argparse
+import math
 import os
 import sys
-import pandas as pd
-import requests
-from dotenv import load_dotenv
-from datetime import datetime
+from datetime import date, datetime, time
 from pathlib import Path
+from urllib.parse import urlsplit
+from uuid import UUID
+from zipfile import BadZipFile
 
-# Load environment variables
-load_dotenv()
+import requests
+from openpyxl import load_workbook
 
-# Configuration
-EXCEL_FILE = os.getenv(
-    'PO_SHIPMENT_EXCEL_FILE',
-    str(Path(__file__).with_name('PO & Shipment Log.xlsx'))
-)
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_ANON_KEY')
+PO_FIELDS = {
+    "Purchase Order ID": "purchase_order_id", "PO Description": "po_description",
+    "Purchase Order Item": "purchase_order_item", "Item UUID": "item_uuid",
+    "Created On": "created_on", "Item Last Change Date Time": "item_last_change_date_time",
+    "Delivery Date From": "delivery_date_from", "Status": "status", "Item Status": "item_status",
+    "Delivery Status": "delivery_status", "Scope": "scope", "PO LI": "po_li", "Shipment": "shipment",
+    "Category": "category", "Sub Category": "sub_category", "Project Task": "project_task",
+    "Supplier": "supplier", "Item Description": "item_description",
+    "Item Remark for Supplier": "item_remark_for_supplier", "Supplier Part Number": "supplier_part_number",
+    "Product": "product", "Product.1": "product_alt", "Manufacturer": "manufacturer",
+    "Manufacturer Part Number": "manufacturer_part_number", "Base UoM": "base_uom",
+    "Item Type": "item_type", "Ordered Quantity": "ordered_quantity",
+    "Base Net Price Base Quantity Unit": "base_net_price_base_quantity_unit",
+    "Net Price": "net_price", "Net Value": "net_value", "Incoterms": "incoterms",
+}
+SHIP_FIELDS = {
+    "Shipment #": "shipment_number", "PROJECT": "project", "PO#": "po_number",
+    "RTS Date": "rts_date", "ETA": "eta", "Delivery Date": "delivery_date",
+    "Delivery Time": "delivery_time", "Status": "status", "Category": "category",
+    "Supplier": "supplier", "Part Description": "part_description", "# Pcs": "num_pieces",
+    "# Loads": "num_loads", "Truck Type": "truck_type", "Storage Loc": "storage_location",
+    "Ship from": "ship_from", "Ship to": "ship_to", "Shipper": "shipper",
+    "Shipment By (RPS/Supplier)": "shipment_by", "NCR/OSD (X)": "ncr_osd",
+    "Rcvng Pics": "receiving_pics", "det pk list": "detailed_packing_list",
+    "Progress Notes": "progress_notes", "Special Receiving Instructions": "special_receiving_instructions",
+}
+DATES = {"created_on", "delivery_date_from", "rts_date", "eta", "delivery_date"}
+NUMBERS = {"ordered_quantity", "base_net_price_base_quantity_unit", "net_price", "net_value", "num_pieces", "num_loads"}
+QUANTITIES = {"ordered_quantity", "num_pieces", "num_loads"}
+INTEGERS = {"num_pieces", "num_loads"}
 
-class POShipmentSyncService:
-    def __init__(self):
-        self.supabase_url = SUPABASE_URL
-        self.supabase_key = SUPABASE_KEY
-        self.supabase_headers = {
-            'apikey': self.supabase_key,
-            'Authorization': f'Bearer {self.supabase_key}',
-            'Content-Type': 'application/json',
-            'Prefer': 'return=representation'
-        }
 
-        if not self.supabase_url or not self.supabase_key:
-            raise ValueError("SUPABASE_URL and SUPABASE_ANON_KEY must be set in .env file")
-
-    def clean_dataframe(self, df):
-        """Convert DataFrame to JSON-serializable format"""
-        # Convert dates
-        for col in df.columns:
-            if df[col].dtype == 'datetime64[ns]':
-                df[col] = df[col].dt.strftime('%Y-%m-%d')
-            elif pd.api.types.is_datetime64_any_dtype(df[col]):
-                df[col] = pd.to_datetime(df[col], errors='coerce').dt.strftime('%Y-%m-%d')
-
-        # Replace NaN, inf, -inf with None
-        df = df.replace([float('nan'), float('inf'), float('-inf')], None)
-        df = df.where(pd.notnull(df), None)
-
-        return df
-
-    def sync_purchase_orders(self):
-        """Sync PO data from Excel to Supabase"""
-        print("\n1. Syncing Purchase Orders...")
-
-        try:
-            # Read PO data from Excel
-            print("   Reading PO data from Excel...")
-            po_df = pd.read_excel(EXCEL_FILE, sheet_name="PO Parts Log")
-
-            # Clean column names (remove spaces, special chars)
-            po_df.columns = po_df.columns.str.strip()
-
-            # Clean data
-            po_df = self.clean_dataframe(po_df)
-
-            # Helper function to convert to numeric or None
-            def to_numeric(value):
-                if value is None or pd.isna(value):
-                    return None
-                try:
-                    return float(value)
-                except (ValueError, TypeError):
-                    return None
-
-            # Map Excel columns to database columns
-            po_records = []
-            for _, row in po_df.iterrows():
-                record = {
-                    'purchase_order_id': row.get('Purchase Order ID'),
-                    'po_description': row.get('PO Description'),
-                    'purchase_order_item': row.get('Purchase Order Item'),
-                    'item_uuid': row.get('Item UUID'),
-                    'created_on': row.get('Created On'),
-                    'item_last_change_date_time': row.get('Item Last Change Date Time'),
-                    'delivery_date_from': row.get('Delivery Date From'),
-                    'status': row.get('Status'),
-                    'item_status': row.get('Item Status'),
-                    'delivery_status': row.get('Delivery Status'),
-                    'scope': row.get('Scope'),
-                    'po_li': row.get('PO LI'),
-                    'shipment': row.get('Shipment'),
-                    'category': row.get('Category'),
-                    'sub_category': row.get('Sub Category'),
-                    'project_task': row.get('Project Task'),
-                    'supplier': row.get('Supplier'),
-                    'item_description': row.get('Item Description'),
-                    'item_remark_for_supplier': row.get('Item Remark for Supplier'),
-                    'supplier_part_number': row.get('Supplier Part Number'),
-                    'product': row.get('Product'),
-                    'product_alt': row.get('Product.1'),
-                    'manufacturer': row.get('Manufacturer'),
-                    'manufacturer_part_number': row.get('Manufacturer Part Number'),
-                    'base_uom': row.get('Base UoM'),
-                    'item_type': row.get('Item Type'),
-                    'ordered_quantity': to_numeric(row.get('Ordered Quantity')),
-                    'base_net_price_base_quantity_unit': to_numeric(row.get('Base Net Price Base Quantity Unit')),
-                    'net_price': to_numeric(row.get('Net Price')),
-                    'net_value': to_numeric(row.get('Net Value')),
-                    'incoterms': row.get('Incoterms'),
-                    'synced_at': datetime.utcnow().isoformat()
-                }
-                po_records.append(record)
-
-            print(f"   Uploading {len(po_records)} PO records to Supabase...")
-
-            # Clear all existing data
-            print("   Clearing old PO data...")
-            delete_url = f"{self.supabase_url}/rest/v1/purchase_orders?id=gte.0"
-            delete_response = requests.delete(
-                delete_url,
-                headers={**self.supabase_headers, 'Prefer': 'return=minimal'}
-            )
-
-            if delete_response.status_code not in [200, 204]:
-                print(f"   Warning: Could not clear old PO data: {delete_response.status_code} - {delete_response.text}")
-
-            # Insert new data in batches
-            batch_size = 100
-            inserted = 0
-
-            for i in range(0, len(po_records), batch_size):
-                batch = po_records[i:i+batch_size]
-
-                insert_url = f"{self.supabase_url}/rest/v1/purchase_orders"
-                insert_response = requests.post(
-                    insert_url,
-                    headers=self.supabase_headers,
-                    json=batch
-                )
-
-                if insert_response.status_code in [200, 201]:
-                    inserted += len(batch)
-                    print(f"   Inserted batch {i//batch_size + 1}: {inserted}/{len(po_records)} records")
+def normalize(value, field):
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    if field in NUMBERS:
+        if isinstance(value, bool):
+            raise ValueError("Expected a number")
+        number = float(value)
+        if not math.isfinite(number) or (field in QUANTITIES and number < 0):
+            raise ValueError("Expected a finite, non-negative quantity")
+        if field in INTEGERS:
+            if not number.is_integer():
+                raise ValueError("Expected a whole number")
+            return int(number)
+        return number
+    if field in DATES or field == "item_last_change_date_time":
+        if isinstance(value, str):
+            try:
+                value = datetime.fromisoformat(value.strip())
+            except ValueError:
+                for pattern in ("%m/%d/%Y", "%m/%d/%y"):
+                    try:
+                        value = datetime.strptime(value.strip(), pattern)
+                        break
+                    except ValueError:
+                        pass
                 else:
-                    print(f"   Error inserting batch: {insert_response.text}")
-                    return {'success': False, 'error': insert_response.text}
-
-            print(f"   Successfully synced {inserted} PO records")
-            return {'success': True, 'count': inserted}
-
-        except Exception as e:
-            print(f"   Error syncing PO data: {e}")
-            import traceback
-            traceback.print_exc()
-            return {'success': False, 'error': str(e)}
-
-    def sync_shipments(self):
-        """Sync shipment data from Excel to Supabase"""
-        print("\n2. Syncing Shipments...")
-
-        try:
-            # Read shipment data from Excel
-            print("   Reading shipment data from Excel...")
-            ship_df = pd.read_excel(EXCEL_FILE, sheet_name="Shipment Log")
-
-            # Clean column names
-            ship_df.columns = ship_df.columns.str.strip()
-
-            # Remove duplicate shipment numbers (keep last occurrence)
-            ship_df = ship_df.drop_duplicates(subset=['Shipment #'], keep='last')
-
-            # Clean data
-            ship_df = self.clean_dataframe(ship_df)
-
-            # Rename columns to match database schema
-            ship_df = ship_df.rename(columns={
-                'Shipment #': 'shipment_number',
-                'PROJECT': 'project',
-                'PO#': 'po_number',
-                'RTS Date': 'rts_date',
-                'ETA': 'eta',
-                'Delivery Date': 'delivery_date',
-                'Delivery Time': 'delivery_time',
-                'Status': 'status',
-                'Category': 'category',
-                'Supplier': 'supplier',
-                'Part Description': 'part_description',
-                '# Pcs': 'num_pieces',
-                '# Loads': 'num_loads',
-                'Truck Type': 'truck_type',
-                'Storage Loc': 'storage_location',
-                'Ship from': 'ship_from',
-                'Ship to': 'ship_to',
-                'Shipper': 'shipper',
-                'Shipment By (RPS/Supplier)': 'shipment_by',
-                'NCR/OSD (X)': 'ncr_osd',
-                'Rcvng Pics': 'receiving_pics',
-                'det pk list': 'detailed_packing_list',
-                'Progress Notes': 'progress_notes',
-                'Special Receiving Instructions': 'special_receiving_instructions'
-            })
-
-            # Convert NCR/OSD to boolean
-            ship_df['ncr_osd'] = ship_df['ncr_osd'].apply(lambda x: True if x == 'X' else False)
-
-            # Add synced_at timestamp
-            ship_df['synced_at'] = datetime.utcnow().isoformat()
-
-            # Convert to records (list of dicts)
-            ship_records = ship_df.to_dict('records')
-
-            # Ensure all values are JSON-serializable and correct types
-            for record in ship_records:
-                for key, value in record.items():
-                    if pd.isna(value) or value is None:
-                        record[key] = None
-                    elif isinstance(value, (pd.Timestamp, datetime)):
-                        record[key] = value.strftime('%Y-%m-%d') if hasattr(value, 'strftime') else str(value)
-                    elif key in ['rts_date', 'eta', 'delivery_date'] and isinstance(value, str):
-                        # Handle dates that might have multiple values like "1/7/2026; 1/8/2026"
-                        if ';' in value:
-                            value = value.split(';')[0].strip()  # Take first date
-                        # Ensure it's in proper YYYY-MM-DD format or set to None
-                        try:
-                            parsed_date = pd.to_datetime(value, errors='coerce')
-                            record[key] = parsed_date.strftime('%Y-%m-%d') if not pd.isna(parsed_date) else None
-                        except:
-                            record[key] = None
-                    elif key in ['num_pieces', 'num_loads'] and value is not None:
-                        # Convert to int (handle floats like 1.0)
-                        try:
-                            record[key] = int(float(value))
-                        except (ValueError, TypeError):
-                            record[key] = None
-                    elif isinstance(value, (float, int)) and (pd.isna(value) or value in [float('inf'), float('-inf')]):
-                        record[key] = None
-
-            print(f"   Uploading {len(ship_records)} shipment records to Supabase...")
-
-            # Clear existing data
-            delete_url = f"{self.supabase_url}/rest/v1/shipments"
-            delete_response = requests.delete(
-                delete_url,
-                headers={**self.supabase_headers, 'Prefer': 'return=minimal'},
-                params={'id': 'gt.0'}
-            )
-
-            if delete_response.status_code not in [200, 204]:
-                print(f"   Warning: Could not clear old shipment data: {delete_response.text}")
-
-            # Insert new data
-            insert_url = f"{self.supabase_url}/rest/v1/shipments"
-            insert_response = requests.post(
-                insert_url,
-                headers=self.supabase_headers,
-                json=ship_records
-            )
-
-            if insert_response.status_code in [200, 201]:
-                print(f"   Successfully synced {len(ship_records)} shipment records")
-                return {'success': True, 'count': len(ship_records)}
-            else:
-                print(f"   Error inserting shipments: {insert_response.text}")
-                return {'success': False, 'error': insert_response.text}
-
-        except Exception as e:
-            print(f"   Error syncing shipment data: {e}")
-            import traceback
-            traceback.print_exc()
-            return {'success': False, 'error': str(e)}
-
-    def refresh_metrics(self):
-        """Call Supabase function to refresh dashboard metrics"""
-        print("\n3. Refreshing Dashboard Metrics...")
-
-        try:
-            # Call the refresh_dashboard_metrics() function
-            rpc_url = f"{self.supabase_url}/rest/v1/rpc/refresh_dashboard_metrics"
-            response = requests.post(
-                rpc_url,
-                headers=self.supabase_headers
-            )
-
-            if response.status_code in [200, 204]:
-                print("   Dashboard metrics refreshed successfully")
-                return {'success': True}
-            else:
-                print(f"   Error refreshing metrics: {response.text}")
-                return {'success': False, 'error': response.text}
-
-        except Exception as e:
-            print(f"   Error refreshing metrics: {e}")
-            return {'success': False, 'error': str(e)}
+                    raise ValueError("Expected one valid ISO or US calendar date")
+        if not isinstance(value, (datetime, date)):
+            raise ValueError("Expected a calendar date")
+        if field in DATES:
+            return (value.date() if isinstance(value, datetime) else value).isoformat()
+        return value.isoformat()
+    if field == "ncr_osd":
+        text = str(value).strip().lower()
+        if text not in {"x", "true", "yes", "1", "false", "no", "0"}:
+            raise ValueError("Expected X, yes/no, or true/false")
+        return text in {"x", "true", "yes", "1"}
+    if isinstance(value, time):
+        return value.isoformat()
+    if isinstance(value, (float, int)) and not isinstance(value, bool):
+        if not math.isfinite(value):
+            raise ValueError("Invalid number")
+        return str(int(value)) if float(value).is_integer() else str(value)
+    return str(value).strip()
 
 
-def main():
-    print("=" * 80)
-    print("PO & SHIPMENT DATA SYNC")
-    print("=" * 80)
-    print(f"Excel file: {EXCEL_FILE}")
-    print(f"Supabase URL: {SUPABASE_URL}")
-    print("=" * 80)
+def read_sheet(workbook, name, mapping, required, identifiers):
+    if name not in workbook.sheetnames:
+        raise ValueError(f"Missing sheet: {name}")
+    rows = workbook[name].iter_rows(values_only=True)
+    raw_headers = next(rows, ())
+    headers, seen_headers = [], {}
+    for header in raw_headers:
+        header = str(header).strip() if header is not None else ""
+        count = seen_headers.get(header, 0)
+        seen_headers[header] = count + 1
+        # The source workbook intentionally has two Product columns.
+        if count and header:
+            if header == "Product" and count == 1:
+                header = "Product.1"
+            elif header in mapping:
+                raise ValueError(f"{name}: duplicate header {header}")
+        headers.append(header)
+    if len([h for h in headers if h in mapping]) != len(set(h for h in headers if h in mapping)):
+        raise ValueError(f"{name}: duplicate mapped headers")
+    missing = set(required) - set(headers)
+    if missing:
+        raise ValueError(f"{name}: missing headers: {', '.join(sorted(missing))}")
+    records, seen = [], {}
+    for row_number, values in enumerate(rows, 2):
+        source = dict(zip(headers, values))
+        if all(source.get(header) is None or str(source[header]).strip() == "" for header in mapping):
+            continue
+        record = {}
+        for header, field in mapping.items():
+            if header not in source:
+                continue
+            try:
+                record[field] = normalize(source[header], field)
+            except (ValueError, TypeError, OverflowError) as error:
+                raise ValueError(f"{name} row {row_number}, {header}: {error}") from None
+        key = tuple(record.get(field) for field in identifiers)
+        if not all(key):
+            raise ValueError(f"{name} row {row_number}: missing record identifier")
+        if key in seen:
+            raise ValueError(f"{name}: duplicate identifier in rows {seen[key]} and {row_number}")
+        seen[key] = row_number
+        records.append(record)
+        if len(records) > 10000:
+            raise ValueError(f"{name}: exceeds the 10,000-record import limit")
+    if not records:
+        raise ValueError(f"{name}: empty sheet; existing data has not been changed")
+    return records
 
-    # Check if Excel file exists
-    if not os.path.exists(EXCEL_FILE):
-        print(f"\nError: Excel file not found at {EXCEL_FILE}")
-        print("Please ensure 'PO & Shipment Log.xlsx' exists in the project folder.")
-        sys.exit(1)
 
+def read_workbook(path):
+    workbook = load_workbook(path, read_only=True, data_only=True)
+    formulas = None
     try:
-        # Create sync service
-        sync_service = POShipmentSyncService()
+        # Reading only cached values would turn unevaluated formulas into nulls.
+        # Inspect cell types separately so neither those nor Excel errors replace
+        # known-good database fields. Supplementary unmapped columns are ignored.
+        formulas = load_workbook(path, read_only=True, data_only=False)
+        for name, mapping in [("PO Parts Log", PO_FIELDS), ("Shipment Log", SHIP_FIELDS)]:
+            if name not in formulas.sheetnames:
+                continue
+            raw_rows = formulas[name].iter_rows()
+            cached_rows = workbook[name].iter_rows()
+            headers = [str(cell.value).strip() if cell.value is not None else "" for cell in next(raw_rows, ())]
+            next(cached_rows, ())
+            for raw_row, cached_row in zip(raw_rows, cached_rows):
+                for header, raw_cell, cached_cell in zip(headers, raw_row, cached_row):
+                    if header not in mapping:
+                        continue
+                    if raw_cell.data_type == 'e' or cached_cell.data_type == 'e':
+                        raise ValueError(f"{name} {raw_cell.coordinate}: correct the spreadsheet error before importing")
+                    if raw_cell.data_type == 'f' and cached_cell.value is None:
+                        raise ValueError(f"{name} {raw_cell.coordinate}: recalculate and save the workbook before importing")
+        purchase_orders = read_sheet(workbook, "PO Parts Log", PO_FIELDS,
+                                    ["Purchase Order ID", "Purchase Order Item", "Item Description"],
+                                    ["purchase_order_id", "purchase_order_item"])
+        shipments = read_sheet(workbook, "Shipment Log", SHIP_FIELDS, ["Shipment #"], ["shipment_number"])
+        return purchase_orders, shipments
+    finally:
+        workbook.close()
+        if formulas is not None:
+            formulas.close()
 
-        # Sync purchase orders
-        po_result = sync_service.sync_purchase_orders()
-        if not po_result['success']:
-            print("\nPO sync failed!")
-            sys.exit(1)
 
-        # Sync shipments
-        ship_result = sync_service.sync_shipments()
-        if not ship_result['success']:
-            print("\nShipment sync failed!")
-            sys.exit(1)
-
-        # Refresh metrics
-        metrics_result = sync_service.refresh_metrics()
-
-        # Print summary
-        print("\n" + "=" * 80)
-        print("SYNC COMPLETED SUCCESSFULLY")
-        print("=" * 80)
-        print(f"Purchase Orders synced: {po_result.get('count', 0)}")
-        print(f"Shipments synced: {ship_result.get('count', 0)}")
-        print(f"Dashboard metrics: {'Refreshed' if metrics_result['success'] else 'Failed'}")
-        print("=" * 80)
-
-        sys.exit(0)
-
-    except Exception as e:
-        print(f"\nFatal error: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(2)
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--file", type=Path, default=Path(os.environ.get("PO_SHIPMENT_EXCEL_FILE", Path(__file__).with_name("PO & Shipment Log.xlsx"))))
+    parser.add_argument("--project-id", required=True, help="Destination project UUID; never inferred from workbook labels")
+    parser.add_argument("--apply", action="store_true", help="Import validated sheets using the server-only credential")
+    args = parser.parse_args(argv)
+    try:
+        project_id = str(UUID(args.project_id))
+        purchase_orders, shipments = read_workbook(args.file)
+        print(f"Validated {len(purchase_orders)} PO lines and {len(shipments)} shipments for project {project_id}.")
+        if not args.apply:
+            print("Validation only. No database changes. Use --apply for an intended import.")
+            return 0
+        url = os.environ.get("SUPABASE_URL", "").rstrip("/")
+        credential = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+        parsed = urlsplit(url)
+        if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path:
+            raise ValueError("SUPABASE_URL must be an HTTPS origin")
+        if not credential:
+            raise ValueError("SUPABASE_SERVICE_ROLE_KEY is required; an anonymous key cannot import")
+        response = requests.post(
+            f"{url}/rest/v1/rpc/import_po_shipment_snapshot",
+            headers={"apikey": credential, "Authorization": f"Bearer {credential}", "Content-Type": "application/json"},
+            json={"p_project_id": project_id, "p_purchase_orders": purchase_orders, "p_shipments": shipments},
+            timeout=(10, 120), allow_redirects=False,
+        )
+        if response.status_code != 200:
+            # Do not echo arbitrary remote response bodies or credentials into logs.
+            raise ValueError(f"Import rejected (HTTP {response.status_code}); check the server import error. No partial import was committed.")
+        result = response.json()
+        if not isinstance(result, dict) or result.get("purchase_orders") != len(purchase_orders) or result.get("shipments") != len(shipments) or not result.get("synced_at"):
+            raise ValueError("Unexpected server acknowledgement. Verify import state before retrying.")
+        print(f"Import committed: {result['purchase_orders']} PO lines, {result['shipments']} shipments.")
+        return 0
+    except requests.RequestException:
+        print("Import response unavailable. The transaction may have committed; verify before retrying. Retrying preserves record IDs.", file=sys.stderr)
+        return 1
+    except (ValueError, OSError, KeyError, BadZipFile) as error:
+        print(f"Import stopped: {error}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    from dotenv import load_dotenv
+    load_dotenv()
+    sys.exit(main())

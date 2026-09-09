@@ -150,4 +150,59 @@ assert sql("SELECT current_quantity FROM public.materials WHERE id='e2222222-222
 assert sql("SELECT count(*) FROM public.material_issues WHERE job_number='REPLAY'") == '1'
 assert sql('SELECT count(*) FROM public.field_operations') == '2'
 assert sql("SELECT count(*) FROM public.audit_log WHERE action='material_issued'") == '2'
+
+
+def import_snapshot(project, po_number, net_value, shipment, status):
+    return f"""SET LOCAL ROLE service_role;
+SELECT public.import_po_shipment_snapshot('{project}',
+ '[{{"purchase_order_id":"{po_number}","purchase_order_item":"00010","net_value":{net_value},"status":"Sent"}}]',
+ '[{{"shipment_number":"{shipment}","po_number":"{po_number}","num_pieces":1,"status":"{status}"}}]');"""
+
+
+first_project = 'b1111111-1111-4111-8111-111111111111'
+second_project = 'b2222222-2222-4222-8222-222222222222'
+overlap(
+    'same-project imports serialize and aggregate both retained snapshots',
+    import_snapshot(first_project, 'RACE-PO-FIRST', 30, 'RACE-SHIP-FIRST', 'In Transit'),
+    import_snapshot(first_project, 'RACE-PO-SECOND', 70, 'RACE-SHIP-SECOND', 'Delivered'),
+    '00000',
+)
+assert sql(f"SELECT count(*) FROM public.purchase_orders WHERE project_id='{first_project}'") == '2'
+assert sql(f"SELECT count(*) FROM public.shipments WHERE project_id='{first_project}'") == '2'
+assert sql(f"""SELECT count(*)=1 AND bool_and(
+ (procurement->>'total_pos')::integer=2 AND (procurement->>'total_po_value')::numeric=100
+ AND (procurement->>'total_shipments')::integer=2 AND (procurement->>'delivered_shipments')::integer=1
+ AND (procurement->>'in_transit_shipments')::integer=1)
+ FROM public.dashboard_metrics WHERE project_id='{first_project}'""") == 't'
+
+sql(f"""
+INSERT INTO public.projects(id,name) VALUES('{second_project}','Other Import Yard');
+INSERT INTO public.purchase_orders(project_id,purchase_order_id,purchase_order_item,net_value,item_description)
+ VALUES('{second_project}','RACE-PO-LOSER','00010',17,'Preserve this description');
+INSERT INTO public.dashboard_metrics(project_id,project_name,procurement,installation,status_counts)
+ VALUES('{second_project}','Other Import Yard','{{"total_pos":1,"total_po_value":17}}',
+ '{{"total_items":9}}','{{"po_status":{{"Sent":1}}}}');
+""")
+
+
+def project_import_state(project):
+    return sql(f"""SELECT jsonb_build_object(
+ 'purchase_orders',(SELECT coalesce(jsonb_agg(to_jsonb(p) ORDER BY id),'[]') FROM public.purchase_orders p WHERE project_id='{project}'),
+ 'shipments',(SELECT coalesce(jsonb_agg(to_jsonb(s) ORDER BY id),'[]') FROM public.shipments s WHERE project_id='{project}'),
+ 'dashboard_metrics',(SELECT coalesce(jsonb_agg(to_jsonb(m) ORDER BY id),'[]') FROM public.dashboard_metrics m WHERE project_id='{project}'))""")
+
+
+loser_before = project_import_state(second_project)
+overlap(
+    'concurrent cross-project shipment collision rolls back the losing PO and metrics',
+    import_snapshot(first_project, 'RACE-PO-WINNER', 5, 'RACE-SHIP-SHARED', 'Delivered'),
+    import_snapshot(second_project, 'RACE-PO-LOSER', 9999, 'RACE-SHIP-SHARED', 'In Transit'),
+    '22023',
+)
+assert project_import_state(second_project) == loser_before
+assert sql("SELECT project_id FROM public.shipments WHERE shipment_number='RACE-SHIP-SHARED'") == first_project
+assert sql(f"""SELECT count(*)=1 AND bool_and(
+ (procurement->>'total_pos')::integer=3 AND (procurement->>'total_po_value')::numeric=105
+ AND (procurement->>'total_shipments')::integer=3 AND (procurement->>'delivered_shipments')::integer=2)
+ FROM public.dashboard_metrics WHERE project_id='{first_project}'""") == 't'
 PY
