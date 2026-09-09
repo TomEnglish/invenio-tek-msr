@@ -56,7 +56,7 @@ test('dashboard waits for project access before loading and subscribing', async 
   assert.equal(app.loads, 1);
   assert.ok(app.filters.length > 0);
   assert.ok(app.filters.every(options => options.filter === 'project_id=eq.assigned-project'));
-  assert.equal(app.indicator.textContent, 'Connected');
+  assert.equal(app.indicator.textContent, 'Server connected');
 });
 
 test('dashboard does not start data or realtime access when the auth guard denies access', async () => {

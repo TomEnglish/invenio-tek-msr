@@ -60,7 +60,7 @@ function setupRealtimeSubscriptions() {
             indicator.className = status === 'SUBSCRIBED'
                 ? 'badge bg-success' : 'badge bg-warning';
             indicator.textContent = status === 'SUBSCRIBED'
-                ? 'Connected' : ['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(status) ? 'Disconnected' : 'Connecting...';
+                ? 'Server connected' : ['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(status) ? 'Disconnected' : 'Connecting...';
         }
     });
 }
@@ -191,6 +191,8 @@ async function loadAllData() {
         message.textContent = 'Unable to refresh this project. Any values still shown are from the previous successful load. Please refresh the view to retry.';
         message.hidden = false;
         renderDataFreshness([{ name: 'Refresh status', error: true }]);
+        document.getElementById('arrivalView').disabled = true;
+        document.getElementById('arrivalSourceAge').textContent = '';
         document.getElementById('arrivalCounts').replaceChildren();
         document.getElementById('arrivalItems').replaceChildren();
         document.getElementById('arrivalMessage').textContent = 'Arrivals could not be refreshed. Use Refresh view to retry.';
@@ -218,8 +220,10 @@ function updateLastUpdated() {
 function renderDataFreshness(sources) {
     const container = document.getElementById('dataFreshness');
     container.replaceChildren();
+    const attention = [];
     for (const source of sources) {
         const health = source.error ? { status: 'error', label: 'Unable to check refresh' } : InvenioDataHealth.freshness(source.timestamp);
+        if (health.status !== 'recent') attention.push(source.name.replace(' refreshed', '').replace(' loaded', ''));
         const row = document.createElement('div');
         row.dataset.status = health.status;
         const title = document.createElement('dt');
@@ -229,6 +233,9 @@ function renderDataFreshness(sources) {
         row.append(title, detail);
         container.appendChild(row);
     }
+    const summary = document.getElementById('dataHealthSummary');
+    summary.textContent = attention.length ? `Check source freshness: ${attention.join(', ')}. Some data is old or unverified.` : 'Sources loaded within 24 hours. Source records may be older.';
+    summary.classList.toggle('source-warning', attention.length > 0);
 }
 
 // Create all charts
@@ -829,7 +836,7 @@ async function loadWorkSummary() {
         const list = document.getElementById('workItems'); list.replaceChildren();
         for (const record of summary.items.slice(0, 5)) {
             const row = actionNode('li', '');
-            const link = actionNode('a', `${record.material_type || 'Receiving record'} · ${record.exception_type || 'Inspection exception'}`);
+            const link = actionNode('a', `${record.material_type || 'Receiving record'} · ${InvenioWorkSummary.exceptionLabel(record.exception_type)}`);
             link.href = `record.html?type=receiving_records&id=${encodeURIComponent(record.id)}`;
             const owner = (staff.data || []).find(s => s.id === record.exception_owner_id)?.full_name || (record.exception_owner_id ? 'Assigned' : 'Unassigned');
             const due = record.exception_due_date || 'Not set';
@@ -846,13 +853,28 @@ async function loadWorkSummary() {
 }
 function renderArrivalSummary(shipments) {
     const summary = InvenioWorkSummary.arrivalSummary(shipments);
-    actionCounts('arrivalCounts', summary.counts, {late:'Past ETA',upcoming:'Today + 7 days',undated:'No valid ETA'});
-    document.getElementById('arrivalMessage').textContent = summary.items.length ? `Showing ${Math.min(5, summary.items.length)} of ${summary.items.length} expected arrivals, earliest first.` : 'No dated arrivals due in this period.';
-    const list = document.getElementById('arrivalItems'); list.replaceChildren();
-    for (const shipment of summary.items.slice(0, 5)) {
-        const row = actionNode('li', '');
-        const link = actionNode('a', `${shipment.shipment_number || 'Shipment'} · ${shipment.supplier || shipment.po_number || 'Supplier not set'}`);
-        link.href = `record.html?type=shipments&id=${encodeURIComponent(shipment.id)}`;
-        row.append(link, actionNode('small', `ETA ${shipment.eta} · ${shipment.status || 'Status not set'}${shipment.eta < InvenioWorkSummary.localDate() ? ' · Past ETA' : ''}`)); list.append(row);
+    actionCounts('arrivalCounts', summary.counts, {late:'Past recorded ETA',upcoming:'Next 7 days',undated:'Missing / invalid ETA'});
+    const view = document.getElementById('arrivalView');
+    view.disabled = false;
+    const source = document.getElementById('arrivalSourceAge');
+    const timestamp = dashboardData.metrics.last_updated;
+    const health = InvenioDataHealth.freshness(timestamp);
+    source.textContent = `Procurement refresh: ${timestamp ? formatDateTime(timestamp) : 'not recorded'}. ${health.status === 'recent' ? 'Source records may be older.' : 'Confirm dates with the supplier; source data is old or unverified.'}`;
+    function render() {
+        const confirm = view.value === 'confirmation';
+        const items = confirm ? summary.confirmation : summary.upcoming;
+        document.getElementById('arrivalMessage').textContent = items.length
+            ? `Showing ${Math.min(5, items.length)} of ${items.length} ${confirm ? 'shipments needing ETA confirmation' : 'arrivals due in the next 7 days'}.`
+            : confirm ? 'No past or missing ETAs to confirm.' : 'No arrivals recorded for the next 7 days.';
+        const list = document.getElementById('arrivalItems'); list.replaceChildren();
+        for (const shipment of items.slice(0, 5)) {
+            const row = actionNode('li', '');
+            const link = actionNode('a', `${shipment.shipment_number || 'Shipment'} · ${shipment.supplier || shipment.po_number || 'Supplier not set'}`);
+            link.href = `record.html?type=shipments&id=${encodeURIComponent(shipment.id)}`;
+            const eta = InvenioWorkSummary.validDate(shipment.eta) ? `Recorded ETA ${shipment.eta}` : 'ETA missing or invalid';
+            row.append(link, actionNode('small', `${eta} · ${shipment.status || 'Status not set'}${confirm ? ' · Confirm with supplier' : ''}`)); list.append(row);
+        }
     }
+    view.onchange = render;
+    render();
 }

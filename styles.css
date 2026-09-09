@@ -1205,3 +1205,16 @@ canvas { background: transparent !important; }
 .action-items { list-style: none; padding: 0; margin: 0; }
 .action-items li { padding: .75rem 0; border-top: 1px solid var(--border); overflow-wrap: anywhere; }
 .action-items small { display: block; color: var(--text-muted); margin-top: .25rem; }
+
+/* Daily work dashboard */
+.dashboard-heading { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1rem; }
+.dashboard-heading h1 { font-size:1.75rem; margin:0; }
+.eyebrow { color:var(--text-muted); font-size:.75rem; letter-spacing:.06em; text-transform:uppercase; margin:0 0 .25rem; }
+.dashboard-tools { display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; }
+.source-details { margin-top:.5rem; font-size:.8125rem; }
+.source-details summary { cursor:pointer; color:var(--primary); width:fit-content; }
+.source-warning { border-left:3px solid var(--warn); padding-left:.75rem; }
+.action-items a, .card-header > a { color:var(--primary); }
+.action-items a:hover { text-decoration:underline; }
+.action-counts > a { text-decoration:none; }
+.action-counts > a:hover { background:var(--primary-soft); border-color:var(--primary); }
