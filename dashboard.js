@@ -16,7 +16,7 @@ let charts = {
 };
 
 // Initialize dashboard on page load
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', async function () {
     console.log('Initializing Invenio Field MSR...');
 
     // Supabase client is now initialized by js/utils/supabase-client.js
@@ -24,6 +24,8 @@ document.addEventListener('DOMContentLoaded', function () {
         console.error('Supabase configuration not found!');
         return;
     }
+
+    if (!(await window.InvenioAuthReady)) return;
 
     loadAllData();
     setupRealtimeSubscriptions();
