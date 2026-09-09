@@ -25,3 +25,5 @@ The build generates `release.json` containing only the commit and public asset h
 Field: `npm ci`, `npm run lint`, `node --test tests/*.test.cjs`, and `npx expo export --platform all --output-dir dist-ci`. CI does not require Supabase/EAS secrets and makes no live database changes.
 
 Sources: [GitHub workflow events](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows), [checkout multi-repository usage](https://github.com/actions/checkout), [Netlify build commit variable](https://docs.netlify.com/configure-builds/environment-variables).
+
+Netlify's existing Pretty URLs setting rewrote HTML anchors after the build, causing the first exact-asset smoke check to fail as intended. File-based configuration now disables that rewrite. Deploy Previews can additionally inject Netlify's feedback drawer; exact-byte smoke is intended for production and unmodified deploys, not previews with an injected drawer. See [Netlify post-processing configuration](https://docs.netlify.com/build/configure-builds/file-based-configuration/).

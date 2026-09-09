@@ -61,3 +61,7 @@
   for = "/*.png"
   [headers.values]
     Cache-Control = "public, max-age=300, must-revalidate"
+
+# Serve the exact reviewed HTML so release checks can verify its checksum.
+[build.processing.html]
+  pretty_urls = false
