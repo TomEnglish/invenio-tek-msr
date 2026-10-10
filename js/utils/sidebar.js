@@ -137,8 +137,8 @@
         const explicitTheme = document.documentElement.getAttribute('data-theme');
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         const isDark = explicitTheme === 'dark' || (!explicitTheme && prefersDark);
-        const lightLogo = window.BRANDING?.logo     || 'brand/invenio-lockup.svg';
-        const darkLogo  = window.BRANDING?.logoDark || 'brand/invenio-lockup-dark.svg';
+        const lightLogo = window.BRANDING?.logo     || 'brand/invenio-technologies-logo-light.png';
+        const darkLogo  = window.BRANDING?.logoDark || 'brand/invenio-technologies-logo-light.png';
         const logo = isDark ? darkLogo : lightLogo;
 
         const shell = `
@@ -146,7 +146,7 @@
             <!-- Sidebar -->
             <aside class="sidebar" id="app-sidebar">
                 <div class="sidebar-logo"><button type="button" id="sidebar-close" class="sidebar-close" aria-label="Close navigation">×</button>
-                    <img src="${logo}" alt="Invenio" class="lockup">
+                    <img src="${logo}" alt="Invenio Technologies" class="lockup">
                 </div>
                 <nav class="sidebar-nav">
                     ${buildNavLinks()}
