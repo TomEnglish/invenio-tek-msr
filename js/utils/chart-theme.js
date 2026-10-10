@@ -12,20 +12,18 @@
         return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
     }
 
-    // Categorical palette tuned for visual punch. Leads with the teal/accent
-    // (the "teal everywhere") and pink (Bootstrap <code> color, already
-    // in the app). Then sky-700, amber, sky-400, success, info-purple,
-    // danger. Drops the muted slates that made earlier charts look dull.
+    // Categorical palette in portal order: brand blue, teal accent, then
+    // the status hues. Reads tokens so charts follow the active theme.
     Chart.invenioPalette = function () {
         return [
-            cssVar('--accent')  || '#0891B2', // teal — primary chart color
-            '#D63384',                         // pink — Bootstrap code accent
-            cssVar('--primary') || '#0369A1', // sky-700
+            cssVar('--primary') || '#174FDA', // brand blue — primary chart color
+            cssVar('--accent')  || '#0891B2', // teal
             cssVar('--warn')    || '#D97706', // amber
-            '#38BDF8',                         // sky-400 bright
-            cssVar('--success') || '#059669', // green
             cssVar('--info')    || '#7C3AED', // purple
+            cssVar('--success') || '#059669', // green
+            '#60A5FA',                         // sidebar accent blue
             cssVar('--danger')  || '#DC2626', // red
+            '#D63384',                         // pink
         ];
     };
 
@@ -39,17 +37,17 @@
         const border     = cssVar('--border');
         const surface    = cssVar('--surface');
 
-        Chart.defaults.color = textMuted || '#64748b';
-        Chart.defaults.borderColor = border || '#e2e8f0';
+        Chart.defaults.color = textMuted || '#566983';
+        Chart.defaults.borderColor = border || '#dde5ef';
         Chart.defaults.font.family = "'Inter', system-ui, -apple-system, sans-serif";
 
         // Tooltips
         Chart.defaults.plugins = Chart.defaults.plugins || {};
         Chart.defaults.plugins.tooltip = Chart.defaults.plugins.tooltip || {};
         Chart.defaults.plugins.tooltip.backgroundColor = surface || '#ffffff';
-        Chart.defaults.plugins.tooltip.titleColor = text || '#1e293b';
-        Chart.defaults.plugins.tooltip.bodyColor = textMuted || '#64748b';
-        Chart.defaults.plugins.tooltip.borderColor = border || '#e2e8f0';
+        Chart.defaults.plugins.tooltip.titleColor = text || '#122c4c';
+        Chart.defaults.plugins.tooltip.bodyColor = textMuted || '#566983';
+        Chart.defaults.plugins.tooltip.borderColor = border || '#dde5ef';
         Chart.defaults.plugins.tooltip.borderWidth = 1;
         Chart.defaults.plugins.tooltip.padding = 10;
         Chart.defaults.plugins.tooltip.cornerRadius = 8;
@@ -57,9 +55,9 @@
         // Grid lines on scales
         Chart.defaults.scale = Chart.defaults.scale || {};
         Chart.defaults.scale.grid = Chart.defaults.scale.grid || {};
-        Chart.defaults.scale.grid.color = border || '#e2e8f0';
+        Chart.defaults.scale.grid.color = border || '#dde5ef';
         Chart.defaults.scale.ticks = Chart.defaults.scale.ticks || {};
-        Chart.defaults.scale.ticks.color = textMuted || '#64748b';
+        Chart.defaults.scale.ticks.color = textMuted || '#566983';
     }
 
     applyTheme();

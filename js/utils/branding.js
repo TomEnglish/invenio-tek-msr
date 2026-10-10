@@ -16,8 +16,8 @@ const BRANDING = {
     clientName: 'Invenio Tech',
     projectName: 'Greenfield LNG Terminal',
     projectSubtitle: 'Material Status Report',
-    logo: 'brand/invenio-lockup.svg',         // light-theme lockup
-    logoDark: 'brand/invenio-lockup-dark.svg', // swapped in by applyBranding when [data-theme="dark"]
+    logo: 'brand/invenio-technologies-logo-light.png',     // sidebar is navy in both themes,
+    logoDark: 'brand/invenio-technologies-logo-light.png', // so the light-text logo serves both
 };
 
 function currentLogoFor(theme) {
