@@ -23,7 +23,7 @@
     <title>Login - Invenio Field MSR</title>
 
     <!-- Shared Design System -->
-    <link rel="stylesheet" href="styles.css?v=20260909ui">
+    <link rel="stylesheet" href="styles.css?v=20261010portal">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <style>
@@ -32,97 +32,54 @@
            the login page doesn't render that shell, so we restore the
            normal page flow here. */
         body {
-            height: 100vh;
-            overflow: hidden;
+            min-height: 100vh;
+            height: auto;
+            overflow-y: auto;
             display: flex;
-        }
-
-        /* Left branding panel — Invenio gradient + mark */
-        .login-brand {
-            width: 45%;
             background: var(--hero-gradient);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 3rem;
-            position: relative;
-            overflow: hidden;
-        }
-        .login-brand::before,
-        .login-brand::after {
-            content: '';
-            position: absolute;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.06);
-        }
-        .login-brand::before {
-            width: 400px; height: 400px;
-            top: -100px; right: -100px;
-        }
-        .login-brand::after {
-            width: 300px; height: 300px;
-            background: rgba(255, 255, 255, 0.04);
-            bottom: -80px; left: -80px;
-        }
-        .login-brand .logo-container {
-            text-align: center;
-            z-index: 1;
-        }
-        .login-brand .mark-svg {
-            width: 96px;
-            height: 96px;
-            margin: 0 auto 2rem;
-            display: block;
-            color: #fff;
-        }
-        .login-brand .mark-svg path { fill: currentColor; }
-        .login-brand h1 {
-            color: #fff;
-            font-size: 28px;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            margin-bottom: 0.5rem;
-        }
-        .login-brand .tagline {
-            color: rgba(255, 255, 255, 0.85);
-            font-size: 13px;
-            font-weight: 600;
-            letter-spacing: 2px;
-            text-transform: uppercase;
         }
 
-        /* Right form panel */
+        /* Centered sign-in card on the Invenio gradient, as on the portal */
         .login-form-panel {
             flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 3rem;
-            background: var(--canvas);
-            overflow-y: auto;
+            padding: 2rem 1rem;
         }
 
         .login-card {
             width: 100%;
-            max-width: 440px;
+            max-width: 400px;
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: var(--radius-xl);
+            border-radius: var(--radius-md);
             box-shadow: var(--shadow-lg);
-            padding: 3rem;
+            padding: 2rem;
         }
 
+        .login-card-head {
+            text-align: center;
+            padding-bottom: 1.25rem;
+            margin-bottom: 1.25rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .login-logo {
+            height: 48px;
+            width: auto;
+            margin: 0 auto 0.75rem;
+            display: block;
+        }
         .login-card h2 {
-            font-size: 22px;
-            font-weight: 800;
+            font-size: 24px;
+            font-weight: 650;
             color: var(--text);
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
         .login-card .subtitle {
             color: var(--text-muted);
-            font-size: 14px;
-            margin-bottom: 2rem;
+            font-size: 13px;
+            margin: 0;
         }
 
         .form-group { margin-bottom: 1.25rem; }
@@ -137,10 +94,10 @@
             width: 100%;
             font-family: inherit;
             font-size: 14px;
-            min-height: 40px;
+            min-height: 38px;
             padding: 8px 12px;
             border: 1px solid var(--border);
-            border-radius: var(--radius-md);
+            border-radius: var(--radius-sm);
             background: var(--surface);
             color: var(--text);
             transition:
@@ -157,13 +114,14 @@
 
         .login-btn {
             width: 100%;
-            height: 44px;
+            min-height: 36px;
+            padding: 8px 16px;
             background: var(--primary);
             color: var(--text-inverse);
             border: none;
-            border-radius: var(--radius-md);
-            font-size: 15px;
-            font-weight: 700;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 500;
             font-family: inherit;
             cursor: pointer;
             transition:
@@ -223,7 +181,7 @@
             cursor: pointer;
             font: inherit;
             font-size: 13px;
-            font-weight: 700;
+            font-weight: 500;
             padding: 0;
         }
 
@@ -253,41 +211,22 @@
             animation: spin 0.7s linear infinite;
         }
 
-        /* Responsive: stack on small screens */
-        @media (max-width: 768px) {
-            body { flex-direction: column; overflow-y: auto; }
-            .login-brand {
-                width: 100%;
-                padding: 2rem;
-                min-height: 200px;
-            }
-            .login-brand .mark-svg { width: 64px; height: 64px; margin-bottom: 1rem; }
-            .login-brand h1 { font-size: 22px; }
-            .login-card { padding: 2rem; }
-            .login-form-panel { padding: 1rem; overflow-y: visible; }
+        @media (max-width: 480px) {
+            .login-card { padding: 1.5rem; }
         }
     </style>
 </head>
 
 <body>
-    <!-- Left: Branding Panel -->
-    <div class="login-brand">
-        <div class="logo-container">
-            <!-- White "I" letterform on transparent bg — sits crisply on the gradient panel.
-                 Uses the canonical InvenioStyle "I" path proportions. -->
-            <svg class="mark-svg" viewBox="0 0 64 64" role="img" aria-label="Invenio">
-                <path d="M21 17h22v7h-7.5v16H43v7H21v-7h7.5V24H21z"/>
-            </svg>
-            <h1>Invenio Field MSR</h1>
-            <div class="tagline">Powered by Invenio Tech</div>
-        </div>
-    </div>
-
-    <!-- Right: Login Form -->
+    <!-- Sign-in card -->
     <div class="login-form-panel">
         <div class="login-card">
-            <h2>Welcome back</h2>
-            <p class="subtitle">Sign in to your Invenio Field MSR</p>
+            <div class="login-card-head">
+                <img src="brand/invenio-technologies-logo.png" alt="Invenio Technologies" class="login-logo theme-logo-light">
+                <img src="brand/invenio-technologies-logo-light.png" alt="" aria-hidden="true" class="login-logo theme-logo-dark">
+                <h2>Sign in</h2>
+                <p class="subtitle">Material Status Report</p>
+            </div>
 
             <div id="login-error" class="login-error" role="alert"></div>
 
@@ -452,8 +391,8 @@ My account email: [your email address]</textarea>
         function showLoginForm() {
             verifyCodeForm.classList.remove('active');
             linkHelpPanel.hidden = true;
-            title.textContent = 'Welcome back';
-            subtitle.textContent = 'Sign in to your Invenio Field MSR';
+            title.textContent = 'Sign in';
+            subtitle.textContent = 'Material Status Report';
             loginForm.classList.remove('hidden');
             resetRequestForm.classList.remove('active');
             updatePasswordForm.classList.remove('active');
