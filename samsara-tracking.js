@@ -17,8 +17,10 @@ let state = {
     filteredTrackers: [],
     map: null,
     markers: {},
+    markerCluster: null,
     siteMarker: null
 };
+
 
 // ============================================================================
 // INITIALIZATION
@@ -72,6 +74,14 @@ function initializeMap() {
         fillOpacity: 0.1,
         radius: SITE_RADIUS_M  // 500m in meters
     }).addTo(state.map);
+
+    state.markerCluster = L.markerClusterGroup({
+        maxClusterRadius: 55,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        disableClusteringAtZoom: 14,
+    });
+    state.map.addLayer(state.markerCluster);
 }
 
 // ============================================================================
@@ -148,8 +158,7 @@ function updateLastSyncInfo() {
 // MAP RENDERING
 // ============================================================================
 function updateMap() {
-    // Clear existing markers
-    Object.values(state.markers).forEach(marker => marker.remove());
+    state.markerCluster.clearLayers();
     state.markers = {};
 
     // Add markers for trackers with location data
@@ -182,16 +191,17 @@ function addTrackerMarker(tracker) {
     });
 
     // Create marker
-    const marker = L.marker([tracker.last_latitude, tracker.last_longitude], { icon: markerIcon })
-        .addTo(state.map);
+    const marker = L.marker([tracker.last_latitude, tracker.last_longitude], { icon: markerIcon });
 
-    // Add permanent label showing tracker name
     marker.bindTooltip(tracker.name, {
-        permanent: true,
+        permanent: false,
+        sticky: true,
         direction: 'top',
         className: 'tracker-label',
-        offset: [0, -8]
+        offset: [0, -8],
     });
+
+    state.markerCluster.addLayer(marker);
 
     // Create popup content (removed share link - those expire)
     const popupContent = `

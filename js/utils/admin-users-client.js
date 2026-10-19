@@ -13,6 +13,10 @@
         return `${baseUrl.replace(/\/$/, '')}/functions/v1/${functionName}`;
     }
 
+    const PROJECTS_CACHE_MS = 5 * 60 * 1000;
+    let projectsCache = null;
+    let projectsCacheAt = 0;
+
     function createAdminUsersClient({
         supabaseClient,
         functionUrl,
@@ -71,8 +75,15 @@
                     projectId: params.projectId,
                 });
             },
-            listProjects() {
-                return invoke('GET', undefined, { resource: 'projects' });
+            listProjects(options = {}) {
+                if (!options.refresh && projectsCache && (Date.now() - projectsCacheAt) < PROJECTS_CACHE_MS) {
+                    return Promise.resolve(projectsCache);
+                }
+                return invoke('GET', undefined, { resource: 'projects' }).then((payload) => {
+                    projectsCache = payload;
+                    projectsCacheAt = Date.now();
+                    return payload;
+                });
             },
             inviteUser(input) {
                 return invoke('POST', { action: 'invite', ...input });
