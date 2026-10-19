@@ -333,8 +333,7 @@
     for (const id of ['userRoleFilter','userStatusFilter','userProjectFilter']) document.getElementById(id).addEventListener('change', () => { state.page = 1; loadUsers(); });
 
     try {
-        await loadProjects();
-        await loadUsers();
+        await Promise.all([loadProjects(), loadUsers()]);
         renderProjects([]);
     } catch (error) {
         setMessage(elements.message, error.message || 'Unable to initialize user management.');

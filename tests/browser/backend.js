@@ -4,7 +4,7 @@
     const me = { id: 'a1111111-1111-4111-8111-111111111111', email: 'admin@example.test', full_name: 'Avery Admin', role: sessionStorage.getItem('fixtureRole') || 'admin', is_active: true, invitation_status: 'accepted' };
     const session = { user: me, access_token: 'fixture-token' };
     const state = JSON.parse(sessionStorage.getItem('fixtureState') || 'null') || {
-        projects: [project,other], audit: [],
+        projects: [project,other], audit: [{id:'audit-1',actorName:me.full_name,targetName:'Jordan Field',action:'update_user',created_at:'2026-09-08T12:00:00Z',details:{before:{role:'field_worker'},after:{role:'office_staff'}}}],
         users: [{ id:me.id, email:me.email, fullName:me.full_name, role:me.role, isActive:true, invitationStatus:'accepted', projectIds:[project.id,other.id], updatedAt:'2026-09-08T12:00:00Z', lastSignInAt:'2026-09-08T12:00:00Z' },
         { id:'f1111111-1111-4111-8111-111111111111', email:'worker@example.test', fullName:'Jordan Field', role:'field_worker', isActive:true, invitationStatus:'pending', invitationExpiresAt:'2020-01-01T00:00:00Z', projectIds:[project.id], updatedAt:'2026-09-08T12:00:00Z' }],
         records: [{ id:'c1111111-1111-4111-8111-111111111111', project_id:project.id, qr_code_id:'q1111111-1111-4111-8111-111111111111', receiving_record_id:'c1111111-1111-4111-8111-111111111111', material_type:'Steel Pipe', qty:10, current_quantity:8, po_number:'PO-100', status:'accepted', vendor:'Yard Supply', has_exception:true, exception_resolved:false, exception_type:'damage', damage_notes:'Inspect the bent end before release.', created_at:'2026-09-08T12:00:00Z' }],
@@ -21,6 +21,12 @@
         dashboard_metrics: [{id:1,project_id:project.id,project_name:'Wrong imported name',last_updated:'2026-02-22T12:37:00Z',procurement:{total_pos:999},installation:{total_items:0}}],
         installation_datasets: [{project_id:project.id,dataset_key:'audit_data',payload:{items:[]},updated_at:'2026-02-22T12:37:00Z'}, {project_id:project.id,dataset_key:'discipline_summary',payload:{},updated_at:'2026-02-22T12:37:00Z'}],
         samsara_trackers: [{id:'gps-1',project_id:project.id,synced_at:new Date().toISOString()}],
+        vw_active_samsara_trackers: [
+            {id:'gps-1',name:'Houston Yard A',status:'On Site',last_latitude:29.76,last_longitude:-95.37,distance_from_site_km:820,is_on_site:false,last_seen_at:new Date().toISOString(),synced_at:new Date().toISOString()},
+            {id:'gps-2',name:'Houston Yard B',status:'In Transit',last_latitude:29.761,last_longitude:-95.371,distance_from_site_km:821,is_on_site:false,last_seen_at:new Date().toISOString(),synced_at:new Date().toISOString()},
+            {id:'gps-3',name:'East Texas Unit 3',status:'On Site',last_latitude:29.762,last_longitude:-95.369,distance_from_site_km:819,is_on_site:false,last_seen_at:new Date().toISOString(),synced_at:new Date().toISOString()},
+        ],
+        inventory_records: Array.from({length:6},(_,i)=>({id:`inv-${i}`,project_id:project.id,qr_code:`QR-${i}`,inventory_item:`Valve ${i}`,subsystem:'Mech',unit:'EA',location:'Yard A',status:'In stock',created_at:'2026-09-08T12:00:00Z'})),
     };
     class Query {
         constructor(table) { this.table=table; this.filters=[]; this.one=false; this.start=0; this.end=1000; }

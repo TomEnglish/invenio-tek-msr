@@ -54,13 +54,17 @@
     }
     if ($('auditEntries')) {
         let page = 1, totalPages = 1;
-        const projects = (await client.listProjects()).data;
+        let projects = [];
         const labels = { fullName: 'Full name', role: 'Role', isActive: 'Active account', projectIds: 'Projects', invitationStatus: 'Invitation status', invitationExpiresAt: 'Invitation expiry', name: 'Project name', description: 'Description', status: 'Status' };
         const userId = new URLSearchParams(location.search).get('userId') || undefined;
         async function load() {
             $('auditEntries').textContent = 'Loading history...';
             try {
-                const result = await client.listAudit({ userId, page, pageSize: 25 });
+                const [projectsResult, result] = await Promise.all([
+                    projects.length ? Promise.resolve({ data: projects }) : client.listProjects(),
+                    client.listAudit({ userId, page, pageSize: 25 }),
+                ]);
+                projects = projectsResult.data || projects;
                 totalPages = result.pagination.totalPages;
                 $('auditEntries').replaceChildren();
                 if (!result.data.length) $('auditEntries').textContent = 'No administrator changes recorded.';

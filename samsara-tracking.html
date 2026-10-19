@@ -31,9 +31,11 @@
 
     <!-- Leaflet CSS for maps -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 
     <!-- Shared Design System -->
-    <link rel="stylesheet" href="styles.css?v=20261010portal">
+    <link rel="stylesheet" href="styles.css?v=20261019portal">
 
     <style>
         /* Map Container */
@@ -217,42 +219,36 @@
 
     <!-- Controls -->
     <div class="filter-section">
-        <div class="row align-items-center">
-            <div class="col-md-4">
+        <div class="gps-filter-toolbar">
+            <div class="gps-filter-search">
                 <div class="input-group">
                     <span class="input-group-text"><i class="fas fa-search"></i></span>
                     <input type="text" class="form-control" id="searchBox" placeholder="Search trackers...">
                 </div>
             </div>
-            <div class="col-md-3">
-                <select class="form-select" id="filterStatus">
-                    <option value="">All Statuses</option>
-                    <option value="On Site">On Site</option>
-                    <option value="In Transit">In Transit</option>
-                    <option value="No Data">No Data</option>
-                    <option value="Stale">Stale (>7 days)</option>
-                </select>
+            <select class="form-select gps-filter-status" id="filterStatus">
+                <option value="">All Statuses</option>
+                <option value="On Site">On Site</option>
+                <option value="In Transit">In Transit</option>
+                <option value="No Data">No Data</option>
+                <option value="Stale">Stale (>7 days)</option>
+            </select>
+            <select class="form-select gps-filter-linked" id="filterLinked">
+                <option value="">All Trackers</option>
+                <option value="linked">Linked to Materials</option>
+                <option value="unlinked">Not Linked</option>
+            </select>
+            <div class="form-check gps-filter-check">
+                <input class="form-check-input" type="checkbox" id="hideUnknown" checked>
+                <label class="form-check-label" for="hideUnknown">
+                    Hide "Unknown" trackers
+                </label>
             </div>
-            <div class="col-md-2">
-                <select class="form-select" id="filterLinked">
-                    <option value="">All Trackers</option>
-                    <option value="linked">Linked to Materials</option>
-                    <option value="unlinked">Not Linked</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <div class="form-check mt-2">
-                    <input class="form-check-input" type="checkbox" id="hideUnknown" checked>
-                    <label class="form-check-label" for="hideUnknown">
-                        Hide "Unknown" trackers
-                    </label>
-                </div>
-            </div>
-            <div class="col-md-3 text-end">
-                <button class="btn btn-lime" id="btnRefresh">
+            <div class="gps-filter-actions">
+                <button class="btn btn-lime" id="btnRefresh" type="button">
                     <i class="fas fa-sync-alt me-1"></i> Refresh
                 </button>
-                <button class="btn btn-outline-lime" id="btnExport">
+                <button class="btn btn-outline-lime" id="btnExport" type="button">
                     <i class="fas fa-download me-1"></i> Export
                 </button>
             </div>
@@ -321,6 +317,7 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -333,11 +330,11 @@
     <script src="js/utils/supabase-client.js?v=20260424f"></script>
     <script src="js/utils/project-scope.js?v=20260908a"></script>
     <script src="js/utils/user-access.js?v=20260908a"></script>
-    <script src="js/utils/auth-guard.js?v=20260908a"></script>
-    <script src="js/utils/sidebar.js?v=20261010portal"></script>
+    <script src="js/utils/auth-guard.js?v=20261019portal"></script>
+    <script src="js/utils/sidebar.js?v=20261019portal"></script>
 
     <!-- Main App Script -->
-    <script src="samsara-tracking.js?v=20260908a"></script>
+    <script src="samsara-tracking.js?v=20261019portal"></script>
 </body>
 
 </html>
