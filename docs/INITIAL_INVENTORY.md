@@ -87,6 +87,17 @@ Result:
 
 Moves items and child categories from `p_from` to `p_into`, archives `p_from`, and activates `p_into` if it was proposed. Use it to fold a field proposal into the right place. It refuses a merge into one of `p_from`'s own subcategories (`22023`), and refuses when both have a child with the same name (`23505`; merge those first). To simply approve a proposal, update its `status` to `active`.
 
+## Office pages (MSR web)
+
+All three are under **Initial Count** in the sidebar. Project members can view them; office staff and admins on an active project get the editing actions.
+
+- **Initial Inventory** (`initial-inventory.html`): progress (expected, counted, received, new), filters by category subtree, zone, status and text, a table and a map of pins coloured by status, an item drawer with photos, CSV export of the filtered rows, and **Import expected tags**. Import reads CSV, or XLSX through SheetJS 0.18.5 from cdnjs (loaded only when an `.xlsx` is chosen), finds the header row below any title lines, guesses the column mapping, previews with `p_dry_run = true` and applies with `false`. The export's first seven columns use the import names, so an export can be edited and imported again.
+- **Inventory Categories** (`inventory-categories.html`): the tree with add subcategory, rename, move up and down, archive and restore, plus the queue of field proposals (approve, rename, merge).
+- **Site Maps** (`site-maps.html`): create a map, upload or replace its plan (resized in the browser to at most 4000 px on the long side, re-encoded as JPEG if still over 15 MB), rename it or make it inactive, and draw zones. The map row is created first, because the storage policy only accepts a path for an existing map.
+- Shared helpers: `js/utils/inventory-helpers.js` (pure, unit-tested in `tests/inventory-helpers.test.js`) and `js/utils/site-map-view.js` (Leaflet `CRS.Simple`, with lat = (1 − y) × height and lng = x × width).
+- Not possible yet: deleting a zone or a map (no browser role can delete these rows). Rename or reshape a zone instead, and make an unwanted map inactive.
+- Try the pages without Supabase: `python3 tests/browser/serve.py`, then open `http://127.0.0.1:8092/initial-inventory.html`. The fixture backend holds a small category tree, one plan with zones, and items in every status.
+
 ## Errors
 
 | Code | Meaning |

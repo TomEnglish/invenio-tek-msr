@@ -36,6 +36,10 @@
         'project_schedule',
         'vw_active_samsara_trackers',
         'vw_samsara_tracker_stats',
+        'inventory_categories',
+        'site_maps',
+        'site_map_zones',
+        'inventory_photos',
     ]);
 
     let currentUserId = null;

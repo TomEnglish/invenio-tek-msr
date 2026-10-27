@@ -18,6 +18,9 @@
         { label: 'GPS Tracking',    icon: 'fa-map-marker-alt',    href: 'samsara-tracking.html', section: 'Field' },
         { label: 'Site Plan',       icon: 'fa-drafting-compass',  href: 'site-plan.html' },
         { label: 'Receiving',       icon: 'fa-clipboard-list',    href: 'receiving.html' },
+        { label: 'Initial Inventory', icon: 'fa-barcode',         href: 'initial-inventory.html', section: 'Initial Count' },
+        { label: 'Inventory Categories', icon: 'fa-sitemap',      href: 'inventory-categories.html' },
+        { label: 'Site Maps',       icon: 'fa-map',               href: 'site-maps.html' },
         { label: 'Data Browser',           icon: 'fa-database',          href: 'admin.html', section: 'System', adminOnly: true },
         { label: 'Users & Access', icon: 'fa-users-cog',         href: 'user-admin.html', adminOnly: true },
         { label: 'Projects', icon: 'fa-folder', href: 'projects.html', adminOnly: true },
@@ -43,6 +46,9 @@
         'projects.html': 'Projects', 'audit.html': 'Activity & Audit', 'access-pending.html': 'Access pending', 'search.html': 'Search',
         'record.html': 'Record details',
         'work-inbox.html': 'Work Inbox',
+        'initial-inventory.html': 'Initial Inventory',
+        'inventory-categories.html': 'Inventory Categories',
+        'site-maps.html': 'Site Maps',
     };
 
     function getCurrentPage() {
