@@ -44,7 +44,7 @@ Recorded post-migration 011 so you can confirm baseline before testing:
 | `samsara_trackers` | 40 | Synced from Samsara API |
 | `samsara_location_history` | 0 | Empty |
 | `delivery_dates` | 80 | |
-| `project_schedule` | 118 | Seeded via `supabase/seed_project_schedule.sql` |
+| `project_schedule` | 118 | Seeded via `supabase/seed/seed_project_schedule.sql` |
 | `inventory_records` | 0 | Project-scoped, empty until seeded |
 | `shop_contacts` | 0 | **Intentionally unscoped** (vendor reference data) |
 | `outside_shop_inventory` | 0 | Project-scoped, empty |
@@ -247,7 +247,7 @@ docs/test-runs/<YYYY-MM-DD>-post-merge.md
 ## References
 
 - [`UAT.md`](UAT.md) — design-system restyle visual UAT (narrower scope)
-- [`supabase/migrations/011_msr_table_definitions.sql`](../Invenio Field/supabase/migrations/011_msr_table_definitions.sql) — Field repo, codifies MSR-owned tables
+- [`supabase/migrations/009_msr_table_definitions.sql`](supabase/migrations/009_msr_table_definitions.sql) — codifies MSR-owned tables (formerly Field migration 011)
 - [`js/utils/project-scope.js`](js/utils/project-scope.js) — multi-tenant scoping helper
 - [`js/utils/auth-guard.js`](js/utils/auth-guard.js) — session check on protected pages
 - [`login.html`](login.html) — auth flow incl. password reset

@@ -9,7 +9,7 @@ I've completely redesigned your Material Tracking System to use **Supabase** ins
 ## New Files Created
 
 ### 🗄️ Database Schema
-**`supabase/schema.sql`** (450+ lines)
+**`supabase/archive/schema.sql`** (450+ lines)
 - Complete PostgreSQL database schema
 - Two tables: `material_links` and `material_status_history`
 - Automatic triggers for `updated_at` and status history
@@ -174,7 +174,7 @@ I've completely redesigned your Material Tracking System to use **Supabase** ins
 
 ### Step 3: Set Up Database (3 minutes)
 1. Open SQL Editor
-2. Copy entire `supabase/schema.sql` file
+2. Copy entire `supabase/archive/schema.sql` file
 3. Paste and run
 4. Verify tables created
 

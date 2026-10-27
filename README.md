@@ -115,10 +115,11 @@ Invenio Field MSR/
 ├── 📄 samsara-tracking.html            # Samsara tracker map
 ├── 📄 samsara-tracking.js              # Samsara map logic
 ├── 📄 supabase-config.js               # Supabase credentials (public anon key)
-├── 🗂️  supabase/
-│   ├── schema.sql                      # Material tracking schema
-│   ├── samsara_schema.sql              # Samsara tracker schema
-│   ├── po_shipment_schema.sql          # PO & Shipment schema
+├── 🗂️  supabase/                       # The one home for the shared database (see supabase/README.md)
+│   ├── migrations/                     # Every schema change, applied in filename order
+│   ├── functions/                      # Edge functions (admin-users)
+│   ├── seed/                           # Sample data for test and dev environments
+│   ├── archive/                        # Superseded hand-run SQL; never run these
 │   └── update_geofence.sql             # Geofence update script
 ├── 🗂️  dashboard_data/
 │   ├── audit_data.json                 # Installation audit data
