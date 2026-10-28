@@ -78,7 +78,7 @@ $query$,'23505','Reusing a count operation ID with changed input is a conflict')
 
 INSERT INTO results VALUES('recount',public.apply_field_operation(
  '20000000-0000-4000-8000-000000000002','b1111111-1111-4111-8111-111111111111','count',
- pg_temp.count_payload(' GEN1-CV-101 ','{"quantity":"5","pin":null,"zoneId":null}')));
+ pg_temp.count_payload(' GEN1-CV-101 ','{"quantity":"5","pin":null}')));
 SELECT pg_temp.assert_true((SELECT NOT (result->>'created')::boolean FROM results WHERE name='recount'),'A recount updates rather than creates');
 SELECT pg_temp.assert_true((SELECT count(*)=1 AND min(quantity)=5 AND bool_and(pin_x IS NULL) FROM public.inventory_records
  WHERE btrim(qr_code)='GEN1-CV-101'),'A recount of the same tag (spaces trimmed) replaces quantity and pin');
