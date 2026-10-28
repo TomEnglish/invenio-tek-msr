@@ -27,10 +27,13 @@
 
     /** Nest categories under their parents; archived ones are left out unless asked for. Orphans become roots. */
     function buildCategoryTree(categories, { includeArchived = false } = {}) {
+        return buildTree(includeArchived ? categories : categories.filter(category => category.status !== 'archived'));
+    }
+
+    /** Nest any rows with id, parent_id, name and sort_order (categories, map areas). Orphans become roots. */
+    function buildTree(rows) {
         const byId = new Map();
-        for (const category of categories) {
-            if (includeArchived || category.status !== 'archived') byId.set(category.id, { ...category, children: [] });
-        }
+        for (const row of rows) byId.set(row.id, { ...row, children: [] });
         const roots = [];
         for (const node of byId.values()) {
             const parent = node.parent_id && node.parent_id !== node.id ? byId.get(node.parent_id) : null;
@@ -62,6 +65,28 @@
         let node = byId.get(id);
         while (node && !seen.has(node.id)) { seen.add(node.id); names.unshift(node.name); node = node.parent_id ? byId.get(node.parent_id) : null; }
         return names;
+    }
+
+    /** "T1 Pipe Racks › Rack 2": the same label the database stores in inventory_records.location. */
+    function pathLabel(byId, id) {
+        return categoryPath(byId, id).join(' › ');
+    }
+
+    /** The nearest of the area and its parents that is inactive, or null: field crews see none of its subtree. */
+    function inactiveAncestor(byId, id) {
+        const seen = new Set();
+        for (let node = byId.get(id); node && !seen.has(node.id); node = node.parent_id ? byId.get(node.parent_id) : null) {
+            seen.add(node.id);
+            if (node.is_active === false) return node;
+        }
+        return null;
+    }
+
+    /** Areas on this map that can hold the given area: everything except the area itself and its sub-areas. */
+    function parentChoices(zones, mapId, zoneId = null) {
+        const { roots, byId } = buildTree(zones.filter(zone => zone.map_id === mapId));
+        const excluded = zoneId ? descendantIds(byId, zoneId) : new Set();
+        return flattenTree(roots).filter(row => !excluded.has(row.node.id));
     }
 
     /** The category and everything below it, as a Set of ids (used for subtree filters and merge targets). */
@@ -237,6 +262,38 @@
         return [round6(clampUnit(latLng.lng / width)), round6(clampUnit(1 - latLng.lat / height))];
     }
 
+    /** Ray casting on normalised [x, y] points. Points exactly on an edge may fall either way. */
+    function pointInPolygon(point, polygon) {
+        const [x, y] = point;
+        let inside = false;
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+            const [xi, yi] = polygon[i], [xj, yj] = polygon[j];
+            if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+        }
+        return inside;
+    }
+
+    const EDGE_TOLERANCE = 1e-6;
+    function onSegment([x, y], [ax, ay], [bx, by]) {
+        const cross = (bx - ax) * (y - ay) - (by - ay) * (x - ax);
+        return Math.abs(cross) <= EDGE_TOLERANCE && x >= Math.min(ax, bx) - EDGE_TOLERANCE && x <= Math.max(ax, bx) + EDGE_TOLERANCE
+            && y >= Math.min(ay, by) - EDGE_TOLERANCE && y <= Math.max(ay, by) + EDGE_TOLERANCE;
+    }
+    function edgesCross(a, b, c, d) {
+        const side = (p, q, r) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
+        return side(a, b, c) * side(a, b, d) < 0 && side(c, d, a) * side(c, d, b) < 0;
+    }
+
+    /**
+     * True when a child area's outline leaves its parent: a corner outside it, or an edge crossing one of its
+     * edges. Corners on the parent's edge count as inside, so areas drawn against the parent's border pass.
+     */
+    function outlineOutside(child, parent) {
+        const edges = polygon => polygon.map((point, index) => [point, polygon[(index + 1) % polygon.length]]);
+        if (child.some(point => !pointInPolygon(point, parent) && !edges(parent).some(([a, b]) => onSegment(point, a, b)))) return true;
+        return edges(child).some(([a, b]) => edges(parent).some(([c, d]) => edgesCross(a, b, c, d)));
+    }
+
     /** Matches the database check: 3-200 [x, y] pairs, every coordinate a number in 0-1. */
     function validZoneShape(points) {
         return Array.isArray(points) && points.length >= 3 && points.length <= 200 && points.every(point =>
@@ -268,12 +325,15 @@
         return progress;
     }
 
-    /** Filters: categoryIds (Set or null), zoneId ('' any, 'none' unzoned), status ('' any, 'new' for field-found tags), search text. */
-    function filterRecords(records, { categoryIds = null, zoneId = '', status = '', search = '' } = {}) {
+    /**
+     * Filters: categoryIds and zoneIds (a Set, or null for any; Set([null]) for none), status ('' any, 'new' for
+     * field-found tags) and search text. Pass a subtree from descendantIds to include sub-categories or sub-areas.
+     */
+    function filterRecords(records, { categoryIds = null, zoneIds = null, status = '', search = '' } = {}) {
         const needle = search.trim().toLowerCase();
         return records.filter(record =>
             (!categoryIds || categoryIds.has(record.category_id))
-            && (!zoneId || (zoneId === 'none' ? !record.zone_id : record.zone_id === zoneId))
+            && (!zoneIds || zoneIds.has(record.zone_id ?? null))
             && (!status || (status === 'new' ? record.source === 'field' : record.count_status === status))
             && (!needle || [record.qr_code, record.inventory_item, record.item_description, record.part_number]
                 .some(value => value && String(value).toLowerCase().includes(needle))));
@@ -301,7 +361,8 @@
 
     const api = {
         IMPORT_FIELDS, IMPORT_LABELS, MAX_IMPORT_ROWS, SITE_PLAN_TYPES, STATUS, SOURCE_LABELS, IMPORT_ACTIONS, errorMessage,
-        buildCategoryTree, flattenTree, categoryPath, descendantIds, reorderSiblings, nextSortOrder,
+        buildCategoryTree, buildTree, flattenTree, categoryPath, pathLabel, inactiveAncestor, parentChoices, descendantIds, reorderSiblings, nextSortOrder,
+        pointInPolygon, outlineOutside,
         guessColumnMapping, normaliseQuantity, normaliseCategoryPath, rowsToItems, parseCsv, sheetToRows, splitHeader, columnLetter,
         toLatLng, fromLatLng, validZoneShape, fitWithin, sitePlanPath,
         countProgress, filterRecords, csvCell, toCsv,
