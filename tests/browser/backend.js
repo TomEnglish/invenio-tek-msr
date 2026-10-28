@@ -19,12 +19,13 @@
             cat(9,null,'<img src=x onerror=alert(1)> Spares',{status:'proposed',proposed_by:worker,sort_order:40})],
         site_maps: [{ id:mapId, project_id:project.id, name:'North Yard plan', storage_path:`${project.id}/${mapId}.png`, image_width:1600, image_height:1000, is_active:true }],
         // Nested areas as in migration 020: T1 Pipe Racks › Rack 1/2, Rack 2 drawn partly outside its parent,
-        // and an inactive Old Bay whose active child is hidden from field crews.
+        // a markup-named area inside Warehouse, and an inactive Old Bay whose active child is hidden from field crews.
         site_map_zones: [
             { id:'z1111111-1111-4111-8111-111111111111', map_id:mapId, project_id:project.id, parent_id:null, is_active:true, name:'T1 Pipe Racks', color:'#174fda', location_id:null, sort_order:10, shape:[[0.05,0.08],[0.38,0.08],[0.38,0.45],[0.05,0.45]] },
             { id:'z1a11111-1111-4111-8111-111111111111', map_id:mapId, project_id:project.id, parent_id:'z1111111-1111-4111-8111-111111111111', is_active:true, name:'Rack 1', color:'#0891b2', location_id:'d1111111-1111-4111-8111-111111111111', sort_order:10, shape:[[0.07,0.1],[0.2,0.1],[0.2,0.43],[0.07,0.43]] },
             { id:'z1b11111-1111-4111-8111-111111111111', map_id:mapId, project_id:project.id, parent_id:'z1111111-1111-4111-8111-111111111111', is_active:true, name:'Rack 2', color:'#7c3aed', location_id:null, sort_order:20, shape:[[0.22,0.1],[0.36,0.1],[0.42,0.43],[0.22,0.43]] },
             { id:'z2222222-2222-4222-8222-222222222222', map_id:mapId, project_id:project.id, parent_id:null, is_active:true, name:'Warehouse', color:'#059669', location_id:null, sort_order:20, shape:[[0.55,0.1],[0.92,0.1],[0.92,0.5],[0.55,0.5]] },
+            { id:'z2a22222-2222-4222-8222-222222222222', map_id:mapId, project_id:project.id, parent_id:'z2222222-2222-4222-8222-222222222222', is_active:true, name:'<img src=x onerror=alert(1)> Bay', color:'#0891b2', location_id:null, sort_order:10, shape:[[0.6,0.15],[0.75,0.15],[0.75,0.3],[0.6,0.3]] },
             { id:'z3333333-3333-4333-8333-333333333333', map_id:mapId, project_id:project.id, parent_id:null, is_active:false, name:'Old Bay', color:'#d97706', location_id:null, sort_order:30, shape:[[0.05,0.7],[0.3,0.7],[0.3,0.95],[0.05,0.95]] },
             { id:'z3a33333-3333-4333-8333-333333333333', map_id:mapId, project_id:project.id, parent_id:'z3333333-3333-4333-8333-333333333333', is_active:true, name:'Old Bay A', color:'#dc2626', location_id:null, sort_order:10, shape:[[0.07,0.72],[0.18,0.72],[0.18,0.93],[0.07,0.93]] }],
         inventory_records: [
@@ -33,7 +34,7 @@
             item(3,'GT2-FS-010','Fuel skid',{category_id:cat(5).id,count_status:'received',site_map_id:mapId,pin_x:0.7,pin_y:0.3,zone_id:'z2222222-2222-4222-8222-222222222222',counted_at:'2026-10-25T10:00:00Z',last_scanned_by:'Jordan Field',receiving_record_id:'c1111111-1111-4111-8111-111111111111'}),
             item(4,'EL-CD-100','Cable drum 240 m',{category_id:cat(7).id,quantity:3,count_status:'counted',source:'field',site_map_id:mapId,pin_x:0.3,pin_y:0.35,zone_id:'z1b11111-1111-4111-8111-111111111111',location:'T1 Pipe Racks › Rack 2',counted_at:'2026-10-27T09:00:00Z',last_scanned_by:'Jordan Field'}),
             item(5,'X-<i>1</i>','<img src=x onerror=alert(1)>',{category_id:cat(4).id,quantity:1.5,uom:'M',count_status:'counted',source:'field',site_map_id:mapId,pin_x:0.8,pin_y:0.4,scanner_comments:'"><script>alert(2)</script>',counted_at:'2026-10-27T10:00:00Z',last_scanned_by:'Jordan Field',condition:'damaged'}),
-            item(6,'GT2-LO-003','Lube oil pump'),
+            item(6,'GT2-LO-003','Lube oil pump',{site_map_id:mapId,pin_x:0.68,pin_y:0.22,zone_id:'z2a22222-2222-4222-8222-222222222222'}),
         ],
         inventory_photos: [{ id:'p1', project_id:project.id, inventory_uid:'a1000000-0000-4000-8000-000000000000', storage_path:'a1000000-0000-4000-8000-000000000000/op-1.jpg', created_at:'2026-10-26T15:00:00Z' }],
     };

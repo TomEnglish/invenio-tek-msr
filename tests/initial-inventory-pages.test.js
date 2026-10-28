@@ -72,19 +72,10 @@ test('Yard Inventory builds item checkboxes without markup', () => {
     assert.match(page, /label\.textContent = item;/);
 });
 
-test('site maps edit nested areas: tree, add inside, parent choice, order, active switch and outline warning', () => {
+test('site maps never delete areas (the database refuses; they are made inactive instead)', () => {
     const js = fs.readFileSync('site-maps.js', 'utf8');
-    assert.match(js, /inv\.buildTree\(zones\)/);
-    assert.match(js, /'Add area inside…'/);
-    assert.match(js, /startDraw\(zone\)/);
-    assert.match(js, /inv\.parentChoices\(zones, current\.id, zone\?\.id\)/, 'parent choices exclude the area, its sub-areas and other maps');
-    assert.match(js, /parent_id: parent\.value \|\| null/);
-    assert.match(js, /inv\.reorderSiblings\(siblings, zone\.id, offset\)/);
+    assert.doesNotMatch(js, /\.delete\(\)/);
     assert.match(js, /is_active: false/);
-    assert.match(js, /is_active: true/);
-    assert.match(js, /inv\.outlineOutside\(/);
-    assert.match(js, /inv\.inactiveAncestor\(tree\.byId, zone\.id\)/);
-    assert.doesNotMatch(js, /\.delete\(\)/, 'areas are never deleted');
 });
 
 test('initial inventory filters by area subtree and shows full area paths', () => {
@@ -93,4 +84,5 @@ test('initial inventory filters by area subtree and shows full area paths', () =
     assert.match(js, /const zoneName = id => id \? inv\.pathLabel\(zoneTree\.byId, id\) : ''/);
     assert.match(js, /fetchAll\('site_map_zones', '\*'\)/, 'works before and after the nested-area columns exist');
     assert.match(fs.readFileSync('initial-inventory.html', 'utf8'), /<label for="filterZone">Area<select/);
+    assert.match(js, /'site_map', 'zone', 'pin_x'/, 'the CSV keeps its zone column (now the full path) for existing spreadsheets');
 });

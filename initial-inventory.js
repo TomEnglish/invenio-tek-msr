@@ -251,7 +251,8 @@
 
     // ---- CSV export ---------------------------------------------------------------------------
     function exportCsv() {
-        const headers = ['tag', 'name', 'description', 'category_path', 'part_number', 'quantity', 'uom', 'count_status', 'source', 'condition', 'site_map', 'area', 'pin_x', 'pin_y', 'counted_at', 'counted_by', 'notes'];
+        // The area column keeps its original name, zone, so spreadsheets built on earlier exports keep working.
+        const headers = ['tag', 'name', 'description', 'category_path', 'part_number', 'quantity', 'uom', 'count_status', 'source', 'condition', 'site_map', 'zone', 'pin_x', 'pin_y', 'counted_at', 'counted_by', 'notes'];
         const rows = filtered.map(record => [record.qr_code, record.inventory_item, record.item_description, inv.categoryPath(categories, record.category_id).join(' > '),
             record.part_number, record.quantity, record.uom, record.count_status, record.source, record.condition, mapName(record.site_map_id), zoneName(record.zone_id),
             record.pin_x, record.pin_y, record.counted_at, record.counted_at ? record.last_scanned_by : '', record.scanner_comments]);

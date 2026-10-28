@@ -23,9 +23,10 @@
     const MAX_UPLOAD_BYTES = 15 * 1024 * 1024, MAX_SOURCE_BYTES = 60 * 1024 * 1024;
     const PALETTE = ['#174fda', '#0891b2', '#059669', '#d97706', '#dc2626', '#7c3aed'];
 
-    let maps = [], current = null, zones = [], locations = [], view = null, zoneLayers = new Map(), editor = null, busy = false, showRequest = 0;
+    let maps = [], current = null, zones = [], locations = [], view = null, zoneLayers = new Map(), editor = null, showRequest = 0;
+    const lock = { busy: false };
     const dialog = $('mapDialog');
-    dialog.addEventListener('cancel', event => { if (busy) event.preventDefault(); });
+    dialog.addEventListener('cancel', event => { if (lock.busy) event.preventDefault(); });
 
     async function loadMaps() {
         const { data, error } = await projectSupabaseClient.from('site_maps').select('*').order('name');
@@ -71,7 +72,7 @@
         const request = ++showRequest, siteMap = current;
         if (view) { view.destroy(); view = null; }
         zones = []; renderMapActions(); renderZones();
-        $('zoneList').replaceChildren(el('li', 'Loading areas…', 'text-muted'));
+        listNotice('Loading areas…');
         $('drawZone').hidden = true;
         const hasImage = Boolean(siteMap.storage_path && siteMap.image_width && siteMap.image_height);
         const [zoneResult, imageResult] = await Promise.all([
@@ -89,7 +90,7 @@
         }
         $('drawZone').hidden = !office || !view || Boolean(zoneResult.error);
         renderZones();
-        if (zoneResult.error) $('zoneList').replaceChildren(el('li', `Areas could not be loaded: ${inv.errorMessage(zoneResult.error)}`, 'text-danger'));
+        if (zoneResult.error) listNotice(`Areas could not be loaded: ${inv.errorMessage(zoneResult.error)}`, 'text-danger');
         if (imageResult.error) message(imageResult.error.message);
     }
 
@@ -108,80 +109,120 @@
     }
 
     // Areas nest (Training Yard › T1 Pipe Racks › Rack 2); the list and the plan show the same tree.
-    let tree = inv.buildTree([]);
+    let tree = inv.buildTree([]), activeZoneId = null;
     const collapsed = new Set();
+    // Past this depth a level badge replaces more indent, so deep names keep their width in the panel.
+    const MAX_INDENT = 8;
     const zoneById = id => tree.byId.get(id);
     const outsideParent = (shape, parentId) => Boolean(parentId && zoneById(parentId) && inv.outlineOutside(shape, zoneById(parentId).shape));
+    const treeItems = () => [...$('zoneList').querySelectorAll('[role="treeitem"]')];
+
+    function listNotice(text, className = 'text-muted') {
+        const list = $('zoneList'); list.removeAttribute('role'); list.replaceChildren(el('li', text, className));
+    }
 
     function renderZones() {
+        const list = $('zoneList');
+        // The list is rebuilt, so note what had focus and put it back on the same control (or row) afterwards.
+        const focused = list.contains(document.activeElement) ? document.activeElement : null;
+        const focusKey = focused?.dataset.focusKey, focusZone = focused?.closest('[data-zone-id]')?.dataset.zoneId;
         for (const layer of zoneLayers.values()) layer.remove();
         zoneLayers = new Map();
         tree = inv.buildTree(zones);
-        const list = $('zoneList'); list.replaceChildren();
         renderMeta();
-        if (!zones.length) list.append(el('li', view && office ? 'No areas yet. Choose Draw area, then click the plan to place each corner.' : 'No areas yet.', 'text-muted'));
-        // Parents are drawn first so the areas inside them sit on top and receive clicks.
+        if (!zones.length) listNotice(view && office ? 'No areas yet. Choose Draw area, then click the plan to place each corner.' : 'No areas yet.');
+        else { list.setAttribute('role', 'tree'); list.replaceChildren(); }
+        // Parents are drawn first so the areas inside them sit on top and receive clicks. The area being
+        // edited stays off the plan; closeEditor puts it back.
         if (view) for (const { node } of inv.flattenTree(tree.roots)) {
             const hidden = inv.inactiveAncestor(tree.byId, node.id);
-            const polygon = siteMapView.zonePolygon(view, node, hidden ? { dashArray: '4 6', opacity: 0.5, fillOpacity: 0.04 } : {}).addTo(view.map);
+            const polygon = siteMapView.zonePolygon(view, node, hidden ? { dashArray: '4 6', opacity: 0.5, fillOpacity: 0.04 } : {});
+            if (editor?.zone?.id !== node.id) polygon.addTo(view.map);
             polygon.on('click', event => { if (editor) return; window.L.DomEvent.stopPropagation(event); if (office) editZone(node); });
             zoneLayers.set(node.id, polygon);
         }
         for (const { node, depth, hasChildren } of inv.flattenTree(tree.roots, collapsed)) list.append(zoneRow(node, depth, hasChildren));
+        const items = treeItems();
+        const active = items.find(item => item.dataset.zoneId === activeZoneId) || items[0];
+        if (active) active.tabIndex = 0;
+        if (focused) restoreFocus(focusKey, focusZone);
+    }
+    function restoreFocus(key, zoneId) {
+        const control = key && [...$('zoneList').querySelectorAll('[data-focus-key]')].find(node => node.dataset.focusKey === key);
+        const row = zoneId && treeItems().find(item => item.dataset.zoneId === zoneId);
+        (control && !control.disabled ? control : row || $('pageMessage')).focus();
+    }
+    function setCollapsed(id, collapse) {
+        if (collapse) collapsed.add(id); else collapsed.delete(id);
+        renderZones();
     }
 
     function zoneRow(zone, depth, hasChildren) {
         const hiddenBy = inv.inactiveAncestor(tree.byId, zone.id);
+        const siblings = zoneById(zone.parent_id)?.children || tree.roots;
+        const index = siblings.findIndex(sibling => sibling.id === zone.id);
         const row = el('li', '', `zone-row${hiddenBy ? ' is-inactive' : ''}`);
-        row.style.setProperty('--depth', depth);
+        row.style.setProperty('--depth', Math.min(depth, MAX_INDENT));
+        row.dataset.zoneId = zone.id; row.tabIndex = -1;
+        row.setAttribute('role', 'treeitem'); row.setAttribute('aria-level', String(depth + 1));
+        row.setAttribute('aria-setsize', String(siblings.length)); row.setAttribute('aria-posinset', String(index + 1));
+        const key = (node, action) => { node.dataset.focusKey = `${zone.id}:${action}`; return node; };
         if (hasChildren) {
             const open = !collapsed.has(zone.id);
-            const toggle = button(open ? '▾' : '▸', 'category-toggle', () => { open ? collapsed.add(zone.id) : collapsed.delete(zone.id); renderZones(); }, `${open ? 'Collapse' : 'Expand'} ${zone.name}`);
-            toggle.setAttribute('aria-expanded', String(open));
-            row.append(toggle);
+            row.setAttribute('aria-expanded', String(open));
+            row.append(key(button(open ? '▾' : '▸', 'category-toggle', () => setCollapsed(zone.id, open), `${open ? 'Collapse' : 'Expand'} ${zone.name}`), 'toggle'));
         } else row.append(el('span', '', 'category-toggle'));
         const swatch = el('span', '', 'zone-swatch'); swatch.style.backgroundColor = zone.color || PALETTE[0];
         const text = el('span', '', 'zone-text');
+        text.id = `zone-text-${zone.id}`; row.setAttribute('aria-labelledby', text.id);
         text.append(el('span', zone.name, 'zone-name'));
+        if (depth >= MAX_INDENT) text.append(el('span', `Level ${depth + 1}`, 'chip chip-muted'));
         if (zone.location_id) text.append(el('span', locationLabel(zone.location_id), 'small text-muted'));
         if (zone.is_active === false) text.append(el('span', 'Inactive: hidden from field crews', 'chip chip-muted'));
         else if (hiddenBy) text.append(el('span', `Hidden from field crews: ${hiddenBy.name} is inactive`, 'chip chip-muted'));
         if (outsideParent(zone.shape, zone.parent_id)) text.append(el('span', `Outline goes outside ${zoneById(zone.parent_id).name}`, 'small zone-warning'));
         row.append(swatch, text);
         const actions = el('span', '', 'zone-actions');
-        if (view) actions.append(button('Show', 'btn btn-sm btn-ghost', () => view.map.fitBounds(zoneLayers.get(zone.id).getBounds(), { maxZoom: view.map.getZoom() + 2 }), `Show ${zone.name} on the plan`));
+        if (view) actions.append(key(button('Show', 'btn btn-sm btn-ghost', () => view.map.fitBounds(zoneLayers.get(zone.id).getBounds(), { maxZoom: view.map.getZoom() + 2 }), `Show ${zone.name} on the plan`), 'show'));
+        // Editing and drawing need the plan; order and the active switch don't.
         if (office && view) {
-            const siblings = zoneById(zone.parent_id)?.children || tree.roots;
-            const index = siblings.findIndex(sibling => sibling.id === zone.id);
-            const up = button('↑', 'btn btn-sm btn-ghost', () => moveZone(zone, siblings, -1), `Move ${zone.name} up`); up.disabled = index <= 0;
-            const down = button('↓', 'btn btn-sm btn-ghost', () => moveZone(zone, siblings, 1), `Move ${zone.name} down`); down.disabled = index >= siblings.length - 1;
-            actions.append(
-                button('Edit', 'btn btn-sm btn-outline', () => editZone(zone), `Edit ${zone.name}`),
-                button('Add area inside…', 'btn btn-sm btn-ghost', () => startDraw(zone), `Draw a new area inside ${zone.name}`),
-                up, down,
-                button(zone.is_active === false ? 'Make active' : 'Make inactive', 'btn btn-sm btn-ghost', () => toggleZoneActive(zone), `${zone.is_active === false ? 'Make active' : 'Make inactive'}: ${zone.name}`));
+            actions.append(key(button('Edit', 'btn btn-sm btn-outline', () => editZone(zone), `Edit ${zone.name}`), 'edit'));
+            if (depth + 1 < inv.MAX_AREA_LEVELS) actions.append(key(button('Add area inside…', 'btn btn-sm btn-ghost', () => startDraw(zone), `Draw a new area inside ${zone.name}`), 'add'));
+        }
+        if (office) {
+            const up = key(button('↑', 'btn btn-sm btn-ghost', () => moveZone(zone, siblings, -1), `Move ${zone.name} up`), 'up'); up.disabled = index <= 0;
+            const down = key(button('↓', 'btn btn-sm btn-ghost', () => moveZone(zone, siblings, 1), `Move ${zone.name} down`), 'down'); down.disabled = index >= siblings.length - 1;
+            const label = zone.is_active === false ? 'Make active' : 'Make inactive';
+            actions.append(up, down, key(button(label, 'btn btn-sm btn-ghost', () => toggleZoneActive(zone), `${label}: ${zone.name}`), 'active'));
         }
         row.append(actions);
         return row;
     }
 
+    /** Fetch this map's areas again and redraw, unless another map was opened meanwhile. */
+    async function reloadZones(mapId) {
+        const data = await fetchZones(mapId);
+        if (current?.id !== mapId) return;
+        zones = data;
+        if (editor?.zone) editor.zone = zones.find(zone => zone.id === editor.zone.id) || editor.zone;
+        renderZones();
+        if (editor?.parentSelect) fillParentChoices(editor.parentSelect);
+        if (editor && view) drawEditor();
+    }
+    async function updateZone(id, values) {
+        const { error } = await projectSupabaseClient.from('site_map_zones').update(values).eq('id', id);
+        if (error) throw error;
+    }
+
+    // There is no multi-row transaction here, so writes go one at a time. Whatever happens the list is reloaded
+    // before anything else can be clicked, and the next reorder renumbers the whole sibling group.
     async function saveZoneChanges(changes, success, conflict) {
         if (editor) { message('Finish or cancel the area you are drawing first.'); return; }
-        if (busy) return;
-        busy = true;
         const mapId = current.id;
-        try {
-            for (const { id, values } of changes) {
-                const { error } = await projectSupabaseClient.from('site_map_zones').update(values).eq('id', id);
-                if (error) throw error;
-            }
-        } catch (error) { message(`Could not save: ${inv.errorMessage(error, conflict)}`); return; }
-        finally { busy = false; }
-        message(success);
-        try {
-            const data = await fetchZones(mapId);
-            if (current?.id === mapId) { zones = data; renderZones(); }
-        } catch (error) { message(`${success} The area list could not refresh (${inv.errorMessage(error)}). Reload the page.`); }
+        const result = await inv.writeThenReload(lock, changes.map(({ id, values }) => () => updateZone(id, values)), () => reloadZones(mapId));
+        if (!result) return;
+        const stale = result.reloadError ? ` The area list could not refresh (${inv.errorMessage(result.reloadError)}). Reload the page.` : '';
+        message(result.error ? `Could not save: ${inv.errorMessage(result.error, conflict)}${stale}` : `${success}${stale}`);
     }
 
     function moveZone(zone, siblings, offset) {
@@ -239,17 +280,25 @@
     }
     const markDirty = () => { if (editor) { editor.dirty = true; window.InvenioUnsavedChanges = true; } };
     const editorStatus = text => { const status = $('zoneEditor').querySelector('[role="status"]'); if (status) status.textContent = text; };
-    // A warning, not a block: outlines are hand-drawn and need not sit fully inside their parent.
+    // Warnings, not blocks: outlines are hand-drawn and need not sit exactly inside their parent. Reshaping an
+    // area can also leave the areas inside it sticking out.
+    function outlineWarnings(points, parentId, zoneId) {
+        const warnings = [];
+        if (outsideParent(points, parentId)) warnings.push(`The outline goes outside ${zoneById(parentId).name}.`);
+        const pushedOut = ((zoneId && zoneById(zoneId)?.children) || []).filter(child => inv.outlineOutside(child.shape, points));
+        if (pushedOut.length) warnings.push(`Areas inside it go outside the outline: ${pushedOut.map(child => child.name).join(', ')}.`);
+        return warnings;
+    }
     function updateOutsideWarning() {
         const warning = $('zoneEditor').querySelector('.zone-warning');
         if (!warning || !editor) return;
-        const parent = zoneById(editor.parentId);
-        warning.textContent = outsideParent(editor.points, editor.parentId) ? `This outline goes outside ${parent.name}. You can still save it.` : '';
+        const warnings = outlineWarnings(editor.points, editor.parentId, editor.zone?.id);
+        warning.textContent = warnings.length ? `${warnings.join(' ')} You can still save it.` : '';
     }
 
     /** Start drawing a new area, at the top level or inside `parent`. */
     function startDraw(parent = null) {
-        if (editor || !view || busy) return;
+        if (editor || !view || lock.busy) return;
         editor = { zone: null, parentId: parent?.id || null, points: [], drawing: true, dirty: false, color: PALETTE[zones.length % PALETTE.length] };
         if (parent) { collapsed.delete(parent.id); view.map.fitBounds(zoneLayers.get(parent.id).getBounds(), { maxZoom: view.map.getZoom() + 2 }); }
         view.map.doubleClickZoom.disable();
@@ -267,7 +316,7 @@
         message('Name the new area and save it. You can still drag its points.');
     }
     function editZone(zone) {
-        if (busy) return;
+        if (lock.busy) return;
         if (editor) { if (editor.zone?.id === zone.id) return; if (editor.dirty && !confirm('Discard the area you are editing?')) return; closeEditor(); }
         editor = { zone, parentId: zone.parent_id || null, points: zone.shape.map(point => [...point]), drawing: false, dirty: false, color: zone.color || PALETTE[0] };
         zoneLayers.get(zone.id)?.remove();
@@ -284,6 +333,17 @@
         $('zoneEditor').hidden = true; $('zoneEditor').replaceChildren(); $('zoneList').hidden = false; $('drawZone').disabled = false;
     }
 
+    /** Fill the "Inside" choices from the current list, keeping the choice if it is still allowed. */
+    function fillParentChoices(select) {
+        const keep = select.options.length ? select.value : editor.parentId || '';
+        select.replaceChildren(new Option('Top level of this plan', ''), ...inv.parentChoices(zones, current.id, editor.zone?.id).map(({ node, depth }) =>
+            new Option(`${'   '.repeat(depth)}${node.name}${node.is_active === false ? ' (inactive)' : ''}`, node.id)));
+        const allowed = [...select.options].some(option => option.value === keep);
+        select.value = allowed ? keep : '';
+        editor.parentId = select.value || null;
+        if (!allowed) editorStatus('The area it was inside is no longer available here. Choose where it goes.');
+    }
+
     function openZoneForm() {
         const zone = editor.zone, panel = $('zoneEditor');
         panel.replaceChildren(); $('zoneList').hidden = true; panel.hidden = false;
@@ -295,9 +355,7 @@
         color.type = 'color'; color.value = editor.color;
         color.oninput = () => { editor.color = color.value; editor.shape.setStyle({ color: color.value, fillColor: color.value }); markDirty(); };
         const parent = field(form, 'Inside', el('select', '', 'form-select'), 'zoneParent');
-        parent.append(new Option('Top level of this plan', ''), ...inv.parentChoices(zones, current.id, zone?.id).map(({ node, depth }) =>
-            new Option(`${'\u00a0\u00a0\u00a0'.repeat(depth)}${node.name}${node.is_active === false ? ' (inactive)' : ''}`, node.id)));
-        parent.value = editor.parentId || '';
+        editor.parentSelect = parent; fillParentChoices(parent);
         parent.onchange = () => { editor.parentId = parent.value || null; markDirty(); updateOutsideWarning(); };
         form.append(el('p', '', 'small zone-warning'));
         const location = field(form, 'Rack location (optional)', el('select', '', 'form-select'), 'zoneLocation');
@@ -313,35 +371,35 @@
         form.oninput = markDirty;
         form.onsubmit = async event => {
             event.preventDefault();
-            if (busy) return;
+            if (lock.busy) return;
+            const zone = editor.zone;
             const values = { name: name.value.trim(), color: color.value, location_id: location.value || null, parent_id: parent.value || null, shape: editor.points };
             if (!values.name) { status.textContent = 'Enter an area name.'; name.focus(); return; }
             if (!inv.validZoneShape(values.shape)) { status.textContent = 'An area needs 3 to 200 points inside the plan.'; return; }
             // A new area, or one moved to another parent, goes to the end of its new siblings.
             const siblings = zones.filter(other => (other.parent_id || null) === values.parent_id && other.id !== zone?.id);
             if (!zone || (zone.parent_id || null) !== values.parent_id) values.sort_order = inv.nextSortOrder(siblings);
-            const outside = outsideParent(values.shape, values.parent_id);
-            busy = true; save.disabled = true; status.textContent = 'Saving…';
+            const warnings = outlineWarnings(values.shape, values.parent_id, zone?.id);
+            save.disabled = true; status.textContent = 'Saving…';
             const mapId = current.id;
-            try {
-                const query = zone
+            // Saved or refused, the areas are reloaded: a refusal often means the list was out of date.
+            const result = await inv.writeThenReload(lock, [async () => {
+                const { error } = await (zone
                     ? projectSupabaseClient.from('site_map_zones').update(values).eq('id', zone.id)
-                    : projectSupabaseClient.from('site_map_zones').insert({ ...values, map_id: mapId });
-                const { error } = await query;
+                    : projectSupabaseClient.from('site_map_zones').insert({ ...values, map_id: mapId }));
                 if (error) throw error;
-            } catch (error) {
-                status.textContent = `Could not save: ${inv.errorMessage(error, `Another active area ${values.parent_id ? `inside ${zoneById(values.parent_id)?.name || 'this area'}` : 'at the top level'} is already named ${values.name}.`)}`;
+            }], error => {
+                if (!error) { closeEditor(); if (values.parent_id) collapsed.delete(values.parent_id); }
+                return reloadZones(mapId);
+            });
+            const stale = result.reloadError ? ` The area list could not refresh (${inv.errorMessage(result.reloadError)}). Reload the page.` : '';
+            if (result.error) {
+                status.textContent = `Could not save: ${inv.errorMessage(result.error, `Another active area ${values.parent_id ? `inside ${zoneById(values.parent_id)?.name || 'this area'}` : 'at the top level'} is already named ${values.name}.`)}${stale}`;
                 save.disabled = false;
                 return;
-            } finally { busy = false; }
-            closeEditor();
-            const saved = `Saved ${values.parent_id ? inv.pathLabel(tree.byId, values.parent_id) + ' › ' : ''}${values.name}.${outside ? ' Its outline goes outside the area it is in.' : ''}`;
-            message(saved);
-            if (values.parent_id) collapsed.delete(values.parent_id);
-            try {
-                const data = await fetchZones(mapId);
-                if (current?.id === mapId) { zones = data; renderZones(); }
-            } catch (error) { message(`${saved} The area list could not refresh (${inv.errorMessage(error)}). Reload the page.`); }
+            }
+            message(`Saved ${values.parent_id ? inv.pathLabel(tree.byId, values.parent_id) + ' › ' : ''}${values.name}.${warnings.length ? ` ${warnings.join(' ')}` : ''}${stale}`);
+            $('pageMessage').focus();
         };
         panel.append(form);
         updateOutsideWarning();
@@ -394,7 +452,7 @@
         const header = el('div', '', 'work-page-header');
         const heading = el('h2', mode === 'new' ? 'New site map' : mode === 'rename' ? `Rename ${map.name}` : `${map.storage_path ? 'Replace' : 'Upload'} the plan for ${map.name}`);
         heading.id = 'mapDialogTitle';
-        header.append(heading, button('Close', 'btn btn-outline-secondary', () => { if (!busy) dialog.close(); }));
+        header.append(heading, button('Close', 'btn btn-outline-secondary', () => { if (!lock.busy) dialog.close(); }));
         const form = el('form');
         let name, file;
         if (mode !== 'image') {
@@ -412,10 +470,10 @@
         form.append(save, status);
         form.onsubmit = async event => {
             event.preventDefault();
-            if (busy) return;
+            if (lock.busy) return;
             const newName = name?.value.trim();
             if (name && !newName) { status.textContent = 'Enter a map name.'; return; }
-            busy = true; save.disabled = true;
+            lock.busy = true; save.disabled = true;
             let target = map, prepared = null, reason = null;
             try {
                 if (file) {
@@ -439,7 +497,7 @@
                 if (prepared) { status.textContent = 'Uploading image…'; await uploadPlan(target, prepared); }
             } catch (error) {
                 reason = error.message === 'Upload cancelled.' ? error.message : `Could not save: ${inv.errorMessage(error)}`;
-            } finally { busy = false; save.disabled = false; }
+            } finally { lock.busy = false; save.disabled = false; }
             // A new map whose image failed still exists; show it so a retry uploads to it rather than creating another map.
             if (reason && !(mode === 'new' && target)) { status.textContent = reason; return; }
             dialog.close();
@@ -453,10 +511,10 @@
     }
 
     async function toggleActive() {
-        if (busy) return;
+        if (lock.busy) return;
         const next = !current.is_active;
         if (!next && !confirm(`Make ${current.name} inactive? Field crews will no longer see it when they count.`)) return;
-        busy = true;
+        lock.busy = true;
         try {
             const { error } = await projectSupabaseClient.from('site_maps').update({ is_active: next }).eq('id', current.id);
             if (error) throw error;
@@ -464,17 +522,38 @@
             current = maps.find(map => map.id === id); $('mapSelect').value = id; renderMapActions(); renderZones();
             message(`${current.name} is now ${next ? 'active' : 'inactive'}.`);
         } catch (error) { message(`Could not save: ${inv.errorMessage(error)}`); }
-        finally { busy = false; }
+        finally { lock.busy = false; }
     }
 
     $('newMap').onclick = () => openMapForm('new');
     $('mapSelect').onchange = () => { void showMap($('mapSelect').value).catch(error => message(error.message)); };
+    // Tree keys on a focused row: up/down/home/end move, right opens or steps in, left closes or steps out.
+    // The row is the single tab stop of the tree; its buttons stay in the tab order.
+    $('zoneList').addEventListener('focusin', event => {
+        const row = event.target.closest('[role="treeitem"]');
+        if (!row) return;
+        activeZoneId = row.dataset.zoneId;
+        for (const item of treeItems()) item.tabIndex = item === row ? 0 : -1;
+    });
+    $('zoneList').addEventListener('keydown', event => {
+        if (event.target.getAttribute('role') !== 'treeitem' || event.altKey || event.ctrlKey || event.metaKey) return;
+        const items = treeItems(), index = items.indexOf(event.target), node = zoneById(event.target.dataset.zoneId);
+        const open = node.children.length > 0 && !collapsed.has(node.id);
+        const target = {
+            ArrowDown: () => items[index + 1], ArrowUp: () => items[index - 1], Home: () => items[0], End: () => items.at(-1),
+            ArrowRight: () => node.children.length ? (open ? items[index + 1] : setCollapsed(node.id, false)) : null,
+            ArrowLeft: () => open ? setCollapsed(node.id, true) : items.find(item => item.dataset.zoneId === node.parent_id),
+        }[event.key];
+        if (!target) return;
+        event.preventDefault();
+        target()?.focus();
+    });
     $('drawZone').onclick = () => startDraw();
     $('finishZone').onclick = finishDraw;
     $('undoPoint').onclick = () => { if (editor?.drawing) { editor.points.pop(); drawEditor(); } };
     $('cancelDraw').onclick = () => { closeEditor(); message('Drawing cancelled.'); };
     document.addEventListener('keydown', event => { if (event.key === 'Escape' && editor?.drawing && !dialog.open) { closeEditor(); message('Drawing cancelled.'); } });
-    window.addEventListener('beforeunload', event => { if (editor?.dirty || busy) { event.preventDefault(); event.returnValue = ''; } });
+    window.addEventListener('beforeunload', event => { if (editor?.dirty || lock.busy) { event.preventDefault(); event.returnValue = ''; } });
     if (!office) message(InvenioProjectScope.activeProject.status === 'active' ? 'Office staff manage site maps. You can view plans and zones.' : 'This project is read-only.');
     try {
         await Promise.all([loadMaps(), loadLocations()]);
