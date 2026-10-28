@@ -12,14 +12,14 @@ The office imports the tags it expects to find (early data), builds a category t
 |---|---|---|
 | `inventory_categories` | Tree per project: `id`, `parent_id`, `name`, `status` (`active` / `proposed` / `archived`), `sort_order`, `proposed_by`. Sibling names are unique, ignoring case, among non-archived rows. Parents must be in the same project and the tree cannot loop. | Office directly; field only proposes through a count |
 | `site_maps` | `id`, `name`, `storage_path`, `image_width`, `image_height`, `is_active` | Office |
-| `site_map_zones` | `map_id`, `name`, `shape` (polygon, 3–200 points of `[x, y]` in 0–1 image coordinates, origin top-left), `color` (`#RRGGBB`), optional `location_id` (an existing rack location in the same project) | Office |
+| `site_map_zones` | Areas on a plan: `map_id`, `name`, `shape` (polygon, 3–200 points of `[x, y]` in 0–1 image coordinates, origin top-left), `color` (`#RRGGBB`), optional `location_id` (an existing rack location in the same project), `parent_id` (an area on the same plan; areas nest, e.g. T1 Pipe Racks › Rack 2), `is_active`. Sibling names are unique, ignoring case, among active areas. Areas nest at most 20 levels deep. An area is in use only if it and every area above it are active (`site_map_zone_is_live`). | Office |
 | `inventory_records` (extended) | Existing columns plus `uid`, `category_id`, `part_number`, `quantity` (up to 3 decimals), `uom` (default `EA`), `condition` (`good` / `damaged` / `mixed`), `count_status`, `source`, `site_map_id`, `pin_x`, `pin_y` (0–1), `zone_id`, `counted_by`, `counted_at`, `receiving_record_id` | Field via `count`; office directly or via import |
 | `inventory_photos` | `inventory_uid`, `storage_path` | Only `attach_inventory_photo` |
 
 - **Tag rule:** `btrim(qr_code)` is unique per project. Match tags with trimmed, case-sensitive text.
 - **`count_status`:** `expected` (imported, not yet found) → `counted` → `received` (linked to a receipt). `received` is set only by receiving.
 - **`source`:** `import`, `field`, or `legacy` (rows that existed before 019, grouped under a top-level category per old `unit`).
-- **Legacy columns** (`unit`, `subsystem`, `location`, `status`) are kept so the existing Yard Inventory page keeps working. A count writes the zone name into `location`.
+- **Legacy columns** (`unit`, `subsystem`, `location`, `status`) are kept so the existing Yard Inventory page keeps working. A count writes the area's full path into `location` (`site_map_zone_path`, e.g. "T1 Pipe Racks › Rack 2").
 
 ## Field: `apply_field_operation(op_id, project_id, 'count', payload)`
 
@@ -45,7 +45,8 @@ Same idempotency as every field operation: replaying an `op_id` with the same pa
 
 - `quantity` is a string of up to 9 digits with up to 3 decimals, greater than zero.
 - Send **either** `categoryId` **or** `proposedCategory`, not both. A proposal reuses an existing category with the same name under the same parent; otherwise it creates one with `status = 'proposed'`.
-- `pin` requires `siteMapId`; both coordinates must be numbers in 0–1. `zoneId` must be on that map.
+- `pin` requires a plan; both coordinates must be numbers in 0–1.
+- **`zoneId` is required** whenever the project has an area in use on an active plan (on the chosen plan, if one was sent); otherwise the count fails with `22023` "Choose a location". The area must be in use (`22023` otherwise) and on the chosen plan (`42501` otherwise). If `siteMapId` is omitted, the area's plan is used. A retired plan can't be used, whether it is sent or reached through an area (`22023`). A plan with no areas still accepts a pin on its own.
 - Counting an existing `expected` or `counted` tag updates it. A blank `description` or `partNumber` keeps the stored value. A `received` tag is refused.
 - **Result:** `{ "uid", "id", "created", "category_id", "count_status": "counted" }`. Use `uid` for photo paths.
 
