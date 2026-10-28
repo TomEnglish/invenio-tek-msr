@@ -87,6 +87,9 @@
             const rows = table.filter(r=>this.filters.every(f=>f(r)));
             if (this.write?.update) {
                 if (rows.some(row => clash({...row,...this.write.update}))) return {data:null,error:{code:'23505',message:'duplicate key value violates unique constraint'}};
+                // 020's guard: an area can't end up inside itself.
+                const above = id => { const ids = []; for (let node = table.find(r=>r.id===id); node && ids.length < 50; node = table.find(r=>r.id===node.parent_id)) ids.push(node.id); return ids; };
+                if (this.table==='site_map_zones' && this.write.update.parent_id && rows.some(row => above(this.write.update.parent_id).includes(row.id))) return {data:null,error:{code:'22023',message:'An area cannot be placed inside itself'}};
                 rows.forEach(row => Object.assign(row, this.write.update)); save();
                 return {data:null,error:null};
             }

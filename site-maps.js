@@ -25,6 +25,7 @@
 
     let maps = [], current = null, zones = [], locations = [], view = null, zoneLayers = new Map(), editor = null, showRequest = 0;
     const lock = { busy: false };
+    const STILL_SAVING = 'Still saving the last change. Try again in a moment.';
     const dialog = $('mapDialog');
     dialog.addEventListener('cancel', event => { if (lock.busy) event.preventDefault(); });
 
@@ -214,23 +215,32 @@
         if (error) throw error;
     }
 
+    // Checked before any question is asked, so nobody confirms a change that is then turned away.
+    function stillSaving() {
+        if (lock.busy) message(STILL_SAVING);
+        return lock.busy;
+    }
+
     // There is no multi-row transaction here, so writes go one at a time. Whatever happens the list is reloaded
     // before anything else can be clicked, and the next reorder renumbers the whole sibling group.
     async function saveZoneChanges(changes, success, conflict) {
         if (editor) { message('Finish or cancel the area you are drawing first.'); return; }
+        if (stillSaving()) return;
         const mapId = current.id;
         const result = await inv.writeThenReload(lock, changes.map(({ id, values }) => () => updateZone(id, values)), () => reloadZones(mapId));
-        if (!result) return;
+        if (!result) { message(STILL_SAVING); return; }
         const stale = result.reloadError ? ` The area list could not refresh (${inv.errorMessage(result.reloadError)}). Reload the page.` : '';
         message(result.error ? `Could not save: ${inv.errorMessage(result.error, conflict)}${stale}` : `${success}${stale}`);
     }
 
     function moveZone(zone, siblings, offset) {
+        if (stillSaving()) return;
         const updates = inv.reorderSiblings(siblings, zone.id, offset);
         if (updates.length) void saveZoneChanges(updates.map(({ id, sort_order }) => ({ id, values: { sort_order } })), `Moved ${zone.name} ${offset < 0 ? 'up' : 'down'}.`);
     }
 
     function toggleZoneActive(zone) {
+        if (stillSaving()) return;
         if (zone.is_active === false) {
             const hiddenBy = inv.inactiveAncestor(tree.byId, zone.parent_id);
             void saveZoneChanges([{ id: zone.id, values: { is_active: true } }],
@@ -290,7 +300,7 @@
         return warnings;
     }
     function updateOutsideWarning() {
-        const warning = $('zoneEditor').querySelector('.zone-warning');
+        const warning = $('zoneEditor').querySelector('.zone-outline-warning');
         if (!warning || !editor) return;
         const warnings = outlineWarnings(editor.points, editor.parentId, editor.zone?.id);
         warning.textContent = warnings.length ? `${warnings.join(' ')} You can still save it.` : '';
@@ -298,7 +308,7 @@
 
     /** Start drawing a new area, at the top level or inside `parent`. */
     function startDraw(parent = null) {
-        if (editor || !view || lock.busy) return;
+        if (editor || !view || stillSaving()) return;
         editor = { zone: null, parentId: parent?.id || null, points: [], drawing: true, dirty: false, color: PALETTE[zones.length % PALETTE.length] };
         if (parent) { collapsed.delete(parent.id); view.map.fitBounds(zoneLayers.get(parent.id).getBounds(), { maxZoom: view.map.getZoom() + 2 }); }
         view.map.doubleClickZoom.disable();
@@ -316,7 +326,7 @@
         message('Name the new area and save it. You can still drag its points.');
     }
     function editZone(zone) {
-        if (lock.busy) return;
+        if (stillSaving()) return;
         if (editor) { if (editor.zone?.id === zone.id) return; if (editor.dirty && !confirm('Discard the area you are editing?')) return; closeEditor(); }
         editor = { zone, parentId: zone.parent_id || null, points: zone.shape.map(point => [...point]), drawing: false, dirty: false, color: zone.color || PALETTE[0] };
         zoneLayers.get(zone.id)?.remove();
@@ -333,15 +343,22 @@
         $('zoneEditor').hidden = true; $('zoneEditor').replaceChildren(); $('zoneList').hidden = false; $('drawZone').disabled = false;
     }
 
-    /** Fill the "Inside" choices from the current list, keeping the choice if it is still allowed. */
+    /**
+     * Fill the "Inside" choices from the current list. A choice that is no longer allowed (someone changed the
+     * tree meanwhile) falls back to where the area is now in the reloaded list, so a retry never quietly moves
+     * it to the top level; the note under the selector says what happened.
+     */
     function fillParentChoices(select) {
-        const keep = select.options.length ? select.value : editor.parentId || '';
+        const wanted = select.options.length ? select.value : editor.parentId || '';
         select.replaceChildren(new Option('Top level of this plan', ''), ...inv.parentChoices(zones, current.id, editor.zone?.id).map(({ node, depth }) =>
-            new Option(`${'   '.repeat(depth)}${node.name}${node.is_active === false ? ' (inactive)' : ''}`, node.id)));
-        const allowed = [...select.options].some(option => option.value === keep);
-        select.value = allowed ? keep : '';
+            new Option(`${'\u00a0\u00a0\u00a0'.repeat(depth)}${node.name}${node.is_active === false ? ' (inactive)' : ''}`, node.id)));
+        const allowed = value => [...select.options].some(option => option.value === value);
+        const fallback = editor.zone?.parent_id || '';
+        select.value = allowed(wanted) ? wanted : allowed(fallback) ? fallback : '';
         editor.parentId = select.value || null;
-        if (!allowed) editorStatus('The area it was inside is no longer available here. Choose where it goes.');
+        if (select.value !== wanted) {
+            editor.parentNote.textContent = `${zoneById(wanted)?.name || 'The area you chose'} can no longer hold this area, so it is set back to ${select.value ? `inside ${zoneById(select.value).name}` : 'the top level'}. Choose again if needed.`;
+        }
     }
 
     function openZoneForm() {
@@ -355,9 +372,10 @@
         color.type = 'color'; color.value = editor.color;
         color.oninput = () => { editor.color = color.value; editor.shape.setStyle({ color: color.value, fillColor: color.value }); markDirty(); };
         const parent = field(form, 'Inside', el('select', '', 'form-select'), 'zoneParent');
-        editor.parentSelect = parent; fillParentChoices(parent);
-        parent.onchange = () => { editor.parentId = parent.value || null; markDirty(); updateOutsideWarning(); };
-        form.append(el('p', '', 'small zone-warning'));
+        const parentNote = el('p', '', 'small zone-warning'); parentNote.setAttribute('aria-live', 'polite');
+        Object.assign(editor, { parentSelect: parent, parentNote }); fillParentChoices(parent);
+        parent.onchange = () => { editor.parentId = parent.value || null; parentNote.textContent = ''; markDirty(); updateOutsideWarning(); };
+        form.append(parentNote, el('p', '', 'small zone-warning zone-outline-warning'));
         const location = field(form, 'Rack location (optional)', el('select', '', 'form-select'), 'zoneLocation');
         location.append(new Option('Not linked', ''), ...locations.map(item => new Option(locationLabel(item.id), item.id)));
         if (zone?.location_id && !locations.some(item => item.id === zone.location_id)) location.append(new Option('Linked location (unavailable)', zone.location_id));
@@ -371,7 +389,7 @@
         form.oninput = markDirty;
         form.onsubmit = async event => {
             event.preventDefault();
-            if (lock.busy) return;
+            if (lock.busy) { status.textContent = STILL_SAVING; return; }
             const zone = editor.zone;
             const values = { name: name.value.trim(), color: color.value, location_id: location.value || null, parent_id: parent.value || null, shape: editor.points };
             if (!values.name) { status.textContent = 'Enter an area name.'; name.focus(); return; }
@@ -511,7 +529,7 @@
     }
 
     async function toggleActive() {
-        if (lock.busy) return;
+        if (stillSaving()) return;
         const next = !current.is_active;
         if (!next && !confirm(`Make ${current.name} inactive? Field crews will no longer see it when they count.`)) return;
         lock.busy = true;
