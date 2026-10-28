@@ -71,3 +71,18 @@ test('Yard Inventory builds item checkboxes without markup', () => {
     assert.match(page, /input\.value = item;/);
     assert.match(page, /label\.textContent = item;/);
 });
+
+test('site maps never delete areas (the database refuses; they are made inactive instead)', () => {
+    const js = fs.readFileSync('site-maps.js', 'utf8');
+    assert.doesNotMatch(js, /\.delete\(\)/);
+    assert.match(js, /is_active: false/);
+});
+
+test('initial inventory filters by area subtree and shows full area paths', () => {
+    const js = fs.readFileSync('initial-inventory.js', 'utf8');
+    assert.match(js, /zoneIds: !zone \? null : zone === 'none' \? new Set\(\[null\]\) : inv\.descendantIds\(zoneTree\.byId, zone\)/);
+    assert.match(js, /const zoneName = id => id \? inv\.pathLabel\(zoneTree\.byId, id\) : ''/);
+    assert.match(js, /fetchAll\('site_map_zones', '\*'\)/, 'works before and after the nested-area columns exist');
+    assert.match(fs.readFileSync('initial-inventory.html', 'utf8'), /<label for="filterZone">Area<select/);
+    assert.match(js, /'site_map', 'zone', 'pin_x'/, 'the CSV keeps its zone column (now the full path) for existing spreadsheets');
+});

@@ -18,16 +18,23 @@
             cat(5,1,'Fuel System',{sort_order:20}), cat(6,null,'Electrical',{sort_order:20}), cat(7,6,'Cable Drums'), cat(8,null,'Old Laydown',{status:'archived',sort_order:30}),
             cat(9,null,'<img src=x onerror=alert(1)> Spares',{status:'proposed',proposed_by:worker,sort_order:40})],
         site_maps: [{ id:mapId, project_id:project.id, name:'North Yard plan', storage_path:`${project.id}/${mapId}.png`, image_width:1600, image_height:1000, is_active:true }],
+        // Nested areas as in migration 020: T1 Pipe Racks › Rack 1/2, Rack 2 drawn partly outside its parent,
+        // a markup-named area inside Warehouse, and an inactive Old Bay whose active child is hidden from field crews.
         site_map_zones: [
-            { id:'z1111111-1111-4111-8111-111111111111', map_id:mapId, project_id:project.id, name:'Laydown A', color:'#174fda', location_id:'d1111111-1111-4111-8111-111111111111', sort_order:10, shape:[[0.05,0.08],[0.38,0.08],[0.38,0.45],[0.05,0.45]] },
-            { id:'z2222222-2222-4222-8222-222222222222', map_id:mapId, project_id:project.id, name:'Warehouse', color:'#059669', location_id:null, sort_order:20, shape:[[0.55,0.1],[0.92,0.1],[0.92,0.5],[0.55,0.5]] }],
+            { id:'z1111111-1111-4111-8111-111111111111', map_id:mapId, project_id:project.id, parent_id:null, is_active:true, name:'T1 Pipe Racks', color:'#174fda', location_id:null, sort_order:10, shape:[[0.05,0.08],[0.38,0.08],[0.38,0.45],[0.05,0.45]] },
+            { id:'z1a11111-1111-4111-8111-111111111111', map_id:mapId, project_id:project.id, parent_id:'z1111111-1111-4111-8111-111111111111', is_active:true, name:'Rack 1', color:'#0891b2', location_id:'d1111111-1111-4111-8111-111111111111', sort_order:10, shape:[[0.07,0.1],[0.2,0.1],[0.2,0.43],[0.07,0.43]] },
+            { id:'z1b11111-1111-4111-8111-111111111111', map_id:mapId, project_id:project.id, parent_id:'z1111111-1111-4111-8111-111111111111', is_active:true, name:'Rack 2', color:'#7c3aed', location_id:null, sort_order:20, shape:[[0.22,0.1],[0.36,0.1],[0.42,0.43],[0.22,0.43]] },
+            { id:'z2222222-2222-4222-8222-222222222222', map_id:mapId, project_id:project.id, parent_id:null, is_active:true, name:'Warehouse', color:'#059669', location_id:null, sort_order:20, shape:[[0.55,0.1],[0.92,0.1],[0.92,0.5],[0.55,0.5]] },
+            { id:'z2a22222-2222-4222-8222-222222222222', map_id:mapId, project_id:project.id, parent_id:'z2222222-2222-4222-8222-222222222222', is_active:true, name:'<img src=x onerror=alert(1)> Bay', color:'#0891b2', location_id:null, sort_order:10, shape:[[0.6,0.15],[0.75,0.15],[0.75,0.3],[0.6,0.3]] },
+            { id:'z3333333-3333-4333-8333-333333333333', map_id:mapId, project_id:project.id, parent_id:null, is_active:false, name:'Old Bay', color:'#d97706', location_id:null, sort_order:30, shape:[[0.05,0.7],[0.3,0.7],[0.3,0.95],[0.05,0.95]] },
+            { id:'z3a33333-3333-4333-8333-333333333333', map_id:mapId, project_id:project.id, parent_id:'z3333333-3333-4333-8333-333333333333', is_active:true, name:'Old Bay A', color:'#dc2626', location_id:null, sort_order:10, shape:[[0.07,0.72],[0.18,0.72],[0.18,0.93],[0.07,0.93]] }],
         inventory_records: [
-            item(1,'GT2-LO-001','Lube oil cooler',{category_id:cat(3).id,count_status:'counted',condition:'good',site_map_id:mapId,pin_x:0.2,pin_y:0.3,zone_id:'z1111111-1111-4111-8111-111111111111',location:'Laydown A',counted_at:'2026-10-26T15:00:00Z',last_scanned_by:'Jordan Field',part_number:'LOC-77'}),
+            item(1,'GT2-LO-001','Lube oil cooler',{category_id:cat(3).id,count_status:'counted',condition:'good',site_map_id:mapId,pin_x:0.2,pin_y:0.3,zone_id:'z1111111-1111-4111-8111-111111111111',location:'T1 Pipe Racks',counted_at:'2026-10-26T15:00:00Z',last_scanned_by:'Jordan Field',part_number:'LOC-77'}),
             item(2,'GT2-LO-002','Lube oil filter',{category_id:cat(2).id,part_number:'LOF-220'}),
             item(3,'GT2-FS-010','Fuel skid',{category_id:cat(5).id,count_status:'received',site_map_id:mapId,pin_x:0.7,pin_y:0.3,zone_id:'z2222222-2222-4222-8222-222222222222',counted_at:'2026-10-25T10:00:00Z',last_scanned_by:'Jordan Field',receiving_record_id:'c1111111-1111-4111-8111-111111111111'}),
-            item(4,'EL-CD-100','Cable drum 240 m',{category_id:cat(7).id,quantity:3,count_status:'counted',source:'field',site_map_id:mapId,pin_x:0.3,pin_y:0.35,zone_id:'z1111111-1111-4111-8111-111111111111',counted_at:'2026-10-27T09:00:00Z',last_scanned_by:'Jordan Field'}),
+            item(4,'EL-CD-100','Cable drum 240 m',{category_id:cat(7).id,quantity:3,count_status:'counted',source:'field',site_map_id:mapId,pin_x:0.3,pin_y:0.35,zone_id:'z1b11111-1111-4111-8111-111111111111',location:'T1 Pipe Racks › Rack 2',counted_at:'2026-10-27T09:00:00Z',last_scanned_by:'Jordan Field'}),
             item(5,'X-<i>1</i>','<img src=x onerror=alert(1)>',{category_id:cat(4).id,quantity:1.5,uom:'M',count_status:'counted',source:'field',site_map_id:mapId,pin_x:0.8,pin_y:0.4,scanner_comments:'"><script>alert(2)</script>',counted_at:'2026-10-27T10:00:00Z',last_scanned_by:'Jordan Field',condition:'damaged'}),
-            item(6,'GT2-LO-003','Lube oil pump'),
+            item(6,'GT2-LO-003','Lube oil pump',{site_map_id:mapId,pin_x:0.68,pin_y:0.22,zone_id:'z2a22222-2222-4222-8222-222222222222'}),
         ],
         inventory_photos: [{ id:'p1', project_id:project.id, inventory_uid:'a1000000-0000-4000-8000-000000000000', storage_path:'a1000000-0000-4000-8000-000000000000/op-1.jpg', created_at:'2026-10-26T15:00:00Z' }],
     };
@@ -67,9 +74,12 @@
         }
         inventory() {
             const table = state.inventory[this.table];
-            const clash = row => this.table==='inventory_categories' && row.status!=='archived' && table.some(c=>c.id!==row.id && c.status!=='archived' && (c.parent_id||null)===(row.parent_id||null) && c.name.toLowerCase()===row.name.toLowerCase());
+            // Sibling names are unique, ignoring case: categories among non-archived rows, map areas among active ones (020).
+            const live = row => this.table==='site_map_zones' ? row.is_active!==false : row.status!=='archived';
+            const clash = row => ['inventory_categories','site_map_zones'].includes(this.table) && live(row) && table.some(c=>c.id!==row.id && live(c) && (c.map_id||null)===(row.map_id||null) && (c.parent_id||null)===(row.parent_id||null) && c.name.toLowerCase()===row.name.toLowerCase());
+            const defaults = { inventory_categories:{status:'active'}, site_map_zones:{parent_id:null,is_active:true} }[this.table] || {};
             if (this.write?.insert) {
-                const added = this.write.insert.map(values => ({ id: crypto.randomUUID(), status: 'active', sort_order: 0, created_at: new Date().toISOString(), ...values }));
+                const added = this.write.insert.map(values => ({ id: crypto.randomUUID(), sort_order: 0, created_at: new Date().toISOString(), ...defaults, ...values }));
                 if (added.some(clash)) return {data:null,error:{code:'23505',message:'duplicate key value violates unique constraint'}};
                 table.push(...added); save();
                 return {data:this.one?added[0]:added,error:null};
@@ -77,6 +87,9 @@
             const rows = table.filter(r=>this.filters.every(f=>f(r)));
             if (this.write?.update) {
                 if (rows.some(row => clash({...row,...this.write.update}))) return {data:null,error:{code:'23505',message:'duplicate key value violates unique constraint'}};
+                // 020's guard: an area can't end up inside itself.
+                const above = id => { const ids = []; for (let node = table.find(r=>r.id===id); node && ids.length < 50; node = table.find(r=>r.id===node.parent_id)) ids.push(node.id); return ids; };
+                if (this.table==='site_map_zones' && this.write.update.parent_id && rows.some(row => above(this.write.update.parent_id).includes(row.id))) return {data:null,error:{code:'22023',message:'An area cannot be placed inside itself'}};
                 rows.forEach(row => Object.assign(row, this.write.update)); save();
                 return {data:null,error:null};
             }

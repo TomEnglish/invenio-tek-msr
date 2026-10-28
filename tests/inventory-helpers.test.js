@@ -169,10 +169,11 @@ test('progress and filters follow count status, source, category subtree, zone a
     const { byId } = inv.buildCategoryTree(categories);
     assert.deepEqual(ids({ categoryIds: inv.descendantIds(byId, 'lube') }), [1, 2]);
     assert.deepEqual(ids({ categoryIds: new Set([null]) }), [4]);
-    assert.deepEqual(ids({ zoneId: 'z1' }), [2, 4]);
-    assert.deepEqual(ids({ zoneId: 'none' }), [1, 5]);
+    assert.deepEqual(ids({ zoneIds: new Set(['z1']) }), [2, 4]);
+    assert.deepEqual(ids({ zoneIds: new Set(['z1', 'z2']) }), [2, 3, 4]);
+    assert.deepEqual(ids({ zoneIds: new Set([null]) }), [1, 5]);
     assert.deepEqual(ids({ status: 'new' }), [3]);
-    assert.deepEqual(ids({ status: 'counted', zoneId: 'z1' }), [2]);
+    assert.deepEqual(ids({ status: 'counted', zoneIds: new Set(['z1']) }), [2]);
     assert.deepEqual(ids({ search: ' lof ' }), [2]);
     assert.deepEqual(ids({ search: 'gt2' }), [1, 2, 4]);
     assert.deepEqual(ids({}), [1, 2, 3, 4, 5]);
@@ -196,6 +197,117 @@ test('database errors become plain messages', () => {
     assert.match(inv.errorMessage({ code: '42P01' }), /migration 019/);
     assert.equal(inv.errorMessage({ code: '23505' }, 'Name taken.'), 'Name taken.');
     assert.match(inv.errorMessage({ code: '42501' }), /permission/);
+    assert.match(inv.errorMessage({ code: '42501', message: 'new row violates row-level security policy for table "site_map_zones"' }), /permission/);
+    assert.match(inv.errorMessage({ code: '42501', message: 'permission denied for table site_map_zones' }), /permission/);
+    assert.equal(inv.errorMessage({ code: '42501', message: 'A parent area must be on the same site plan' }), 'A parent area must be on the same site plan',
+        "020's guard uses 42501 for its own reasons; show them");
     assert.equal(inv.errorMessage({ code: '22023', message: 'Pin must be on the map' }), 'Pin must be on the map');
     assert.equal(inv.errorMessage(new Error('offline')), 'offline');
+});
+
+const areas = [
+    { id: 'yard', map_id: 'm1', parent_id: null, name: 'T1 Pipe Racks', sort_order: 10, is_active: true, shape: [[0.1, 0.1], [0.5, 0.1], [0.5, 0.5], [0.1, 0.5]] },
+    { id: 'rack2', map_id: 'm1', parent_id: 'yard', name: 'Rack 2', sort_order: 20, is_active: true, shape: [[0.3, 0.2], [0.5, 0.2], [0.5, 0.4], [0.3, 0.4]] },
+    { id: 'rack1', map_id: 'm1', parent_id: 'yard', name: 'Rack 1', sort_order: 10, is_active: true, shape: [[0.12, 0.2], [0.28, 0.2], [0.28, 0.4], [0.12, 0.4]] },
+    { id: 'shelf', map_id: 'm1', parent_id: 'rack2', name: 'Shelf A', sort_order: 10, is_active: true, shape: [[0.32, 0.22], [0.4, 0.22], [0.4, 0.3]] },
+    { id: 'old', map_id: 'm1', parent_id: null, name: 'Old Bay', sort_order: 30, is_active: false, shape: [[0.6, 0.6], [0.9, 0.6], [0.9, 0.9]] },
+    { id: 'oldA', map_id: 'm1', parent_id: 'old', name: 'Old Bay A', sort_order: 10, is_active: true, shape: [[0.7, 0.7], [0.8, 0.7], [0.8, 0.8]] },
+    { id: 'other', map_id: 'm2', parent_id: null, name: 'South Laydown', sort_order: 10, is_active: true, shape: [[0, 0], [1, 0], [1, 1]] },
+];
+
+test('map areas nest into one tree with full path labels and sub-area filters', () => {
+    const { roots, byId } = inv.buildTree(areas);
+    assert.deepEqual(roots.map(node => node.id), ['other', 'yard', 'old'], 'same sort_order falls back to name');
+    assert.deepEqual(byId.get('yard').children.map(node => node.id), ['rack1', 'rack2'], 'siblings follow sort_order');
+    assert.equal(inv.pathLabel(byId, 'shelf'), 'T1 Pipe Racks › Rack 2 › Shelf A');
+    assert.equal(inv.pathLabel(byId, 'missing'), '');
+    assert.deepEqual([...inv.descendantIds(byId, 'yard')].sort(), ['rack1', 'rack2', 'shelf', 'yard']);
+    assert.deepEqual(inv.flattenTree(roots, new Set(['yard'])).map(row => row.node.id), ['other', 'yard', 'old', 'oldA']);
+    assert.deepEqual(inv.buildCategoryTree([{ id: 'a', name: 'A', status: 'archived' }, { id: 'b', name: 'B', status: 'active' }]).roots.map(node => node.id), ['b'],
+        'categories still leave archived rows out by default');
+});
+
+test('an inactive area hides itself and everything inside it from field crews', () => {
+    const { byId } = inv.buildTree(areas);
+    assert.equal(inv.inactiveAncestor(byId, 'old').id, 'old');
+    assert.equal(inv.inactiveAncestor(byId, 'oldA').id, 'old');
+    assert.equal(inv.inactiveAncestor(byId, 'shelf'), null);
+    assert.equal(inv.inactiveAncestor(byId, null), null);
+    assert.equal(inv.inactiveAncestor(new Map([['x', { id: 'x', name: 'X' }]]), 'x'), null, 'rows without is_active (before 020) count as active');
+});
+
+test('parent choices stay on the same map and never include the area itself or its sub-areas', () => {
+    const choices = (zoneId, mapId = 'm1') => inv.parentChoices(areas, mapId, zoneId).map(row => `${row.depth}:${row.node.id}`);
+    assert.deepEqual(choices(null), ['0:yard', '1:rack1', '1:rack2', '2:shelf', '0:old', '1:oldA']);
+    assert.deepEqual(choices('rack2'), ['0:yard', '1:rack1', '0:old', '1:oldA']);
+    assert.deepEqual(choices('yard'), ['0:old', '1:oldA']);
+    assert.deepEqual(choices(null, 'm2'), ['0:other']);
+});
+
+test('parent choices stop where the moved subtree would pass 20 levels', () => {
+    const chain = Array.from({ length: 20 }, (_, index) => ({ id: `l${index + 1}`, map_id: 'm1', parent_id: index ? `l${index}` : null, name: `L${index + 1}`, sort_order: 10 }));
+    const twoLevels = [...chain, { id: 'p', map_id: 'm1', parent_id: null, name: 'P', sort_order: 20 }, { id: 'q', map_id: 'm1', parent_id: 'p', name: 'Q', sort_order: 10 }];
+    const deepest = zoneId => Math.max(...inv.parentChoices(twoLevels, 'm1', zoneId).map(row => row.depth + 1));
+    assert.equal(inv.MAX_AREA_LEVELS, 20);
+    assert.equal(deepest(null), 19, 'a new area can go inside level 19 at most');
+    assert.equal(deepest('p'), 18, 'an area with one level below it can go inside level 18 at most');
+    assert.equal(inv.subtreeHeight(inv.buildTree(twoLevels).byId.get('l1')), 20);
+});
+
+test('outline checks warn when a child leaves its parent but accept shared edges', () => {
+    const square = [[0.1, 0.1], [0.5, 0.1], [0.5, 0.5], [0.1, 0.5]];
+    assert.equal(inv.pointInPolygon([0.3, 0.3], square), true);
+    assert.equal(inv.pointInPolygon([0.6, 0.3], square), false);
+    assert.equal(inv.outlineOutside([[0.2, 0.2], [0.4, 0.2], [0.4, 0.4]], square), false);
+    assert.equal(inv.outlineOutside([[0.3, 0.2], [0.5, 0.2], [0.5, 0.4], [0.3, 0.4]], square), false, 'drawn against the parent edge');
+    assert.equal(inv.outlineOutside([[0.1, 0.1], [0.3, 0.1], [0.3, 0.3]], square), false, 'sharing the parent corner');
+    assert.equal(inv.outlineOutside([[0.4, 0.2], [0.6, 0.2], [0.6, 0.4], [0.4, 0.4]], square), true, 'two corners outside');
+    const notch = [[0.1, 0.1], [0.5, 0.1], [0.5, 0.5], [0.3, 0.3], [0.1, 0.5]];
+    assert.equal(inv.outlineOutside([[0.2, 0.35], [0.4, 0.35], [0.4, 0.45], [0.2, 0.45]], notch), true, 'all corners inside, but an edge crosses the notch');
+});
+
+test('outline checks catch edges that leave the parent only through its corners or along its border', () => {
+    // U-shaped parent, open at the bottom between x 0.3 and 0.6.
+    const u = [[0, 0], [0.9, 0], [0.9, 0.9], [0.6, 0.9], [0.6, 0.3], [0.3, 0.3], [0.3, 0.9], [0, 0.9]];
+    assert.equal(inv.outlineOutside([[0.1, 0.1], [0.8, 0.1], [0.8, 0.9], [0.1, 0.9]], u), true,
+        'bottom edge runs along both arms and across the gap, touching only the inner corners');
+    assert.equal(inv.outlineOutside([[0.05, 0.05], [0.85, 0.05], [0.85, 0.3], [0.05, 0.3]], u), false, 'resting on the notch top is inside');
+    assert.equal(inv.outlineOutside([[0.6, 0.3], [0.9, 0.3], [0.9, 0.9], [0.6, 0.9]], u), false, 'an arm drawn exactly on the border is inside');
+    // V notch: both corners sit on the notch sides and the edge between them crosses it.
+    const v = [[0, 0], [1, 0], [1, 1], [0.5, 0.5], [0, 1]];
+    assert.equal(inv.outlineOutside([[0.1, 0.9], [0.9, 0.9], [0.5, 0.1]], v), true, 'corners on the border, edge through the notch');
+    assert.equal(inv.outlineOutside([[0.1, 0.9], [0.5, 0.5], [0.5, 0.1]], v), false, 'touching the notch tip from inside');
+});
+
+test('reshaping a parent is checked the same way against each area inside it', () => {
+    const rack = [[0.3, 0.2], [0.5, 0.2], [0.5, 0.4], [0.3, 0.4]];
+    assert.equal(inv.outlineOutside(rack, [[0.1, 0.1], [0.5, 0.1], [0.5, 0.5], [0.1, 0.5]]), false);
+    assert.equal(inv.outlineOutside(rack, [[0.1, 0.1], [0.45, 0.1], [0.45, 0.5], [0.1, 0.5]]), true, 'parent pulled in past the rack');
+});
+
+test('a reorder renumbers the whole group, so a retry after a half-saved move clears duplicates', () => {
+    const halfSaved = [{ id: 'a', name: 'A', sort_order: 10 }, { id: 'b', name: 'B', sort_order: 10 }, { id: 'c', name: 'C', sort_order: 30 }];
+    const updates = inv.reorderSiblings(halfSaved, 'a', 1);
+    const after = halfSaved.map(node => ({ ...node, ...updates.find(update => update.id === node.id) }));
+    assert.deepEqual(after.map(node => node.sort_order).sort((x, y) => x - y), [10, 20, 30]);
+    assert.deepEqual(updates, [{ id: 'a', sort_order: 20 }]);
+});
+
+test('writes then reload: the lock is held until the reload ends, and a failed write still reloads', async () => {
+    const lock = { busy: false }, events = [];
+    let finishReload;
+    const write = name => async () => { events.push(name); if (name === 'fail') throw new Error('refused'); };
+    const running = inv.writeThenReload(lock, [write('one'), write('two')], error => { events.push(`reload:${error}`); return new Promise(resolve => { finishReload = resolve; }); });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(lock.busy, true, 'still locked while the reload runs');
+    assert.equal(await inv.writeThenReload(lock, [write('late')], async () => {}), null, 'a second save is turned away');
+    finishReload();
+    assert.deepEqual(await running, { error: null, reloadError: null });
+    assert.equal(lock.busy, false);
+    events.length = 0;
+    const failed = await inv.writeThenReload(lock, [write('one'), write('fail'), write('never')], async error => { events.push(`reload:${error.message}`); throw new Error('offline'); });
+    assert.deepEqual(events, ['one', 'fail', 'reload:refused'], 'stops at the failed write, then reloads');
+    assert.equal(failed.error.message, 'refused');
+    assert.equal(failed.reloadError.message, 'offline');
+    assert.equal(lock.busy, false);
 });

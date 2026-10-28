@@ -1296,7 +1296,7 @@ button.category-toggle:hover { background:var(--primary-soft); color:var(--prima
 .proposal-row:last-child { padding-bottom:0; border-bottom:0; }
 .proposal-identity { min-width:0; overflow-wrap:anywhere; }
 .proposal-actions { display:flex; flex-wrap:wrap; gap:.5rem; }
-.site-map-layout { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:1rem; align-items:start; }
+.site-map-layout { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:1rem; align-items:start; }
 .site-map-canvas { height:min(70vh,720px); min-height:360px; background:var(--raised); border-radius:0 0 var(--radius-lg) var(--radius-lg); }
 .site-map-canvas.is-drawing { cursor:crosshair; }
 .site-map-toolbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.5rem; padding:.5rem 1rem; background:var(--primary-soft); color:var(--text); font-size:.875rem; }
@@ -1304,10 +1304,15 @@ button.category-toggle:hover { background:var(--primary-soft); color:var(--prima
 /* Plans are light drawings in either theme, so zone labels stay dark with a white halo. */
 .leaflet-tooltip.zone-label { background:transparent; border:0; box-shadow:none; color:#122c4c; font-weight:600; text-shadow:0 0 3px #fff, 0 0 3px #fff; }
 .zone-list { list-style:none; margin:0; padding:0; }
-.zone-row { display:flex; align-items:center; gap:.5rem; padding:.5rem 0; border-bottom:1px solid var(--border); }
+.zone-row { display:flex; flex-wrap:wrap; align-items:center; gap:.25rem .5rem; padding:.5rem 0 .5rem calc(var(--depth, 0) * 1rem); border-bottom:1px solid var(--border); }
+.zone-row.is-inactive > .zone-swatch, .zone-row.is-inactive .zone-name { opacity:.5; }
+.zone-actions { display:flex; flex-wrap:wrap; gap:.25rem; width:100%; padding-left:calc(1.75rem + 14px + 1rem); }
+.zone-actions .btn:disabled { border-color:transparent; opacity:.3; }
+.zone-warning { color:var(--warn); }
+.zone-warning:empty { display:none; }
 .zone-row:last-child { border-bottom:0; }
 .zone-swatch { flex:0 0 14px; height:14px; border:1px solid var(--border-strong); border-radius:4px; }
-.zone-text { display:flex; flex-direction:column; flex:1 1 auto; min-width:0; overflow-wrap:anywhere; }
+.zone-text { display:flex; flex-direction:column; align-items:flex-start; gap:.125rem; flex:1 1 0; min-width:0; overflow-wrap:anywhere; }
 .zone-handle { background:var(--surface); border:2px solid var(--primary); border-radius:50%; box-shadow:var(--shadow-sm); }
 .zone-handle-mid { opacity:.75; border-style:dashed; }
 .inventory-filters { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1rem; }

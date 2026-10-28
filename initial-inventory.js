@@ -29,7 +29,7 @@
     const PAGE_SIZE = 250, PREVIEW_ROWS = 300, MAX_FILE_BYTES = 20 * 1024 * 1024;
     const RECORD_COLUMNS = 'id,uid,qr_code,inventory_item,item_description,part_number,category_id,quantity,uom,condition,count_status,source,site_map_id,pin_x,pin_y,zone_id,location,scanner_comments,counted_at,last_scanned_by,receiving_record_id';
 
-    let records = [], categories = new Map(), categoryTree = null, maps = [], zones = new Map(), filtered = [], shown = PAGE_SIZE;
+    let records = [], categories = new Map(), categoryTree = null, maps = [], zones = new Map(), zoneTree = InvenioInventory.buildTree([]), filtered = [], shown = PAGE_SIZE;
     let mapView = null, mapViewId = null, pinLayer = null, zoneLayer = null;
     const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
@@ -38,7 +38,8 @@
             fetchAll('inventory_records', RECORD_COLUMNS),
             fetchAll('inventory_categories', 'id,parent_id,name,status,sort_order'),
             projectSupabaseClient.from('site_maps').select('id,name,storage_path,image_width,image_height,is_active').order('name'),
-            fetchAll('site_map_zones', 'id,map_id,name,color,shape'),
+            // '*' so this works whether or not the nested-area columns (parent_id, is_active) exist yet.
+            fetchAll('site_map_zones', '*'),
         ]);
         if (mapResult.error) throw mapResult.error;
         records = recordRows.sort((a, b) => collator.compare(String(a.qr_code).trim(), String(b.qr_code).trim()));
@@ -46,11 +47,13 @@
         categoryTree = inv.buildCategoryTree(categoryRows, { includeArchived: true });
         maps = mapResult.data.sort((a, b) => Number(b.is_active) - Number(a.is_active) || a.name.localeCompare(b.name));
         zones = new Map(zoneRows.map(zone => [zone.id, zone]));
+        zoneTree = inv.buildTree(zoneRows);
         renderProgress(); renderFilterOptions(); applyFilters();
     }
 
     const categoryText = id => id ? inv.categoryPath(categories, id).join(' › ') : '';
-    const zoneName = id => zones.get(id)?.name || '';
+    // The full area path, "T1 Pipe Racks › Rack 2", as the database stores it in location.
+    const zoneName = id => id ? inv.pathLabel(zoneTree.byId, id) : '';
     const mapName = id => maps.find(map => map.id === id)?.name || '';
     const quantityText = record => `${Number(record.quantity).toLocaleString(undefined, { maximumFractionDigits: 3 })} ${record.uom || ''}`.trim();
     const dateText = value => value ? new Date(value).toLocaleDateString() : '';
@@ -75,12 +78,12 @@
         for (const { node, depth } of inv.flattenTree(categoryTree.roots)) {
             category.append(new Option(`${'   '.repeat(depth)}${node.name}${node.status === 'archived' ? ' (archived)' : node.status === 'proposed' ? ' (proposed)' : ''}`, node.id));
         }
-        zone.replaceChildren(new Option('All zones', ''), new Option('No zone', 'none'));
+        zone.replaceChildren(new Option('All areas', ''), new Option('No area', 'none'));
         for (const map of maps) {
-            const mapZones = [...zones.values()].filter(item => item.map_id === map.id).sort((a, b) => collator.compare(a.name, b.name));
-            if (!mapZones.length) continue;
+            const rows = inv.flattenTree(zoneTree.roots.filter(root => root.map_id === map.id));
+            if (!rows.length) continue;
             const group = document.createElement('optgroup'); group.label = map.name;
-            group.append(...mapZones.map(item => new Option(item.name, item.id)));
+            group.append(...rows.map(({ node, depth }) => new Option(`${'\u00a0\u00a0\u00a0'.repeat(depth)}${node.name}${node.is_active === false ? ' (inactive)' : ''}`, node.id)));
             zone.append(group);
         }
         category.value = [...category.options].some(option => option.value === keepCategory) ? keepCategory : '';
@@ -91,10 +94,11 @@
     }
 
     function currentFilters() {
-        const category = $('filterCategory').value;
+        const category = $('filterCategory').value, zone = $('filterZone').value;
         return {
             categoryIds: !category ? null : category === 'none' ? new Set([null]) : inv.descendantIds(categoryTree.byId, category),
-            zoneId: $('filterZone').value, status: $('filterStatus').value, search: $('filterSearch').value,
+            zoneIds: !zone ? null : zone === 'none' ? new Set([null]) : inv.descendantIds(zoneTree.byId, zone),
+            status: $('filterStatus').value, search: $('filterSearch').value,
         };
     }
 
@@ -161,8 +165,13 @@
         if (await ensureMapView(siteMap) !== mapView || !mapView) return;
         if (!$('mapView').hidden) mapView.show();
         zoneLayer.clearLayers(); pinLayer.clearLayers();
-        for (const zone of zones.values()) {
-            if (zone.map_id === siteMap.id) siteMapView.zonePolygon(mapView, zone, { interactive: false, fillOpacity: 0.08 }, { permanentLabel: true }).addTo(zoneLayer);
+        // Parents first so nested areas draw on top. Only the innermost active areas get a label, so nested
+        // labels don't sit on top of each other; inactive areas are drawn faint and dashed.
+        for (const { node } of inv.flattenTree(zoneTree.roots.filter(root => root.map_id === siteMap.id))) {
+            const hidden = inv.inactiveAncestor(zoneTree.byId, node.id);
+            const leaf = !node.children.some(child => child.is_active !== false);
+            siteMapView.zonePolygon(mapView, node, { interactive: false, fillOpacity: hidden ? 0.02 : 0.08, ...(hidden ? { dashArray: '4 6', opacity: 0.4 } : {}) },
+                { permanentLabel: leaf && !hidden }).addTo(zoneLayer);
         }
         const colours = Object.fromEntries(Object.entries(inv.STATUS).map(([status, config]) => [status, siteMapView.cssToken(config.token, '#174fda')]));
         let pinned = 0;
@@ -200,7 +209,7 @@
         const fields = [
             ['Category', categoryText(record.category_id)], ['Quantity', quantityText(record)], ['Part number', record.part_number],
             ['Description', record.item_description], ['Condition', record.condition], ['Site map', mapName(record.site_map_id)],
-            ['Zone', zoneName(record.zone_id)], ['Location', record.location !== zoneName(record.zone_id) ? record.location : ''],
+            ['Area', zoneName(record.zone_id)], ['Location', record.location !== zoneName(record.zone_id) ? record.location : ''],
             ['Source', inv.SOURCE_LABELS[record.source] || record.source], ['Counted', record.counted_at ? new Date(record.counted_at).toLocaleString() : ''],
             ['Counted by', record.counted_at ? record.last_scanned_by : ''], ['Notes', record.scanner_comments],
         ];
@@ -242,6 +251,7 @@
 
     // ---- CSV export ---------------------------------------------------------------------------
     function exportCsv() {
+        // The area column keeps its original name, zone, so spreadsheets built on earlier exports keep working.
         const headers = ['tag', 'name', 'description', 'category_path', 'part_number', 'quantity', 'uom', 'count_status', 'source', 'condition', 'site_map', 'zone', 'pin_x', 'pin_y', 'counted_at', 'counted_by', 'notes'];
         const rows = filtered.map(record => [record.qr_code, record.inventory_item, record.item_description, inv.categoryPath(categories, record.category_id).join(' > '),
             record.part_number, record.quantity, record.uom, record.count_status, record.source, record.condition, mapName(record.site_map_id), zoneName(record.zone_id),

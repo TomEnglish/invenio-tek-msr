@@ -27,10 +27,13 @@
 
     /** Nest categories under their parents; archived ones are left out unless asked for. Orphans become roots. */
     function buildCategoryTree(categories, { includeArchived = false } = {}) {
+        return buildTree(includeArchived ? categories : categories.filter(category => category.status !== 'archived'));
+    }
+
+    /** Nest any rows with id, parent_id, name and sort_order (categories, map areas). Orphans become roots. */
+    function buildTree(rows) {
         const byId = new Map();
-        for (const category of categories) {
-            if (includeArchived || category.status !== 'archived') byId.set(category.id, { ...category, children: [] });
-        }
+        for (const row of rows) byId.set(row.id, { ...row, children: [] });
         const roots = [];
         for (const node of byId.values()) {
             const parent = node.parent_id && node.parent_id !== node.id ? byId.get(node.parent_id) : null;
@@ -64,6 +67,42 @@
         return names;
     }
 
+    /** "T1 Pipe Racks › Rack 2": the same label the database stores in inventory_records.location. */
+    function pathLabel(byId, id) {
+        return categoryPath(byId, id).join(' › ');
+    }
+
+    /** The nearest of the area and its parents that is inactive, or null: field crews see none of its subtree. */
+    function inactiveAncestor(byId, id) {
+        const seen = new Set();
+        for (let node = byId.get(id); node && !seen.has(node.id); node = node.parent_id ? byId.get(node.parent_id) : null) {
+            seen.add(node.id);
+            if (node.is_active === false) return node;
+        }
+        return null;
+    }
+
+    // Migration 020 refuses trees deeper than this.
+    const MAX_AREA_LEVELS = 20;
+
+    /** Levels from this node down to its deepest descendant, counting itself. */
+    function subtreeHeight(node, seen = new Set()) {
+        if (!node || seen.has(node.id)) return 0;
+        seen.add(node.id);
+        return 1 + Math.max(0, ...node.children.map(child => subtreeHeight(child, seen)));
+    }
+
+    /**
+     * Areas on this map that can hold the given area: everything except the area itself and its sub-areas,
+     * and any area so deep that the moved subtree would pass MAX_AREA_LEVELS.
+     */
+    function parentChoices(zones, mapId, zoneId = null) {
+        const { roots, byId } = buildTree(zones.filter(zone => zone.map_id === mapId));
+        const excluded = zoneId ? descendantIds(byId, zoneId) : new Set();
+        const height = Math.max(1, subtreeHeight(byId.get(zoneId)));
+        return flattenTree(roots).filter(row => !excluded.has(row.node.id) && row.depth + 1 + height <= MAX_AREA_LEVELS);
+    }
+
     /** The category and everything below it, as a Set of ids (used for subtree filters and merge targets). */
     function descendantIds(byId, id) {
         const ids = new Set(), stack = [byId.get(id)];
@@ -76,7 +115,10 @@
         return ids;
     }
 
-    /** Move one sibling up (-1) or down (+1); returns only the sort_order updates that change. */
+    /**
+     * Move one sibling up (-1) or down (+1). The whole group is renumbered 10, 20, 30… in its current order (ties
+     * broken by name), so a retry after a half-saved move also clears duplicates. Returns only the rows that change.
+     */
     function reorderSiblings(siblings, id, offset) {
         const ordered = [...siblings].sort(byOrder);
         const from = ordered.findIndex(node => node.id === id), to = from + offset;
@@ -237,6 +279,57 @@
         return [round6(clampUnit(latLng.lng / width)), round6(clampUnit(1 - latLng.lat / height))];
     }
 
+    /** Ray casting on normalised [x, y] points. Points exactly on an edge may fall either way. */
+    function pointInPolygon(point, polygon) {
+        const [x, y] = point;
+        let inside = false;
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+            const [xi, yi] = polygon[i], [xj, yj] = polygon[j];
+            if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+        }
+        return inside;
+    }
+
+    const EDGE_TOLERANCE = 1e-6;
+    const edges = polygon => polygon.map((point, index) => [point, polygon[(index + 1) % polygon.length]]);
+    const cross = (u, v) => u[0] * v[1] - u[1] * v[0];
+    function onSegment([x, y], [ax, ay], [bx, by]) {
+        return Math.abs(cross([bx - ax, by - ay], [x - ax, y - ay])) <= EDGE_TOLERANCE && x >= Math.min(ax, bx) - EDGE_TOLERANCE && x <= Math.max(ax, bx) + EDGE_TOLERANCE
+            && y >= Math.min(ay, by) - EDGE_TOLERANCE && y <= Math.max(ay, by) + EDGE_TOLERANCE;
+    }
+    const covers = (polygon, point) => pointInPolygon(point, polygon) || edges(polygon).some(([a, b]) => onSegment(point, a, b));
+
+    /** Where segment cd meets segment ab, as fractions along ab: a crossing, a touch, or the ends of an overlap. */
+    function meetings(a, b, c, d) {
+        const r = [b[0] - a[0], b[1] - a[1]], s = [d[0] - c[0], d[1] - c[1]], ac = [c[0] - a[0], c[1] - a[1]];
+        const along = point => ((point[0] - a[0]) * r[0] + (point[1] - a[1]) * r[1]) / (r[0] * r[0] + r[1] * r[1] || 1);
+        const found = [c, d].filter(point => onSegment(point, a, b)).map(along);
+        const denominator = cross(r, s);
+        if (Math.abs(denominator) > 1e-12) {
+            const t = cross(ac, s) / denominator, u = cross(ac, r) / denominator;
+            if (u >= -EDGE_TOLERANCE && u <= 1 + EDGE_TOLERANCE) found.push(t);
+        }
+        return found;
+    }
+
+    /**
+     * True when a child area's outline leaves its parent. Points on the parent's border count as inside, so
+     * areas drawn against the border pass. Each child edge is cut wherever it meets the parent's border
+     * (crossings, corner touches and overlaps alike); every piece between cuts is wholly inside or wholly
+     * outside, so its midpoint decides.
+     */
+    function outlineOutside(child, parent) {
+        if (child.some(point => !covers(parent, point))) return true;
+        return edges(child).some(([a, b]) => {
+            const cuts = [0, 1, ...edges(parent).flatMap(([c, d]) => meetings(a, b, c, d))].filter(t => t >= 0 && t <= 1).sort((x, y) => x - y);
+            return cuts.some((t, index) => {
+                if (!index || t - cuts[index - 1] < 1e-9) return false;
+                const middle = (t + cuts[index - 1]) / 2;
+                return !covers(parent, [a[0] + (b[0] - a[0]) * middle, a[1] + (b[1] - a[1]) * middle]);
+            });
+        });
+    }
+
     /** Matches the database check: 3-200 [x, y] pairs, every coordinate a number in 0-1. */
     function validZoneShape(points) {
         return Array.isArray(points) && points.length >= 3 && points.length <= 200 && points.every(point =>
@@ -268,12 +361,15 @@
         return progress;
     }
 
-    /** Filters: categoryIds (Set or null), zoneId ('' any, 'none' unzoned), status ('' any, 'new' for field-found tags), search text. */
-    function filterRecords(records, { categoryIds = null, zoneId = '', status = '', search = '' } = {}) {
+    /**
+     * Filters: categoryIds and zoneIds (a Set, or null for any; Set([null]) for none), status ('' any, 'new' for
+     * field-found tags) and search text. Pass a subtree from descendantIds to include sub-categories or sub-areas.
+     */
+    function filterRecords(records, { categoryIds = null, zoneIds = null, status = '', search = '' } = {}) {
         const needle = search.trim().toLowerCase();
         return records.filter(record =>
             (!categoryIds || categoryIds.has(record.category_id))
-            && (!zoneId || (zoneId === 'none' ? !record.zone_id : record.zone_id === zoneId))
+            && (!zoneIds || zoneIds.has(record.zone_id ?? null))
             && (!status || (status === 'new' ? record.source === 'field' : record.count_status === status))
             && (!needle || [record.qr_code, record.inventory_item, record.item_description, record.part_number]
                 .some(value => value && String(value).toLowerCase().includes(needle))));
@@ -295,13 +391,33 @@
         const code = error?.code, text = error?.message || String(error ?? 'Unknown error');
         if (['42P01', 'PGRST202', 'PGRST205'].includes(code)) return 'Initial inventory is not set up in this database yet (migration 019).';
         if (code === '23505') return conflict;
-        if (code === '42501') return 'You do not have permission to make this change in this project.';
+        // 42501 is also how the database's own checks refuse (an area on another plan, a location in another
+        // project); only a policy or grant refusal means "no permission". Show the database's reason otherwise.
+        if (code === '42501') return !error?.message || /row-level security|permission denied/i.test(text) ? 'You do not have permission to make this change in this project.' : text;
         return text;
     }
 
+    /**
+     * Run writes one at a time, stopping at the first that throws, then always run reload, so a refused or
+     * half-saved change never leaves a stale list on screen. lock.busy stays set until the reload has finished,
+     * so nothing can act on the old list in between. reload gets the write error (null on success).
+     * Returns null when the lock was already taken, else { error, reloadError }.
+     */
+    async function writeThenReload(lock, writes, reload) {
+        if (lock.busy) return null;
+        lock.busy = true;
+        try {
+            let error = null, reloadError = null;
+            try { for (const write of writes) await write(); } catch (caught) { error = caught; }
+            try { await reload(error); } catch (caught) { reloadError = caught; }
+            return { error, reloadError };
+        } finally { lock.busy = false; }
+    }
+
     const api = {
-        IMPORT_FIELDS, IMPORT_LABELS, MAX_IMPORT_ROWS, SITE_PLAN_TYPES, STATUS, SOURCE_LABELS, IMPORT_ACTIONS, errorMessage,
-        buildCategoryTree, flattenTree, categoryPath, descendantIds, reorderSiblings, nextSortOrder,
+        IMPORT_FIELDS, IMPORT_LABELS, MAX_IMPORT_ROWS, MAX_AREA_LEVELS, SITE_PLAN_TYPES, STATUS, SOURCE_LABELS, IMPORT_ACTIONS, errorMessage, writeThenReload,
+        buildCategoryTree, buildTree, flattenTree, categoryPath, pathLabel, inactiveAncestor, parentChoices, subtreeHeight, descendantIds, reorderSiblings, nextSortOrder,
+        pointInPolygon, outlineOutside,
         guessColumnMapping, normaliseQuantity, normaliseCategoryPath, rowsToItems, parseCsv, sheetToRows, splitHeader, columnLetter,
         toLatLng, fromLatLng, validZoneShape, fitWithin, sitePlanPath,
         countProgress, filterRecords, csvCell, toCsv,
