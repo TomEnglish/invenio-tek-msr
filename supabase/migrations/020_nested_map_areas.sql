@@ -6,14 +6,32 @@ alter table public.site_map_zones
  add column parent_id uuid references public.site_map_zones(id),
  add column is_active boolean not null default true;
 create index site_map_zones_parent on public.site_map_zones(parent_id);
+do $$ declare clashes text;
+begin
+ select string_agg(format('%s on plan %s', d.names, d.map_id), '; ') into clashes
+  from (select map_id, string_agg(name, ', ' order by name) as names from public.site_map_zones
+        where is_active group by map_id, lower(name) having count(*)>1) d;
+ if clashes is not null then
+  raise exception 'Rename areas whose names differ only by case before applying 020: %', clashes;
+ end if;
+end $$;
 create unique index site_map_zones_sibling_name on public.site_map_zones
  (map_id,coalesce(parent_id,'00000000-0000-0000-0000-000000000000'::uuid),lower(name)) where is_active;
 
--- Parents sit on the same plan, the tree never loops, and an area with
--- sub-areas cannot move to another plan on its own.
+-- Parents sit on the same plan, the tree never loops, nesting stops at 20
+-- levels, and an area with sub-areas cannot move to another plan on its own.
+-- Tree edits on a plan take turns (an advisory lock per plan), so each check
+-- sees any other writer's committed change instead of racing it.
 create or replace function public.site_map_zone_guard() returns trigger
 language plpgsql set search_path=public,pg_temp as $$
+declare v_ancestors integer; v_loop boolean; v_height integer;
 begin
+ if tg_op='UPDATE' and new.map_id<>old.map_id then
+  perform pg_advisory_xact_lock(hashtextextended('site_map_zones:'||least(old.map_id,new.map_id)::text,0));
+  perform pg_advisory_xact_lock(hashtextextended('site_map_zones:'||greatest(old.map_id,new.map_id)::text,0));
+ else
+  perform pg_advisory_xact_lock(hashtextextended('site_map_zones:'||new.map_id::text,0));
+ end if;
  if not exists(select 1 from public.site_maps m where m.id=new.map_id and m.project_id=new.project_id) then
   raise exception 'Zone map must belong to the same project' using errcode='42501';
  end if;
@@ -24,11 +42,19 @@ begin
   if not exists(select 1 from public.site_map_zones p where p.id=new.parent_id and p.map_id=new.map_id and p.project_id=new.project_id) then
    raise exception 'A parent area must be on the same site plan' using errcode='42501';
   end if;
-  if exists(with recursive up(id,parent_id) as (
-     select z.id,z.parent_id from public.site_map_zones z where z.id=new.parent_id
-     union all select z.id,z.parent_id from public.site_map_zones z join up on z.id=up.parent_id)
-    select 1 from up where up.id=new.id) then
+  with recursive up(id,parent_id,depth) as (
+   select z.id,z.parent_id,1 from public.site_map_zones z where z.id=new.parent_id
+   union all select z.id,z.parent_id,up.depth+1 from public.site_map_zones z join up on z.id=up.parent_id where up.depth<=20)
+  select max(depth),coalesce(bool_or(id=new.id),false) into v_ancestors,v_loop from up;
+  if v_loop then
    raise exception 'An area cannot be placed inside itself' using errcode='22023';
+  end if;
+  with recursive down(id,height) as (
+   select new.id,1
+   union all select z.id,down.height+1 from public.site_map_zones z join down on z.parent_id=down.id where down.height<=20)
+  select max(height) into v_height from down;
+  if v_ancestors+v_height>20 then
+   raise exception 'Areas can be nested at most 20 levels deep' using errcode='22023';
   end if;
  end if;
  if tg_op='UPDATE' and new.map_id<>old.map_id and exists(select 1 from public.site_map_zones c where c.parent_id=new.id) then
@@ -61,9 +87,9 @@ revoke all on function public.site_map_zone_is_live(uuid) from public,anon;
 grant execute on function public.site_map_zone_is_live(uuid) to authenticated;
 
 -- ---------------------------------------------------------------------------
--- Field operations: as in 019, except a count resolves its area first, stores
--- the area's full path as the location, and must name an area when the project
--- has active areas on an active plan.
+-- Field operations: as in 019, except a count refuses retired plans, resolves
+-- its area first, stores the area's full path as the location, and must name an
+-- area when the project has active areas on an active plan.
 -- ---------------------------------------------------------------------------
 create or replace function public.apply_field_operation(p_operation_id uuid,p_project_id uuid,p_action text,p_payload jsonb)
 returns jsonb language plpgsql security definer set search_path=public,pg_temp as $$
@@ -166,12 +192,14 @@ begin
   v_map_id:=nullif(p_payload->>'siteMapId','')::uuid;
   if v_map_id is not null and not exists(select 1 from public.site_maps m where m.id=v_map_id and m.project_id=p_project_id) then
    raise exception 'Site map is unavailable in this project' using errcode='42501'; end if;
+  if v_map_id is not null and not exists(select 1 from public.site_maps m where m.id=v_map_id and m.is_active) then
+   raise exception 'This site plan is no longer in use' using errcode='22023'; end if;
   -- An area names the location; it also identifies the plan when none was sent.
   v_zone_id:=nullif(p_payload->>'zoneId','')::uuid;
   if v_zone_id is not null then
    select z.map_id into v_zone_map from public.site_map_zones z where z.id=v_zone_id and z.project_id=p_project_id and (v_map_id is null or z.map_id=v_map_id);
    if not found then raise exception 'Zone is unavailable on this map' using errcode='42501'; end if;
-   if not public.site_map_zone_is_live(v_zone_id) then
+   if not public.site_map_zone_is_live(v_zone_id) or not exists(select 1 from public.site_maps m where m.id=v_zone_map and m.is_active) then
     raise exception 'This area is no longer in use; choose another' using errcode='22023'; end if;
    v_map_id:=coalesce(v_map_id,v_zone_map);
    v_zone_name:=public.site_map_zone_path(v_zone_id);

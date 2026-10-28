@@ -205,4 +205,40 @@ assert sql(f"""SELECT count(*)=1 AND bool_and(
  (procurement->>'total_pos')::integer=3 AND (procurement->>'total_po_value')::numeric=105
  AND (procurement->>'total_shipments')::integer=3 AND (procurement->>'delivered_shipments')::integer=2)
  FROM public.dashboard_metrics WHERE project_id='{first_project}'""") == 't'
+
+# Area-tree edits on a plan take turns, so crossing moves cannot make a loop
+# and an area cannot change plans while a sub-area is being added to it.
+plan_one, plan_two = '5c111111-1111-4111-8111-111111111111', '5c222222-2222-4222-8222-222222222222'
+north, south = '2c111111-1111-4111-8111-111111111111', '2c222222-2222-4222-8222-222222222222'
+east, west = '2c333333-3333-4333-8333-333333333333', '2c444444-4444-4444-8444-444444444444'
+sql(f"""
+INSERT INTO public.site_maps(id,project_id,name) VALUES
+ ('{plan_one}','{first_project}','Race plan one'),('{plan_two}','{first_project}','Race plan two');
+INSERT INTO public.site_map_zones(id,map_id,project_id,name,shape) VALUES
+ ('{north}','{plan_one}','{first_project}','North','[[0,0],[1,0],[1,1]]'),
+ ('{south}','{plan_one}','{first_project}','South','[[0,0],[1,0],[1,1]]'),
+ ('{east}','{plan_one}','{first_project}','East','[[0,0],[1,0],[1,1]]'),
+ ('{west}','{plan_one}','{first_project}','West','[[0,0],[1,0],[1,1]]');
+""")
+overlap(
+    'crossing area moves cannot make a loop',
+    f"UPDATE public.site_map_zones SET parent_id='{south}' WHERE id='{north}';",
+    f"UPDATE public.site_map_zones SET parent_id='{north}' WHERE id='{south}';",
+    '22023',
+)
+assert sql(f"SELECT parent_id IS NULL FROM public.site_map_zones WHERE id='{south}'") == 't'
+overlap(
+    'a sub-area cannot be added to an area that is moving to another plan',
+    f"UPDATE public.site_map_zones SET map_id='{plan_two}' WHERE id='{east}';",
+    f"INSERT INTO public.site_map_zones(map_id,project_id,parent_id,name,shape) VALUES('{plan_one}','{first_project}','{east}','East child','[[0,0],[1,0],[1,1]]');",
+    '42501',
+)
+overlap(
+    'an area cannot move to another plan while a sub-area is added to it',
+    f"INSERT INTO public.site_map_zones(map_id,project_id,parent_id,name,shape) VALUES('{plan_one}','{first_project}','{west}','West child','[[0,0],[1,0],[1,1]]');",
+    f"UPDATE public.site_map_zones SET map_id='{plan_two}' WHERE id='{west}';",
+    '22023',
+)
+assert sql(f"""SELECT count(*) FROM public.site_map_zones c JOIN public.site_map_zones p ON p.id=c.parent_id
+ WHERE c.map_id<>p.map_id""") == '0'
 PY
