@@ -20,17 +20,29 @@ create unique index site_map_zones_sibling_name on public.site_map_zones
 
 -- Parents sit on the same plan, the tree never loops, nesting stops at 20
 -- levels, and an area with sub-areas cannot move to another plan on its own.
--- Tree edits on a plan take turns (an advisory lock per plan), so each check
--- sees any other writer's committed change instead of racing it.
+-- Adding or moving areas on a plan takes turns (an advisory lock per plan) and
+-- must run at READ COMMITTED, so each check sees any other writer's committed
+-- change instead of racing it. Renames, colours and retirements don't change
+-- the tree's shape, so they skip the lock.
 create or replace function public.site_map_zone_guard() returns trigger
 language plpgsql set search_path=public,pg_temp as $$
-declare v_ancestors integer; v_loop boolean; v_height integer;
+declare v_shape boolean; v_ancestors integer; v_loop boolean; v_height integer;
 begin
- if tg_op='UPDATE' and new.map_id<>old.map_id then
-  perform pg_advisory_xact_lock(hashtextextended('site_map_zones:'||least(old.map_id,new.map_id)::text,0));
-  perform pg_advisory_xact_lock(hashtextextended('site_map_zones:'||greatest(old.map_id,new.map_id)::text,0));
+ if tg_op='INSERT' then
+  v_shape:=true;
  else
-  perform pg_advisory_xact_lock(hashtextextended('site_map_zones:'||new.map_id::text,0));
+  v_shape:=new.parent_id is distinct from old.parent_id or new.map_id<>old.map_id;
+ end if;
+ if v_shape then
+  if current_setting('transaction_isolation')<>'read committed' then
+   raise exception 'Add or move areas at READ COMMITTED so simultaneous edits are checked' using errcode='0A000';
+  end if;
+  if tg_op='UPDATE' and new.map_id<>old.map_id then
+   perform pg_advisory_xact_lock(hashtextextended('site_map_zones:'||least(old.map_id,new.map_id)::text,0));
+   perform pg_advisory_xact_lock(hashtextextended('site_map_zones:'||greatest(old.map_id,new.map_id)::text,0));
+  else
+   perform pg_advisory_xact_lock(hashtextextended('site_map_zones:'||new.map_id::text,0));
+  end if;
  end if;
  if not exists(select 1 from public.site_maps m where m.id=new.map_id and m.project_id=new.project_id) then
   raise exception 'Zone map must belong to the same project' using errcode='42501';

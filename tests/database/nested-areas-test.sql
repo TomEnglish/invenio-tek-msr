@@ -178,4 +178,14 @@ BEGIN
   WHERE id='2b444444-4444-4444-8444-444444444444'
  $query$),'22023','Moving an area with sub-areas cannot push them past twenty levels');
 END $$;
+
+-- Once every area is retired, a count needs no location again.
+UPDATE public.site_map_zones SET is_active=false WHERE project_id='b1111111-1111-4111-8111-111111111111';
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','f1111111-1111-4111-8111-111111111111',true);
+INSERT INTO results VALUES('all_retired',public.apply_field_operation(
+ '30000000-0000-4000-8000-000000000006','b1111111-1111-4111-8111-111111111111','count',pg_temp.count_payload('NA-12')));
+SELECT pg_temp.assert_true((SELECT zone_id IS NULL AND location IS NULL FROM public.inventory_records WHERE qr_code='NA-12'),
+ 'With every area retired, a count needs no location');
+RESET ROLE;
 ROLLBACK;

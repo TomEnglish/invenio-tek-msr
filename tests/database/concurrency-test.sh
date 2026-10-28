@@ -241,4 +241,15 @@ overlap(
 )
 assert sql(f"""SELECT count(*) FROM public.site_map_zones c JOIN public.site_map_zones p ON p.id=c.parent_id
  WHERE c.map_id<>p.map_id""") == '0'
+
+# The plan lock only helps a writer that re-reads after waiting, which only
+# READ COMMITTED does, so adding or moving areas is refused at other levels.
+try:
+    sql(f"BEGIN ISOLATION LEVEL REPEATABLE READ; UPDATE public.site_map_zones SET parent_id='{west}' WHERE id='{south}'; COMMIT;")
+    raise AssertionError('a REPEATABLE READ area move was accepted')
+except subprocess.CalledProcessError as error:
+    assert 'READ COMMITTED' in error.stderr, error.stderr
+assert sql(f"SELECT parent_id IS NULL FROM public.site_map_zones WHERE id='{south}'") == 't'
+assert sql(f"BEGIN ISOLATION LEVEL REPEATABLE READ; UPDATE public.site_map_zones SET name='South yard' WHERE id='{south}'; COMMIT; SELECT name FROM public.site_map_zones WHERE id='{south}';") == 'South yard'
+print('Concurrency passed: areas are added or moved only at READ COMMITTED; renames work at any level', flush=True)
 PY
