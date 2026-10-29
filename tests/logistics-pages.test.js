@@ -5,7 +5,7 @@ const { isProjectScopedTable } = require('../js/utils/project-scope');
 
 const sidebar = fs.readFileSync('js/utils/sidebar.js', 'utf8');
 const pages = {
-    'places.html': { script: 'places.js', title: 'Places', ids: ['addPlace', 'filterKind', 'filterSearch', 'showActive', 'showRetired', 'placeRows', 'placesMap', 'placeDrawer'], leaflet: true },
+    'places.html': { script: 'places.js', title: 'Places', ids: ['addPlace', 'filterKind', 'filterSearch', 'showActive', 'showRetired', 'placeRows', 'placesMap', 'placeDrawer', 'placeStatus'], leaflet: true },
     'handling-units.html': { script: 'handling-units.js', title: 'Crates', ids: ['printLabels', 'filterStatus', 'filterSearch', 'unitRows', 'unitDrawer', 'labelDialog'] },
 };
 
@@ -32,9 +32,10 @@ test('Places and Crates use the shared shell, load their helpers first, and are 
     assert.ok(fs.existsSync('shop-contacts.html'), 'the old page itself is left alone');
 });
 
-test('the QR library is an exact cdnjs version with an integrity hash', () => {
-    const html = fs.readFileSync('handling-units.html', 'utf8');
-    assert.match(html, /<script src="https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/qrcode-generator\/1\.4\.4\/qrcode\.min\.js" integrity="sha512-[A-Za-z0-9+/]{86}==" crossorigin="anonymous" referrerpolicy="no-referrer"><\/script>/);
+test('the QR library is an exact cdnjs version with its published integrity hash', () => {
+    // The hash cdnjs publishes for qrcode-generator 1.4.4's qrcode.min.js; a different file won't load.
+    const pinned = '<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" integrity="sha512-ZDSPMa/JM1D+7kdg2x3BsruQ6T/JpJo3jWDWkCZsP+5yVyp1KfESqLI+7RqB5k24F7p2cV7i2YHh/890y6P6Sw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>';
+    assert.ok(fs.readFileSync('handling-units.html', 'utf8').includes(pinned));
 });
 
 test('page scripts never parse strings as HTML and give Leaflet only text nodes', () => {

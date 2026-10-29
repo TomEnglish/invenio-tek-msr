@@ -31,7 +31,7 @@
     const statusChip = unit => { const status = logistics.UNIT_STATUS[unit.status] || { label: unit.status, chip: 'chip-muted' }; return el('span', status.label, `chip ${status.chip}`); };
     const kindText = unit => logistics.UNIT_KINDS[unit.kind] || unit.kind;
 
-    let units = [], byId = new Map(), filtered = [], shown = PAGE_SIZE, openRequest = 0, lastBatch = null, printing = false;
+    let units = [], byId = new Map(), filtered = [], shown = PAGE_SIZE, lastBatch = null, printing = false;
 
     async function load() {
         units = await fetchAll('handling_unit_overview', COLUMNS);
@@ -69,15 +69,15 @@
         if (!filtered.length) {
             const row = el('tr'), cell = el('td', units.length ? 'No crates match these filters.'
                 : office ? 'No crates yet. Print labels; each becomes a crate when a field crew packs it.' : 'No crates yet.', 'text-muted');
-            cell.colSpan = 7; row.append(cell); body.append(row);
+            cell.colSpan = 6; row.append(cell); body.append(row);
         }
         for (const unit of filtered.slice(0, shown)) {
-            const row = el('tr'), code = el('td'), status = el('td'), action = el('td');
-            code.append(el('div', unit.code, 'mono'), el('div', kindText(unit), 'small text-muted'));
+            const row = el('tr'), code = el('td'), status = el('td');
+            // The code opens the crate, so a phone needn't scroll the table sideways to reach a button.
+            code.append(button(unit.code, 'btn btn-link p-0 mono row-open', () => openUnit(unit.id)), el('div', kindText(unit), 'small text-muted'));
             if (unit.is_high_value) code.append(el('span', 'High value', 'chip chip-danger'));
             status.append(statusChip(unit));
-            action.append(button('View', 'btn btn-sm btn-outline', () => openUnit(unit.id), `View ${unit.code}`));
-            row.append(code, el('td', unit.description || ''), status, whereCell(unit), el('td', logistics.contentsText(unit), 'small'), el('td', dateText(unit.sealed_at)), action);
+            row.append(code, el('td', unit.description || ''), status, whereCell(unit), el('td', logistics.contentsText(unit), 'small'), el('td', dateText(unit.sealed_at)));
             body.append(row);
         }
         $('tableFooter').hidden = filtered.length <= shown;
@@ -89,7 +89,6 @@
     function openUnit(id) {
         const unit = byId.get(id);
         if (!unit) return;
-        const request = ++openRequest;
         const content = $('unitContent'); content.replaceChildren();
         const header = el('div', '', 'work-page-header'), title = el('h2', unit.code, 'mono');
         title.id = 'unitTitle'; title.tabIndex = -1;
@@ -136,18 +135,17 @@
         }
         content.append(nested);
         if (drawer.open) title.focus(); else { drawer.showModal(); close.focus(); }
-        if (unit.item_count) void loadItems(unit, request, itemBody);
+        if (unit.item_count) void loadItems(unit, itemBody);
     }
 
-    async function loadItems(unit, request, container) {
+    // Each opening builds a new container, so items that arrive after another crate was opened land nowhere.
+    async function loadItems(unit, container) {
         let rows;
         try { rows = await fetchAll('handling_unit_items', 'id,tag,name,quantity,uom,packed_at', query => query.eq('unit_id', unit.id)); }
         catch (error) {
-            if (request === openRequest) container.replaceChildren(el('p', `Items could not be loaded (${logistics.errorMessage(error)}). Close and reopen to retry.`, 'text-danger mb-0'));
+            container.replaceChildren(el('p', `Items could not be loaded (${logistics.errorMessage(error)}). Close and reopen to retry.`, 'text-danger mb-0'));
             return;
         }
-        // Another crate may have been opened while these loaded.
-        if (request !== openRequest) return;
         if (!rows.length) { container.replaceChildren(el('p', 'No items packed.', 'text-muted mb-0')); return; }
         rows.sort((a, b) => a.tag.localeCompare(b.tag, undefined, { numeric: true }));
         const table = el('table', '', 'table table-sm'), head = el('tr'), body = el('tbody');
@@ -165,7 +163,12 @@
 
     // ---- Crate labels -----------------------------------------------------------------------
     const labelDialog = $('labelDialog');
+    // While codes are being reserved the dialog stays open: Chrome closes it on a second Escape regardless, so it reopens.
     labelDialog.addEventListener('cancel', event => { if (printing) event.preventDefault(); });
+    labelDialog.addEventListener('close', () => {
+        if (printing) { labelDialog.showModal(); return; }
+        window.InvenioUnsavedChanges = false;
+    });
     function openLabels() {
         const content = $('labelContent'); content.replaceChildren();
         const header = el('div', '', 'work-page-header'), title = el('h2', 'Print crate labels'); title.id = 'labelTitle';
@@ -198,31 +201,37 @@
         printWindow.document.title = 'Preparing crate labels';
         printWindow.document.body.textContent = 'Reserving labels…';
         printing = true; submit.disabled = true; status.textContent = 'Reserving labels…';
+        const report = text => { status.textContent = text; message(text); };
         try {
             const { data, error } = await supabaseClient.rpc('reserve_handling_unit_labels', { p_project_id: projectId, p_count: parsed.count });
             if (error) throw error;
             lastBatch = data.map(row => row.code);
-            const range = lastBatch.length === 1 ? lastBatch[0] : `${lastBatch[0]} to ${lastBatch.at(-1)}`;
-            if (printWindow.closed) {
-                status.textContent = `Reserved ${lastBatch.length} labels (${range}), but the print window was closed. Close this and choose Print crate labels to print them again.`;
-            } else {
-                writeLabels(printWindow, lastBatch);
-                status.textContent = `Reserved ${lastBatch.length} ${lastBatch.length === 1 ? 'label' : 'labels'} (${range}). They become crates when a field crew packs them.`;
-            }
-            message(status.textContent);
         } catch (error) {
             if (!printWindow.closed) printWindow.close();
-            status.textContent = `Could not reserve labels: ${logistics.errorMessage(error)}. Nothing was printed.`;
+            report(`Could not reserve labels: ${logistics.errorMessage(error)}. Nothing was printed.`);
+            return;
         } finally {
             printing = false; submit.disabled = false;
         }
+        // The codes are reserved now, whatever happens to the print sheet; the last batch can always be printed again.
+        const reserved = `Reserved ${lastBatch.length} ${lastBatch.length === 1 ? 'label' : 'labels'} (${lastBatch.length === 1 ? lastBatch[0] : `${lastBatch[0]} to ${lastBatch.at(-1)}`})`;
+        const again = 'Close this and choose Print crate labels, then Print the last labels again.';
+        if (printWindow.closed) { report(`${reserved}, but the print window was closed. ${again}`); return; }
+        try { writeLabels(printWindow, lastBatch); }
+        catch (error) {
+            if (!printWindow.closed) printWindow.close();
+            report(`${reserved}, but the label sheet could not be drawn (${logistics.errorMessage(error)}). ${again}`);
+            return;
+        }
+        report(`${reserved}. They become crates when a field crew packs them.`);
     }
 
     function reprint(status) {
         const printWindow = window.open('', '_blank');
         if (!printWindow) { status.textContent = 'Allow pop-ups for this site, then try again.'; return; }
         printWindow.opener = null;
-        writeLabels(printWindow, lastBatch);
+        try { writeLabels(printWindow, lastBatch); }
+        catch (error) { printWindow.close(); status.textContent = `The label sheet could not be drawn (${logistics.errorMessage(error)}).`; return; }
         status.textContent = `Opened ${lastBatch.length} ${lastBatch.length === 1 ? 'label' : 'labels'} to print again. No new codes were reserved.`;
     }
 

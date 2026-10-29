@@ -95,7 +95,7 @@ async function openPage({ role = 'admin', projectStatus = 'active' } = {}) {
     const $ = id => document.getElementById(id);
     const drawer = $('unitDrawer'), content = $('unitContent'), labels = $('labelContent');
     const codes = () => $('unitRows').querySelectorAll('tr').map(row => row.querySelector('.mono')?.textContent ?? row.textContent);
-    const view = async code => { $('unitRows').querySelectorAll('button').find(node => node.getAttribute('aria-label') === `View ${code}`).click(); await settle(); };
+    const view = async code => { $('unitRows').querySelectorAll('button').find(node => node.textContent === code).click(); await settle(); };
     const open = async code => { content.querySelectorAll('button').find(node => node.getAttribute('aria-label') === `Open ${code}`).click(); await settle(); };
     const fields = () => Object.fromEntries(content.querySelector('dl').childNodes.map(pair => [pair.childNodes[0].textContent, pair.childNodes[1].textContent]));
     // The fake DOM has no descendant selectors: the items table is the drawer's only tbody.
@@ -257,6 +257,7 @@ test('a blocked pop-up reserves nothing; a refusal closes the window and says wh
     await page.print('3');
     assert.equal(page.opened[0].closed, true);
     assert.equal(page.labelStatus(), 'Could not reserve labels: Office access to an active project is required. Nothing was printed.');
+    assert.equal(page.$('pageMessage').textContent, page.labelStatus(), 'also on the page, in case the dialog was closed');
     assert.equal(page.labels.querySelectorAll('button').find(node => node.textContent === 'Reserve and print').disabled, false);
 });
 
@@ -267,7 +268,9 @@ test('a second request while codes are being reserved reserves nothing more', as
     const first = page.print('4', { wait: false });
     await page.print('4');
     assert.equal(page.labelStatus(), 'Still preparing the last labels. Try again in a moment.');
-    assert.equal(page.$('labelDialog').dispatch('cancel').defaultPrevented, true, 'Escape does not close it mid-reservation');
+    page.$('labelDialog').escape();
+    page.$('labelDialog').escape({ activated: false });
+    assert.equal(page.$('labelDialog').open, true, 'Escape, even a forced one, leaves it open mid-reservation');
     page.server.step(); await first; await settle();
     assert.equal(page.server.rpcs().length, 1);
     assert.equal(page.opened.length, 1);
@@ -280,4 +283,34 @@ test('without the QR library nothing is reserved', async () => {
     await page.print('6');
     assert.equal(page.labelStatus(), 'The QR code library did not load. Check the connection and reload the page. No labels were reserved.');
     assert.equal(page.opened.length + page.server.rpcs().length, 0);
+});
+
+test('a print window closed while codes were reserved, or a sheet that fails to draw, still says the codes are reserved', async () => {
+    const page = await openPage();
+    page.$('printLabels').click();
+    page.server.paused = true;
+    const done = page.print('2', { wait: false });
+    await settle();
+    page.opened[0].closed = true;
+    page.server.step(); await done; await settle();
+    assert.equal(page.opened[0].printed, 0);
+    assert.equal(page.labelStatus(), 'Reserved 2 labels (HU-T00001 to HU-T00002), but the print window was closed. Close this and choose Print crate labels, then Print the last labels again.');
+    page.server.paused = false;
+    page.context.qrcode = () => { throw new Error('QR data too long'); };
+    await page.print('1');
+    assert.equal(page.opened[1].closed, true, 'the half-drawn window is closed');
+    assert.equal(page.labelStatus(), 'Reserved 1 label (HU-T00003), but the label sheet could not be drawn (QR data too long). Close this and choose Print crate labels, then Print the last labels again.');
+    assert.equal(page.$('pageMessage').textContent, page.labelStatus());
+    page.$('labelDialog').close();
+    page.$('printLabels').click();
+    assert.ok(page.labels.querySelectorAll('button').some(node => node.textContent === 'Print the last label again'));
+});
+
+test('typing a label count does not leave the page marked as having unsaved work', async () => {
+    const page = await openPage();
+    page.$('printLabels').click();
+    page.context.InvenioUnsavedChanges = true; // what the shared shell sets when a form inside the page gets input
+    await page.print('1');
+    page.$('labelDialog').close();
+    assert.equal(page.context.InvenioUnsavedChanges, false);
 });

@@ -57,7 +57,7 @@ class FakeElement {
     querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
     addEventListener(type, listener) { (this.listeners[type] ||= []).push(listener); }
     dispatch(type, extra = {}) {
-        const event = { type, target: this, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, ...extra };
+        const event = { type, target: this, cancelable: true, defaultPrevented: false, preventDefault() { if (this.cancelable) this.defaultPrevented = true; }, ...extra };
         for (let node = this; node; node = node.parentNode) (node.listeners[type] || []).forEach(listener => listener(event));
         return event;
     }
@@ -66,6 +66,12 @@ class FakeElement {
     // Dialogs: showModal refuses an open dialog, as browsers do; close fires "close".
     showModal() { if (this.open) throw new Error('InvalidStateError: the dialog is already open'); this.open = true; }
     close() { if (!this.open) return; this.open = false; this.dispatch('close'); }
+    // Escape on an open dialog, as Chrome does it: "cancel" can only be refused after a fresh user action, so a
+    // repeated Escape (activated: false) closes the dialog whatever the page does.
+    escape({ activated = true } = {}) {
+        const event = this.dispatch('cancel', { cancelable: activated });
+        if (!event.defaultPrevented) this.close();
+    }
     get children() { return this.childNodes; }
     scrollIntoView() {}
 }

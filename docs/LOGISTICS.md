@@ -13,6 +13,10 @@ Phase 1 of logistics. Migration `supabase/migrations/021_places_and_handling_uni
   - The circle shows the arrival radius: 25 to 20,000 metres, 300 if left blank.
   - A point needs both coordinates or neither. Coordinates are rounded to the 6 decimal places the database keeps.
   - The maps use the same OpenStreetMap tiles as GPS Tracking.
+- **Two people editing one place.** An edit saves only if nobody has changed the place since the form opened (the update is matched on `updated_at`). Otherwise the form says so and keeps what was typed.
+- **Escape and unsaved changes.** Escape asks before discarding changes.
+  - Chrome lets a page refuse Escape only once per user action, so the drawer may close anyway. When it does, the page asks again and reopens the drawer with the changes if you keep them.
+  - While a save is running, the drawer stays open.
 - **Retiring and naming.** Nothing is deleted; a retired place is listed under **Retired** and can be restored.
   - Names are unique among active places, ignoring case. Restoring a place whose name an active place now uses is refused with that reason.
 - **Shop Contacts.** Places replaces Shop Contacts in the sidebar. The old page and its data are untouched, and Outside Shops is unchanged.

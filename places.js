@@ -10,9 +10,13 @@
     const workable = InvenioProjectScope.availableProjects.filter(project => project.status === 'active');
     const canChange = place => office && (!place.project_id || workable.some(project => project.id === place.project_id));
     const projectName = id => InvenioProjectScope.availableProjects.find(project => project.id === id)?.name || 'Another project';
+    const lockedReason = place => InvenioProjectScope.availableProjects.some(project => project.id === place.project_id)
+        ? `This place belongs to ${projectName(place.project_id)}, which is not an active project, so it can't be changed.`
+        : 'This place belongs to a project you are not assigned to, so only staff on that project can change it.';
     const lock = { busy: false };
     const STILL_SAVING = 'Still saving the last change. Try again in a moment.';
     const NOT_SAVED = 'Nothing was changed. This place may belong to a project you are not assigned to; reload the page and try again.';
+    const CHANGED = 'This place was changed after you opened the form. Cancel to see the latest version, then make your changes again.';
     const KIND_COLOURS = { yard: '#174fda', site: '#059669', outside_shop: '#d97706', vendor: '#7c3aed', other: '#64748b' };
     const HOME = [[SITE_CONFIG.LATITUDE, SITE_CONFIG.LONGITUDE], 9];
     const message = text => { $('pageMessage').textContent = text; };
@@ -71,19 +75,19 @@
             const pool = places.some(place => (place.is_active === false) === retired);
             const row = el('tr'), cell = el('td', pool ? 'No places match these filters.' : retired ? 'No retired places.'
                 : office ? 'No places yet. Add your yards and sites, outside shops and vendors.' : 'No places yet.', 'text-muted');
-            cell.colSpan = 6; row.append(cell); body.append(row);
+            cell.colSpan = 5; row.append(cell); body.append(row);
         }
         for (const place of filtered) {
-            const row = el('tr'), name = el('td'), kind = el('td'), contact = el('td'), action = el('td');
-            name.append(el('div', place.name, 'fw-semibold'));
+            const row = el('tr'), name = el('td'), kind = el('td'), contact = el('td');
+            // The name opens the place, so a phone needn't scroll the table sideways to reach a button.
+            name.append(button(place.name, 'btn btn-link p-0 text-start fw-semibold row-open', () => openPlace(place.id)));
             if (place.project_id) name.append(el('div', projectName(place.project_id), 'small text-muted'));
             kind.append(kindChip(place));
             if (place.contact_name) contact.append(el('div', place.contact_name));
             if (place.contact_phone) contact.append(el('div', place.contact_phone, 'small text-muted'));
-            action.append(button('View', 'btn btn-sm btn-outline', () => openPlace(place.id), `View ${place.name}`));
             const point = logistics.hasPoint(place);
             row.append(name, kind, el('td', logistics.placeAddress(place), 'small'),
-                el('td', point ? `${place.geofence_radius_m.toLocaleString()} m` : 'No map point', point ? 'num' : 'small text-muted'), contact, action);
+                el('td', point ? `${place.geofence_radius_m.toLocaleString()} m` : 'No map point', point ? 'num' : 'small text-muted'), contact);
             body.append(row);
         }
     }
@@ -107,14 +111,29 @@
     }
 
     // ---- Drawer: a place's details, or the form to add or edit one ------------------------------
-    const drawer = $('placeDrawer');
-    drawer.addEventListener('cancel', event => { event.preventDefault(); closeDrawer(); });
-    drawer.addEventListener('close', () => { form?.map?.remove(); form = null; });
+    const drawer = $('placeDrawer'), drawerStatus = $('placeStatus');
+    // shown counts what the drawer has displayed, so a late result doesn't replace something opened since.
+    let closing = false, shown = 0;
+    // Escape asks first. Chrome lets a page refuse Escape only once per user action, so a second Escape closes the
+    // drawer regardless; the close handler then reopens it while a save runs, or if the user keeps their changes.
+    drawer.addEventListener('cancel', event => { if (event.cancelable) { event.preventDefault(); closeDrawer(); } });
+    drawer.addEventListener('close', () => {
+        if (!closing && (lock.busy || (form?.dirty && !confirm('Discard changes to this place?')))) {
+            drawer.showModal();
+            if (lock.busy) drawerStatus.textContent = STILL_SAVING;
+            return;
+        }
+        closing = false;
+        form?.map?.remove(); form = null; window.InvenioUnsavedChanges = false;
+    });
+    function shut() {
+        if (!drawer.open) return;
+        closing = true; drawer.close();
+    }
     function closeDrawer() {
-        if (lock.busy) return;
+        if (lock.busy) { drawerStatus.textContent = STILL_SAVING; return; }
         if (form?.dirty && !confirm('Discard changes to this place?')) return;
-        window.InvenioUnsavedChanges = false;
-        drawer.close();
+        shut();
     }
     function drawerHeader(text) {
         const header = el('div', '', 'work-page-header'), title = el('h2', text);
@@ -127,8 +146,9 @@
     /** Shows a place read-only, with Edit and Retire or Restore for office staff who may change it. */
     function openPlace(id, { focus = 'close', note = '' } = {}) {
         const place = places.find(item => item.id === id);
-        if (!place) { if (drawer.open) drawer.close(); return; }
-        form?.map?.remove(); form = null;
+        if (!place) { shut(); return; }
+        shown++;
+        form?.map?.remove(); form = null; window.InvenioUnsavedChanges = false;
         const content = $('placeContent'); content.replaceChildren();
         const badges = el('p', '', 'd-flex flex-wrap gap-2 align-items-center');
         badges.append(kindChip(place));
@@ -159,22 +179,22 @@
         }
         if (point) {
             actions.append(button('Show on map', 'btn btn-outline', () => {
-                drawer.close(); listMap.setView([Number(place.latitude), Number(place.longitude)], 15); $('placesMap').scrollIntoView?.({ block: 'center' });
+                shut(); listMap.setView([Number(place.latitude), Number(place.longitude)], 15); $('placesMap').scrollIntoView?.({ block: 'center' });
             }));
         }
         content.append(actions);
-        if (office && !canChange(place)) content.append(el('p', 'This place belongs to a project you are not assigned to, so only staff on that project can change it.', 'small text-muted mt-2'));
-        const status = el('p', note, 'small mt-2'); status.setAttribute('role', 'status'); status.id = 'placeStatus';
-        content.append(status);
+        if (office && !canChange(place)) content.append(el('p', lockedReason(place), 'small text-muted mt-2'));
         if (!drawer.open) drawer.showModal();
+        // The status line stays in the drawer between views, so screen readers announce what changes in it.
+        drawerStatus.textContent = note;
         (content.querySelector(`[data-focus-key="${focus}"]`) || content.querySelector('[data-focus-key="close"]')).focus();
     }
 
     async function setActive(place, active) {
-        const status = $('placeStatus');
-        if (lock.busy) { status.textContent = STILL_SAVING; return; }
+        if (lock.busy) { drawerStatus.textContent = STILL_SAVING; return; }
         if (!active && !confirm(`Retire ${place.name}? It stays on record and can be restored, but it is no longer offered for new crates and loads.`)) return;
-        status.textContent = active ? 'Restoring…' : 'Retiring…';
+        drawerStatus.textContent = active ? 'Restoring…' : 'Retiring…';
+        const view = shown;
         const result = await inv.writeThenReload(lock, [async () => {
             const { data, error } = await supabaseClient.from('places').update({ is_active: active }).eq('id', place.id).select('id');
             if (error) throw error;
@@ -186,13 +206,14 @@
             : active ? `${place.name} is active again.` : `${place.name} is retired. Choose Retired above the list to find it again.`;
         const stale = result.reloadError ? ` The list could not refresh (${logistics.errorMessage(result.reloadError)}). Reload the page.` : '';
         message(text + stale);
-        if (!drawer.open) return;
+        if (!drawer.open || shown !== view) return;
         // Focus goes to whichever of Retire or Restore the place now shows.
         const nowActive = result.error ? !active : active;
         openPlace(place.id, { focus: nowActive ? 'retire' : 'restore', note: text + stale });
     }
 
     function openForm(place) {
+        shown++;
         form?.map?.remove();
         const state = form = { place, dirty: false, map: null, marker: null, circle: null };
         const markDirty = () => { state.dirty = true; window.InvenioUnsavedChanges = true; };
@@ -229,8 +250,9 @@
         latitude.inputMode = longitude.inputMode = 'decimal';
         latitude.value = place && logistics.hasPoint(place) ? Number(place.latitude).toFixed(6) : '';
         longitude.value = place && logistics.hasPoint(place) ? Number(place.longitude).toFixed(6) : '';
+        // Text, not type="number": a number field turns "1500m" into "" and that would quietly save the 300 m default.
         const radius = add('geofence_radius_m', 'Arrival radius (metres)', el('input', '', 'form-control'), where);
-        Object.assign(radius, { type: 'number', min: logistics.RADIUS.min, max: logistics.RADIUS.max, step: 1, value: String(place?.geofence_radius_m ?? logistics.RADIUS.standard) });
+        Object.assign(radius, { type: 'text', inputMode: 'numeric', autocomplete: 'off', maxLength: 6, value: String(place?.geofence_radius_m ?? logistics.RADIUS.standard) });
         const clear = button('Clear point', 'btn btn-sm btn-ghost', () => { latitude.value = longitude.value = ''; markDirty(); syncPoint(); });
         const clearWrap = el('div', '', 'mb-3 d-flex align-items-end'); clearWrap.append(clear); where.append(clearWrap);
         where.append(el('p', `A tracker inside this circle counts as arrived. ${logistics.RADIUS.min} to ${logistics.RADIUS.max.toLocaleString()} metres; ${logistics.RADIUS.standard} if left blank.`, 'small text-muted span-2'));
@@ -250,10 +272,10 @@
             if (lock.busy) { status.textContent = STILL_SAVING; return; }
             if (state.dirty && !confirm('Discard changes to this place?')) return;
             window.InvenioUnsavedChanges = false;
-            if (place) openPlace(place.id, { focus: 'edit' }); else drawer.close();
+            if (place) openPlace(place.id, { focus: 'edit' }); else shut();
         }));
-        const status = el('p', '', 'small mt-2'); status.setAttribute('role', 'status');
-        node.append(actions, status);
+        const status = drawerStatus; status.textContent = '';
+        node.append(actions);
         node.oninput = markDirty;
         content.append(drawerHeader(place ? `Edit ${place.name}` : 'Add place'), node);
 
@@ -278,7 +300,9 @@
             state.circle.setRadius(typedRadius());
         }
         function setPoint(latLng) {
-            latitude.value = latLng.lat.toFixed(6); longitude.value = latLng.lng.toFixed(6);
+            // After panning round the world Leaflet reports longitudes past ±180; bring them back.
+            const point = latLng.wrap?.() || latLng;
+            latitude.value = point.lat.toFixed(6); longitude.value = point.lng.toFixed(6);
             markDirty(); syncPoint();
         }
         latitude.oninput = longitude.oninput = radius.oninput = syncPoint;
@@ -292,23 +316,23 @@
             let savedId = place?.id;
             save.disabled = true; status.textContent = 'Saving…';
             // Saved or refused, the list is reloaded: a refusal often means it was out of date.
+            // An edit only lands on the version the form was opened from, so two people can't overwrite each other.
             const outcome = await inv.writeThenReload(lock, [async () => {
-                const request = place ? supabaseClient.from('places').update(values).eq('id', place.id) : supabaseClient.from('places').insert(values);
+                const request = place ? supabaseClient.from('places').update(values).eq('id', place.id).eq('updated_at', place.updated_at) : supabaseClient.from('places').insert(values);
                 const { data, error } = await request.select('id');
                 if (error) throw error;
-                // Row security hides a place this account may not change, so an update that matched nothing was refused.
+                // Nothing matched: row security hid the place, or it changed after the form opened.
                 if (!data?.length) throw new Error(NOT_SAVED);
                 savedId = data[0].id;
             }], load);
-            if (form !== state) return;
+            const changed = outcome.error?.message === NOT_SAVED && place && places.find(item => item.id === place.id)?.updated_at !== place.updated_at;
+            const reason = outcome.error && (changed ? CHANGED : logistics.errorMessage(outcome.error, `Another active place is already called "${values.name}". Choose a different name.`));
+            if (form !== state) { message(reason ? `Could not save ${values.name}: ${reason}` : `Saved ${values.name}.`); return; }
             save.disabled = false;
-            if (outcome.error) {
-                status.textContent = `Could not save: ${logistics.errorMessage(outcome.error, `Another active place is already called "${values.name}". Choose a different name.`)}`;
-                return;
-            }
+            if (reason) { status.textContent = `Could not save: ${reason}`; return; }
             state.dirty = false; window.InvenioUnsavedChanges = false;
             if (outcome.reloadError) {
-                drawer.close();
+                shut();
                 message(`Saved ${values.name}, but the list could not refresh (${logistics.errorMessage(outcome.reloadError)}). Reload the page.`);
                 return;
             }

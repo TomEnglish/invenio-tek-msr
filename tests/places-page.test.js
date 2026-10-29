@@ -31,7 +31,7 @@ const PLACES = [
  * Set `paused` to hold every request until step() lets the oldest one through.
  */
 function fakeServer(rows, { role }) {
-    const server = { places: structuredClone(rows), log: [], paused: false, waiting: [], fail: null, assigned: [PROJECT_ID], inserted: 0 };
+    const server = { places: structuredClone(rows), log: [], paused: false, waiting: [], fail: null, assigned: [PROJECT_ID], inserted: 0, edits: 0 };
     const office = ['office_staff', 'admin'].includes(role);
     const reachable = row => office && (!row.project_id || server.assigned.includes(row.project_id));
     const clash = row => row.is_active !== false && server.places.some(other => other.id !== row.id && other.is_active !== false && other.name.toLowerCase() === row.name.toLowerCase());
@@ -54,7 +54,7 @@ function fakeServer(rows, { role }) {
         if (request.op === 'update') {
             const allowed = matching.filter(reachable);
             if (allowed.some(row => clash({ ...row, ...request.values }))) return { data: null, error: duplicate };
-            allowed.forEach(row => Object.assign(row, structuredClone(request.values), { updated_at: '2026-10-29T09:00:00Z' }));
+            allowed.forEach(row => Object.assign(row, structuredClone(request.values), { updated_at: new Date(Date.UTC(2026, 9, 29, 9, 0, ++server.edits)).toISOString() }));
             return { data: allowed.map(row => ({ id: row.id })), error: null };
         }
         return { data: matching.slice(request.from, request.to + 1).map(row => structuredClone(row)), error: null };
@@ -127,12 +127,12 @@ async function openPage({ role = 'admin', rows = PLACES } = {}) {
     const $ = id => document.getElementById(id);
     const drawer = $('placeDrawer'), content = $('placeContent');
     const names = () => $('placeRows').querySelectorAll('tr').map(row => row.querySelector('.fw-semibold')?.textContent ?? row.textContent);
-    const view = async name => { $('placeRows').querySelectorAll('button').find(node => node.getAttribute('aria-label') === `View ${name}`).click(); await settle(); };
+    const view = async name => { $('placeRows').querySelectorAll('button').find(node => node.textContent === name).click(); await settle(); };
     const action = text => content.querySelectorAll('button').find(node => node.textContent === text);
     const input = key => content.querySelector(`[id="place_${key}"]`);
     const fill = values => { for (const [key, value] of Object.entries(values)) { input(key).value = value; input(key).onchange?.(); input(key).oninput?.(); } };
     const submit = async () => { await content.querySelector('form').onsubmit({ preventDefault() {} }); await settle(); };
-    const status = () => content.querySelector('[role="status"]').textContent;
+    const status = () => $('placeStatus').textContent;
     const listMap = leaflet.maps[0], formMap = () => leaflet.maps.at(-1);
     const fields = () => Object.fromEntries(content.querySelector('dl').childNodes.map(pair => [pair.childNodes[0].textContent, pair.childNodes[1].textContent]));
     return { server, document, context, $, drawer, content, names, view, action, input, fill, submit, status, leaflet, listMap, formMap, confirms, fields };
@@ -252,7 +252,7 @@ test('half a point, a bad radius or no name is caught before anything is sent; c
     assert.deepEqual([page.input('latitude').value, page.input('longitude').value], ['', '']);
     await page.submit();
     const [write] = page.server.writes();
-    assert.deepEqual([write.op, write.filters, write.values.latitude, write.values.longitude, write.values.geofence_radius_m], ['update', [['id', 's1']], null, null, 250]);
+    assert.deepEqual([write.op, write.filters, write.values.latitude, write.values.longitude, write.values.geofence_radius_m], ['update', [['id', 's1'], ['updated_at', '2026-10-28T12:00:00Z']], null, null, 250]);
     assert.equal(page.fields()['Map point'], 'Not set');
 });
 
@@ -325,8 +325,12 @@ test('while a save runs, another save, Cancel or closing says so; the lock holds
     assert.equal(page.status(), 'Still saving the last change. Try again in a moment.');
     page.action('Cancel').click();
     assert.equal(page.status(), 'Still saving the last change. Try again in a moment.');
-    page.drawer.dispatch('cancel');
+    page.drawer.escape();
     assert.equal(page.drawer.open, true, 'Escape does not close it mid-save');
+    page.drawer.escape({ activated: false });
+    assert.equal(page.drawer.open, true, "a second Escape, which Chrome won't let a page refuse, reopens it");
+    assert.equal(page.status(), 'Still saving the last change. Try again in a moment.');
+    assert.ok(page.content.querySelector('form'), 'with the form as it was');
     page.server.step(); await settle();
     assert.equal(page.server.waiting.length, 1, 'the reload is now waiting');
     page.content.querySelector('form').onsubmit({ preventDefault() {} });
@@ -336,16 +340,89 @@ test('while a save runs, another save, Cancel or closing says so; the lock holds
     assert.equal(page.status(), 'Saved Gulf Valve Supply.');
 });
 
-test('closing with unsaved changes asks first', async () => {
+test('closing with unsaved changes asks once per Escape, and a forced close keeps the edits unless the user lets them go', async () => {
     const page = await openPage();
-    page.$('addPlace').click(); await settle();
-    page.content.querySelector('form').oninput();
+    await page.view('Gulf Valve Supply');
+    page.action('Edit').click(); await settle();
+    page.fill({ city: 'Deer Park' }); page.content.querySelector('form').oninput();
     page.context.confirmAnswer = false;
-    page.drawer.dispatch('cancel');
-    assert.equal(page.drawer.open, true);
-    assert.equal(page.confirms.at(-1), 'Discard changes to this place?');
+    page.drawer.escape();
+    assert.deepEqual([page.drawer.open, page.confirms.length], [true, 1], 'one question, and No keeps the drawer');
+    assert.equal(page.confirms[0], 'Discard changes to this place?');
+    page.drawer.escape({ activated: false });
+    assert.deepEqual([page.drawer.open, page.confirms.length], [true, 2], 'a forced close asks again and reopens');
+    assert.equal(page.input('city').value, 'Deer Park', 'the edits are still there');
+    assert.equal(page.context.InvenioUnsavedChanges, true);
     page.context.confirmAnswer = true;
     page.content.querySelectorAll('button').find(node => node.textContent === 'Close').click();
     assert.equal(page.drawer.open, false);
     assert.equal(page.formMap().removed, true);
+    assert.equal(page.context.InvenioUnsavedChanges, false);
+    assert.equal(page.server.writes().length, 0);
+});
+
+test('a radius that is not a whole number is refused, never saved as the default', async () => {
+    const page = await openPage();
+    await page.view('North Yard laydown');
+    page.action('Edit').click(); await settle();
+    assert.equal(page.input('geofence_radius_m').type, 'text', 'a number field would turn "1500m" into ""');
+    page.fill({ geofence_radius_m: '1500m' });
+    await page.submit();
+    assert.equal(page.status(), 'Arrival radius must be a whole number of metres from 25 to 20,000.');
+    assert.equal(page.server.writes().length, 0);
+    assert.equal(page.server.place('North Yard laydown').geofence_radius_m, 400);
+});
+
+test("an edit doesn't overwrite a change someone else saved after the form opened", async () => {
+    const page = await openPage();
+    await page.view('Fixture Machine Works');
+    page.action('Edit').click(); await settle();
+    Object.assign(page.server.place('Fixture Machine Works'), { contact_name: 'Riley Shah', updated_at: '2026-10-29T08:30:00Z' });
+    page.fill({ city: 'Pasadena' });
+    await page.submit();
+    assert.deepEqual(plain(page.server.writes()[0].filters), [['id', 's1'], ['updated_at', '2026-10-28T12:00:00Z']]);
+    assert.equal(page.status(), 'Could not save: This place was changed after you opened the form. Cancel to see the latest version, then make your changes again.');
+    assert.deepEqual([page.server.place('Fixture Machine Works').contact_name, page.server.place('Fixture Machine Works').city], ['Riley Shah', 'Houston']);
+    page.action('Cancel').click(); await settle();
+    page.action('Edit').click(); await settle();
+    assert.equal(page.input('contact_name').value, 'Riley Shah', 'reopening shows their version');
+    page.fill({ city: 'Pasadena' });
+    await page.submit();
+    assert.equal(page.status(), 'Saved Fixture Machine Works.');
+    assert.equal(page.server.place('Fixture Machine Works').city, 'Pasadena');
+});
+
+test('retire and restore report an update that row security swallows', async () => {
+    const page = await openPage();
+    await page.view('North Yard laydown');
+    page.server.assigned = [];
+    page.action('Retire').click(); await settle();
+    assert.equal(page.status(), 'Could not retire North Yard laydown: Nothing was changed. This place may belong to a project you are not assigned to; reload the page and try again.');
+    assert.equal(page.server.place('North Yard laydown').is_active, true);
+});
+
+test('a retire that finishes after Edit was opened leaves the form alone', async () => {
+    const page = await openPage();
+    await page.view('Gulf Valve Supply');
+    page.server.paused = true;
+    page.action('Retire').click(); await settle();
+    page.action('Edit').click(); await settle();
+    page.fill({ city: 'Deer Park' });
+    page.server.step(); await settle();
+    page.server.paused = false; page.server.step(); await settle();
+    assert.equal(page.server.place('Gulf Valve Supply').is_active, false);
+    assert.equal(page.content.querySelector('h2').textContent, 'Edit Gulf Valve Supply', 'the form is still showing');
+    assert.equal(page.input('city').value, 'Deer Park');
+    assert.equal(page.$('pageMessage').textContent, 'Gulf Valve Supply is retired. Choose Retired above the list to find it again.');
+});
+
+test('a place tied to a closed project says so, and a map click past the antimeridian is wrapped', async () => {
+    const page = await openPage({ rows: [...PLACES, place('c1', 'Closed laydown', 'yard', { project_id: 'p2' })] });
+    await page.view('Closed laydown');
+    assert.equal(page.action('Edit'), undefined);
+    assert.match(page.content.textContent, /This place belongs to Closed Yard, which is not an active project, so it can't be changed\./);
+    page.drawer.close();
+    page.$('addPlace').click(); await settle();
+    page.formMap().fire('click', { latlng: { lat: 29.5, lng: -455.25, wrap: () => ({ lat: 29.5, lng: -95.25 }) } });
+    assert.deepEqual([page.input('latitude').value, page.input('longitude').value], ['29.500000', '-95.250000']);
 });
