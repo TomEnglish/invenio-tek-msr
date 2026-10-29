@@ -38,6 +38,39 @@
         ],
         inventory_photos: [{ id:'p1', project_id:project.id, inventory_uid:'a1000000-0000-4000-8000-000000000000', storage_path:'a1000000-0000-4000-8000-000000000000/op-1.jpg', created_at:'2026-10-26T15:00:00Z' }],
     };
+    // Places and crates (021). Made-up fixture rows: a markup-named shop, a retired yard, and a yard tied to a
+    // project this user is not assigned to (read-only for them). Crates nest three deep under HU-AAAA11.
+    const place = (n, name, kind, extra = {}) => ({ id:`f${n}000000-0000-4000-8000-000000000000`, kind, name, project_id:null, address:null, city:null, state:null, postal_code:null,
+        latitude:null, longitude:null, geofence_radius_m:300, contact_name:null, contact_phone:null, contact_email:null, secondary_contact_name:null, secondary_contact_phone:null,
+        notes:null, is_active:true, created_at:'2026-10-28T12:00:00Z', updated_at:'2026-10-28T12:00:00Z', ...extra });
+    state.inventory.places ||= [
+        place(1,'North Yard laydown','yard',{project_id:project.id,address:'1200 Fixture Rd',city:'Freeport',state:'TX',postal_code:'77541',latitude:28.954213,longitude:-95.359671,geofence_radius_m:400,contact_name:'Gate office',contact_phone:'555-0100'}),
+        place(2,'Coastal Terminal site','site',{city:'Freeport',state:'TX',latitude:28.931,longitude:-95.312,geofence_radius_m:1500}),
+        place(3,'Fixture Machine Works','outside_shop',{address:'48 Example Ave',city:'Houston',state:'TX',postal_code:'77002',latitude:29.7521,longitude:-95.3612,geofence_radius_m:250,contact_name:'Sam Rivera',contact_phone:'555-0142',contact_email:'sam@shop.example.test',secondary_contact_name:'Lee Chen',secondary_contact_phone:'555-0143',notes:'Loading dock on the north side.'}),
+        place(4,'Gulf Valve Supply','vendor',{city:'Pasadena',state:'TX',contact_name:'Orders desk',contact_email:'orders@valves.example.test'}),
+        place(5,'<img src=x onerror=alert(1)> Fab Shop','outside_shop',{city:'Baytown',state:'TX',latitude:29.7355,longitude:-94.9774,notes:'"><script>alert(2)</script>'}),
+        place(6,'Old Pipe Yard','yard',{is_active:false,city:'Angleton',state:'TX',latitude:29.169,longitude:-95.431}),
+        place(7,'West Yard gate','yard',{project_id:'b3333333-3333-4333-8333-333333333333',city:'Sweeny',state:'TX',latitude:29.04,longitude:-95.698}),
+    ];
+    const unit = (code, extra = {}) => ({ id:`h${code.slice(3,7)}000-0000-4000-8000-000000000000`, project_id:project.id, code, kind:'crate', description:null, is_high_value:false, status:'open',
+        parent_id:null, parent_code:null, place_id:null, place_name:null, site_map_id:null, zone_id:null, location:null, item_count:0, unit_count:0, sealed_at:null,
+        created_at:'2026-10-28T14:00:00Z', updated_at:'2026-10-28T14:00:00Z', ...extra });
+    const top = { top_unit_id:'hAAAA000-0000-4000-8000-000000000000', top_code:'HU-AAAA11', place_id:'f1000000-0000-4000-8000-000000000000', place_name:'North Yard laydown', site_map_id:mapId, zone_id:'z1b11111-1111-4111-8111-111111111111', location:'T1 Pipe Racks › Rack 2' };
+    state.inventory.handling_unit_overview ||= [
+        unit('HU-AAAA11',{...top,description:'Lube oil spares',status:'sealed',item_count:2,unit_count:1,sealed_at:'2026-10-28T16:00:00Z'}),
+        unit('HU-BBBB22',{...top,kind:'basket',description:'Small parts',parent_id:'hAAAA000-0000-4000-8000-000000000000',parent_code:'HU-AAAA11',item_count:1,unit_count:1}),
+        unit('HU-CCCC33',{...top,description:'Filters',parent_id:'hBBBB000-0000-4000-8000-000000000000',parent_code:'HU-BBBB22',item_count:1}),
+        unit('HU-DDDD44',{kind:'skid',description:'Turbine instruments',is_high_value:true,status:'on_load',item_count:1,top_unit_id:'hDDDD000-0000-4000-8000-000000000000',top_code:'HU-DDDD44',place_name:'North Yard laydown',sealed_at:'2026-10-27T10:00:00Z'}),
+        unit('HU-EEEE55',{kind:'container',description:'Cable drums',status:'delivered',top_unit_id:'hEEEE000-0000-4000-8000-000000000000',top_code:'HU-EEEE55',place_name:'Coastal Terminal site',sealed_at:'2026-10-25T10:00:00Z'}),
+        unit('HU-FFFF66',{status:'unpacked',top_unit_id:'hFFFF000-0000-4000-8000-000000000000',top_code:'HU-FFFF66',place_name:'North Yard laydown',location:'Warehouse'}),
+        unit('HU-GGGG77',{description:'<img src=x onerror=alert(1)> crate',item_count:1,top_unit_id:'hGGGG000-0000-4000-8000-000000000000',top_code:'HU-GGGG77'}),
+        unit('HU-ZZZZ99',{project_id:other.id,description:'South Yard crate (another project)',top_unit_id:'hZZZZ000-0000-4000-8000-000000000000',top_code:'HU-ZZZZ99'}),
+    ];
+    const packed = (n, code, tag, name, quantity, uom = 'EA') => ({ id:`i${n}000000-0000-4000-8000-000000000000`, project_id:project.id, unit_id:`h${code.slice(3,7)}000-0000-4000-8000-000000000000`, unit_code:code, tag, name, quantity, uom, packed_at:'2026-10-28T15:00:00Z' });
+    state.inventory.handling_unit_items ||= [
+        packed(1,'HU-AAAA11','GT2-LO-001','Lube oil cooler',1), packed(2,'HU-AAAA11','EL-CD-100','Cable drum 240 m',3), packed(3,'HU-BBBB22','GT2-LO-003','Lube oil pump',1),
+        packed(4,'HU-CCCC33','GT2-FS-011','Fuel filter set',4), packed(5,'HU-DDDD44','QR-TEST','Steel Pipe',8), packed(6,'HU-GGGG77','X-<i>1</i>','<img src=x onerror=alert(1)>',1.5,'M'),
+    ];
     const svg = body => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(body)}`;
     const planImage = svg('<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000"><rect width="1600" height="1000" fill="#f4f1e8"/><rect x="0" y="560" width="1600" height="90" fill="#c9c3b3"/><rect x="900" y="100" width="560" height="380" fill="#ddd6c4" stroke="#8a8370" stroke-width="6"/><g fill="none" stroke="#8a8370" stroke-width="3">' + Array.from({length:8},(_,i)=>`<rect x="${100+i*60}" y="120" width="40" height="300"/>`).join('') + '</g><text x="60" y="980" font-size="40" fill="#5a5444" font-family="sans-serif">North Yard (fixture plan)</text></svg>');
     const photoImage = svg('<svg xmlns="http://www.w3.org/2000/svg" width="480" height="320"><rect width="480" height="320" fill="#cfd8e3"/><circle cx="240" cy="160" r="90" fill="#7d8ea3"/><text x="20" y="300" font-size="24" font-family="sans-serif">Fixture photo</text></svg>');
@@ -75,23 +108,27 @@
         inventory() {
             const table = state.inventory[this.table];
             // Sibling names are unique, ignoring case: categories among non-archived rows, map areas among active ones (020).
-            const live = row => this.table==='site_map_zones' ? row.is_active!==false : row.status!=='archived';
-            const clash = row => ['inventory_categories','site_map_zones'].includes(this.table) && live(row) && table.some(c=>c.id!==row.id && live(c) && (c.map_id||null)===(row.map_id||null) && (c.parent_id||null)===(row.parent_id||null) && c.name.toLowerCase()===row.name.toLowerCase());
-            const defaults = { inventory_categories:{status:'active'}, site_map_zones:{parent_id:null,is_active:true} }[this.table] || {};
+            const live = row => ['site_map_zones','places'].includes(this.table) ? row.is_active!==false : row.status!=='archived';
+            const clash = row => ['inventory_categories','site_map_zones','places'].includes(this.table) && live(row) && table.some(c=>c.id!==row.id && live(c) && (c.map_id||null)===(row.map_id||null) && (c.parent_id||null)===(row.parent_id||null) && c.name.toLowerCase()===row.name.toLowerCase());
+            const defaults = { inventory_categories:{status:'active'}, site_map_zones:{parent_id:null,is_active:true}, places:{is_active:true,geofence_radius_m:300} }[this.table] || {};
+            // 021: only office staff write places, and only for places outside a project or in one of theirs.
+            if (this.table==='places' && this.write && me.role==='field_worker') return {data:null,error:{code:'42501',message:'new row violates row-level security policy for table "places"'}};
+            if (this.table==='places' && this.write) Object.assign(this.write.insert?.[0]||this.write.update, {updated_at:new Date().toISOString()});
             if (this.write?.insert) {
                 const added = this.write.insert.map(values => ({ id: crypto.randomUUID(), sort_order: 0, created_at: new Date().toISOString(), ...defaults, ...values }));
                 if (added.some(clash)) return {data:null,error:{code:'23505',message:'duplicate key value violates unique constraint'}};
                 table.push(...added); save();
                 return {data:this.one?added[0]:added,error:null};
             }
-            const rows = table.filter(r=>this.filters.every(f=>f(r)));
+            const mine = row => this.table!=='places' || !row.project_id || state.projects.some(p=>p.id===row.project_id);
+            const rows = table.filter(r=>this.filters.every(f=>f(r)) && (!this.write || mine(r)));
             if (this.write?.update) {
                 if (rows.some(row => clash({...row,...this.write.update}))) return {data:null,error:{code:'23505',message:'duplicate key value violates unique constraint'}};
                 // 020's guard: an area can't end up inside itself.
                 const above = id => { const ids = []; for (let node = table.find(r=>r.id===id); node && ids.length < 50; node = table.find(r=>r.id===node.parent_id)) ids.push(node.id); return ids; };
                 if (this.table==='site_map_zones' && this.write.update.parent_id && rows.some(row => above(this.write.update.parent_id).includes(row.id))) return {data:null,error:{code:'22023',message:'An area cannot be placed inside itself'}};
                 rows.forEach(row => Object.assign(row, this.write.update)); save();
-                return {data:null,error:null};
+                return {data:rows.map(row=>({...row})),error:null};
             }
             const page = rows.slice(this.start,this.end+1);
             return {data:this.one?page[0]||null:page,error:null};
@@ -108,6 +145,12 @@
             if(name==='apply_field_operation') {
                 if(payload.p_action==='exception') Object.assign(state.records[0],{exception_owner_id:payload.p_payload.ownerId,exception_due_date:payload.p_payload.dueDate,exception_notes:payload.p_payload.notes,exception_resolution:payload.p_payload.resolution,exception_resolved:payload.p_payload.resolution!=='hold'});
                 save();return success({id:state.records[0].id});
+            }
+            if(name==='reserve_handling_unit_labels') {
+                if(!['office_staff','admin'].includes(me.role)) return {data:null,error:{code:'42501',message:'Office access to an active project is required'}};
+                if(!Number.isInteger(payload.p_count)||payload.p_count<1||payload.p_count>500) return {data:null,error:{code:'22023',message:'Reserve between 1 and 500 labels at a time'}};
+                const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                return success(Array.from({length:payload.p_count},()=>({code:'HU-'+Array.from({length:6},()=>alphabet[Math.floor(Math.random()*32)]).join('')})));
             }
             if(name==='merge_inventory_category') {
                 const categories=state.inventory.inventory_categories, from=categories.find(c=>c.id===payload.p_from), into=categories.find(c=>c.id===payload.p_into);
