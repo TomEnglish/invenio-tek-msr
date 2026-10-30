@@ -11,7 +11,7 @@ This guide will migrate your main dashboard from static JSON files to live Supab
    - Or navigate to your project → SQL Editor (left sidebar)
 
 2. **Run the Schema SQL**
-   - Open the file: `supabase/po_shipment_schema.sql`
+   - Open the file: `supabase/archive/po_shipment_schema.sql`
    - Copy ALL the contents
    - Paste into Supabase SQL Editor
    - Click **"Run"** (or press Ctrl+Enter)

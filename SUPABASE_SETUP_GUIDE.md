@@ -62,7 +62,7 @@ This guide will walk you through setting up Supabase as the backend for your Mat
 ### 3.2 Run the Schema Script
 
 1. Click **"+ New query"**
-2. Open the file `supabase/schema.sql` from your project folder
+2. Open the file `supabase/archive/schema.sql` from your project folder
 3. **Copy the entire contents** of the file
 4. **Paste** into the SQL Editor
 5. Click **"Run"** (or press `Ctrl+Enter`)
@@ -306,7 +306,7 @@ You'll need to add login UI. See Supabase docs: https://supabase.com/docs/guides
 
 **Fix:**
 1. Go to SQL Editor
-2. Copy and paste entire contents of `supabase/schema.sql`
+2. Copy and paste entire contents of `supabase/archive/schema.sql`
 3. Run it
 4. Refresh Material Tracking page
 

@@ -17,13 +17,6 @@ jobs:
         with:
           path: msr
           persist-credentials: false
-      - name: Check out the shared database baseline
-        uses: actions/checkout@v4
-        with:
-          repository: TomEnglish/invenio-field-platform
-          ref: a3515a24a4c976b6afb6b17aadb95b71da17d9dd
-          path: field-baseline
-          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -55,8 +48,6 @@ jobs:
           echo /usr/lib/postgresql/16/bin >> "$GITHUB_PATH"
       - name: Permissions, operations, imports, and actual concurrent transactions
         working-directory: msr
-        env:
-          FIELD_REPO_PATH: ${{ github.workspace }}/field-baseline
         run: bash tests/database/run.sh
       - name: Publish only checked browser assets
         working-directory: msr

@@ -18,7 +18,7 @@ Confirm the destination project and ownership of each tracker before configuring
 
 ## Reproducing quality checks
 
-MSR: `node --test tests/*.test.js`, the Deno commands in `.github/workflows/quality.yml`, `python -m unittest discover -s tests -p '*_test.py'` after installing `requirements-import.txt`, and `bash tests/database/run.sh` with PostgreSQL binaries on PATH. CI checks out the immutable Field baseline `a3515a24a4c976b6afb6b17aadb95b71da17d9dd` for migrations 001–011. Set `FIELD_REPO_PATH` to another baseline explicitly when testing a planned shared-schema change; update the pinned CI reference in that release.
+MSR: `node --test tests/*.test.js`, the Deno commands in `.github/workflows/quality.yml`, `python -m unittest discover -s tests -p '*_test.py'` after installing `requirements-import.txt`, and `bash tests/database/run.sh` with PostgreSQL binaries on PATH. The harness applies every file in `supabase/migrations` in filename order; all migrations for the shared database, 001 onward, live in this repository. `scripts/schema-fingerprint.sh` compares a fresh build with a live database (see `supabase/README.md`).
 
 The build generates `release.json` containing only the commit and public asset hashes. `node scripts/smoke-deploy.mjs <site-origin> <full-commit-sha> [attempts]` checks identity, contents and exclusions. Production smoke runs after main-branch quality checks, waiting up to 90 attempts for Netlify. Re-run a failed job after a transient deployment failure; restoring an older release deliberately fails the expected-commit check.
 

@@ -46,7 +46,7 @@ Current web equivalents:
 - `dashboard.js`
 - `project-schedule.html`
 - `project-schedule.js`
-- `supabase/po_shipment_schema.sql`
+- `supabase/archive/po_shipment_schema.sql`
 - `sync_po_shipment_data.py`
 
 Required content:
@@ -91,8 +91,8 @@ Current web equivalents:
 
 - `inventory.html`
 - `outside-shop-inventory.html`
-- `supabase/inventory_schema.sql`
-- `supabase/seed_inventory_data.sql`
+- `supabase/archive/inventory_schema.sql`
+- `supabase/seed/seed_inventory_data.sql`
 
 Required content:
 
@@ -130,8 +130,8 @@ Current web equivalents:
 
 - `outside-shop-inventory.html`
 - `outside-shop-inventory.js`
-- `supabase/inventory_schema.sql`
-- `supabase/seed_inventory_data.sql`
+- `supabase/archive/inventory_schema.sql`
+- `supabase/seed/seed_inventory_data.sql`
 
 Required content:
 
@@ -167,7 +167,7 @@ Power BI source: `OutsideShops.pbix`
 Current web equivalents:
 
 - `outside-shop-inventory.html`
-- `shop_contacts` table via `supabase/inventory_schema.sql`
+- `shop_contacts` table via `supabase/archive/inventory_schema.sql`
 
 Required content:
 
