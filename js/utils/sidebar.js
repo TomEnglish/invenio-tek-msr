@@ -133,6 +133,11 @@
     }
 
     function injectShell() {
+        const savedTheme = getInitialTheme();
+        if (savedTheme === 'dark' || savedTheme === 'light') {
+            applyTheme(savedTheme);
+        }
+
         const body = document.body;
         const existingContent = body.innerHTML;
 

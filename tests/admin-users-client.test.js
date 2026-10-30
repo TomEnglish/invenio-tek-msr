@@ -22,6 +22,7 @@ const client = createAdminUsersClient({
 
 await client.listUsers({ page: 2, pageSize: 25, search: 'field user' });
 await client.listProjects();
+await client.listProjects();
 await client.inviteUser({
   email: 'user@example.com',
   fullName: 'Field User',
@@ -29,6 +30,8 @@ await client.inviteUser({
   projectIds: [],
 });
 await client.updateUser({ userId: 'user-id', isActive: false });
+
+assert.equal(requests.filter((request) => request.url.includes('resource=projects')).length, 1);
 
 assert.deepEqual(requests, [
   {

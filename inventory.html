@@ -285,23 +285,19 @@
 
         let allRecords = [];
         let checkedItems = new Set();
+        let inventoryLoading = false;
 
         // ── Bootstrap ───────────────────────────────────────────
-        document.addEventListener('DOMContentLoaded', () => {
-            // Wait for supabase-client to be ready
-            if (typeof getSupabase === 'function') {
-                loadInventory();
-            } else {
-                window.addEventListener('supabase:ready', loadInventory);
-                // Fallback: poll briefly in case event already fired
-                setTimeout(() => { if (allRecords.length === 0) loadInventory(); }, 1500);
-            }
+        document.addEventListener('DOMContentLoaded', async () => {
             bindFilterEvents();
+            if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
+            await loadInventory();
         });
 
         // ── Data Loading ────────────────────────────────────────
         async function loadInventory() {
-    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
+            if (inventoryLoading) return;
+            inventoryLoading = true;
             try {
                 const { data, error } = await projectSupabaseClient
                     .from('inventory_records')
@@ -317,6 +313,8 @@
                 document.getElementById('inventoryTableBody').innerHTML =
                     '<tr><td colspan="6" class="text-center py-5 text-danger">' +
                     '<i class="fas fa-exclamation-triangle me-2"></i>Failed to load inventory data.</td></tr>';
+            } finally {
+                inventoryLoading = false;
             }
         }
 
@@ -430,9 +428,15 @@
             const tbody = document.getElementById('inventoryTableBody');
 
             if (records.length === 0) {
+                const message = inventoryLoading
+                    ? 'Loading inventory...'
+                    : (allRecords.length === 0
+                        ? 'No inventory records found.'
+                        : 'No inventory records match the current filters.');
+                const icon = inventoryLoading ? 'fa-spinner fa-spin' : 'fa-inbox';
                 tbody.innerHTML =
                     '<tr><td colspan="6" class="text-center py-5" style="color:var(--text-muted);">' +
-                    '<i class="fas fa-inbox me-2"></i>No inventory records match the current filters.</td></tr>';
+                    `<i class="fas ${icon} me-2"></i>${message}</td></tr>`;
                 return;
             }
 

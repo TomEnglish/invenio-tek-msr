@@ -1237,6 +1237,43 @@ canvas { background: transparent !important; }
 .dashboard-heading h1 { font-size:1.75rem; margin:0; }
 .eyebrow { color:var(--text-muted); font-size:.75rem; letter-spacing:.06em; text-transform:uppercase; margin:0 0 .25rem; }
 .dashboard-tools { display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; }
+#realtime-indicator { min-width: 8.5rem; text-align: center; }
+#export-pdf-btn { white-space: nowrap; }
+
+/* Bootstrap input groups — match portal surfaces in dark mode */
+[data-theme="dark"] .input-group-text {
+    background: var(--raised);
+    border-color: var(--border);
+    color: var(--text-muted);
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .input-group-text {
+        background: var(--raised);
+        border-color: var(--border);
+        color: var(--text-muted);
+    }
+}
+
+.gps-filter-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1rem;
+}
+.gps-filter-toolbar .gps-filter-search { flex: 1 1 220px; min-width: 0; }
+.gps-filter-toolbar .gps-filter-status,
+.gps-filter-toolbar .gps-filter-linked { flex: 0 1 180px; min-width: 140px; }
+.gps-filter-toolbar .gps-filter-check { flex: 0 1 auto; }
+.gps-filter-toolbar .gps-filter-actions {
+    flex: 0 0 auto;
+    margin-left: auto;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+}
+@media (max-width: 768px) {
+    .gps-filter-toolbar .gps-filter-actions { margin-left: 0; width: 100%; justify-content: flex-end; }
+}
 .source-details { margin-top:.5rem; font-size:.8125rem; }
 .source-details summary { cursor:pointer; color:var(--primary); width:fit-content; }
 .source-warning { border-left:3px solid var(--warn); padding-left:.75rem; }
