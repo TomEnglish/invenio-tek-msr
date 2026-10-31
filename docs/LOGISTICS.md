@@ -87,12 +87,16 @@ Run `python3 tests/browser/serve.py`, then open `http://127.0.0.1:8092/places.ht
   - "Mark loaded and depart" (office) is `load_depart` with `confirmAll`. It is offered only when the truck leaves an outside shop or vendor; elsewhere a crew scans pieces on.
   - "Depart with what's on board" sends the truck off with what was scanned on; the rest stays behind.
   - **The licence comes first.** 022 lets a truck leave only with the licence number and a photo of it. Without them the Status section says so.
-    - For a crew, "Depart with what's on board" is disabled, and the button points to that note.
+    - For a crew, "Depart with what's on board" is disabled, and the button points to that note. Crews can't read the licence, so the page goes by `load_overview.licence_complete`.
     - Office staff choosing either depart action get a form, "Let it leave without the licence", which needs a reason of 5 to 500 characters. It is sent as `overrideReason`, and the drawer then shows when and why the truck left without it.
-  - "Cancel load" (office) calls `load_close` with `cancel`. "Close load" (office) is offered once every stop is finished and nothing is missing.
+  - "Cancel load" (office) calls `load_close` with `cancel`. "Close load" (office) is offered once every stop is finished and nothing is missing. The licence's removal date counts from the close, so the page names it once the load is closed, from `load_overview.licence_due_at`.
 - **Driver's licence (office staff only).** Field staff never read it, and the page doesn't ask for it for them.
   - The number, state and expiry are saved with `record_driver_licence`, with a new operation ID each time. The page repeats the last four characters only when 022 sends them, which it does only for numbers longer than six letters and digits.
-  - Office staff on a project that isn't active can read the licence, but not change it, as 022's calls require. Once a load closed more than 90 days ago, the form isn't offered.
+  - Office staff on a project that isn't active can read the licence, but not change it, as 022's calls require. Once the load is past its removal date (`licence_due_at`), the form isn't offered.
+  - **Removal date and keeping (023).** The section gives the date the licence is due for removal, from `load_overview.licence_due_at`; the page never counts the days itself.
+    - Office staff can **Keep** it past that date with a reason (`keep_driver_licence`), for example while a tracker the driver kept is recovered. The section then shows the reason and when it was kept.
+    - **Release** (`release_driver_licence_hold`) asks first, saying when the licence will then be removed.
+    - While a licence is kept, **Remove the licence** isn't offered, as 023 refuses it.
   - Photos are shown through 5-minute signed links.
   - A new photo is uploaded to `driver-licences/<load id>/<new id>.jpg` (or `.png`) without upsert, then attached, both under the save lock. A photo is offered only while the load's folder holds fewer than four files.
   - The page lists the load's folder, so a photo that uploaded but was never attached (here or from a phone) is offered for attaching, even after the drawer was closed.
@@ -101,7 +105,14 @@ Run `python3 tests/browser/serve.py`, then open `http://127.0.0.1:8092/places.ht
 - **Printed manifest.** It opens during the click, as the crate labels do, with one page section per stop: tag, piece and high-value mark.
   - It shows the load, driver name and phone, truck, trailer, bill of lading and companies, plus signature lines for the shipper, driver and receiver.
   - The print code is never given the licence, nor the reason a truck left without it.
-- **Removing old licences.** A daily job (`.github/workflows/purge-driver-licences.yml`) removes each licence 90 days after its load closes, or after the load's last change if it never closes. The page is a backup for it.
+- **The licence warning (office staff).** A banner on the board reads "Driver licences due for removal in the next 30 days", from `driver_licences_due_soon(30)`. It is read after the housekeeping below, so it lists only what is still on file.
+  - It covers every project the user can see, earliest first. Overdue licences that are being kept are included.
+  - It says how many will be removed and when the first is due, and how many are being kept. **Show the list** opens one row per load:
+    - a load in the open project is a link that opens it here; another project's load is named with its project;
+    - the date it is due;
+    - **Keep**, which asks for a reason; or, for a kept one, the reason and **Release**.
+  - A failed check says so in the banner, and it is read again after every change on the page.
+- **Removing old licences.** A daily job (`.github/workflows/purge-driver-licences.yml`) removes each licence on its removal date: 365 days after its load closes, or after the load's last change if it never closes (migration 023). A licence the office is keeping stays. The page is a backup for it.
   - When office staff open Loads (on any project), the page runs `driver_licences_due_for_removal()`, which covers every project they can see. For each due load it deletes every file 022 lists in the load's folder through Storage, then calls `remove_driver_licence`.
   - A small note says how many were removed and which couldn't be, naming a load from another project as such. The board is then read again, since removal clears "Licence on file".
   - It runs in the background and never blocks the board.
@@ -125,6 +136,7 @@ The fixture has made-up loads:
 - one in transit, with a licence and a photo;
 - one delivered, with a missing piece (to write off, close and undo);
 - one closed long enough ago that opening Loads removes its licence;
+- one whose licence is due for removal within 30 days, and one past its date that the office is keeping (the warning);
 - one cancelled;
 - one a crew started in the field.
 
@@ -213,7 +225,9 @@ Refusals: `22023` with a message that can be shown as is, `42501` for access, `2
 - **`record_driver_licence(operation_id, load_id, {number, state?, expiry?, capturedAt?})`**: every operation ID is remembered, so a retry is answered and never applied again. Field staff can record while the load is open; office staff at any time. A licence past its removal date can't be recorded. It answers `last4` (and logs it) only for numbers longer than six letters and digits, otherwise null.
 - **`attach_driver_licence_photo(load_id, path)`** after uploading to `driver-licences/<load id>/<name>.jpg`, `.jpeg` or `.png`, without upsert. Storage refuses other names, sub-folders and a fifth file in a load's folder.
 - **Office removal at any time.** Delete a wrong photo through Storage, then call `remove_driver_licence_photo(path, reason?)`. `remove_driver_licence(load_id, reason)` needs a reason (5+ characters) before the licence is due; delete the folder's files through Storage first. Removal clears `loads.licence_recorded_at`, and a licence can then be recorded again.
-- **Due for removal**: 90 days after the load closes or is cancelled, or 90 days after its last activity if it never closes. `driver_licences_due_for_removal()` lists due loads on the office user's projects with every file in each folder.
+- **Due for removal** (migration 023): 365 days after the load closes or is cancelled, or 365 days after its last activity if it never closes. `load_overview.licence_due_at` gives each load's date to anyone on the project. `driver_licences_due_for_removal()` lists due loads on the office user's projects with every file in each folder.
+- **Never without warning.** `driver_licences_due_soon(days?)` lists, for office staff, every licence due in the next 30 days (or the days asked), overdue kept ones included, with `kept`, `keep_reason` and `kept_at`. The Loads page shows it as the warning.
+- **Keeping a licence.** Office staff call `keep_driver_licence(load_id, reason)` (5 to 500 characters), for example while a tracker the driver kept is recovered, and `release_driver_licence_hold(load_id)` when it can go. A kept licence is never listed as due, purged by the daily job or removed by hand; releasing it lets it be removed at its date. Both are audited (`driver_licence_kept`, `driver_licence_hold_released`) and stay out of crews' activity.
 - **Daily job.** `.github/workflows/purge-driver-licences.yml` runs `scripts/purge-driver-licences.mjs` with the service role: `driver_licence_purge_queue()`, delete each folder's files, `purge_driver_licence(load_id)`. It needs the `SUPABASE_SERVICE_ROLE_KEY` repository secret.
 - **Projects** can't be completed or archived while any of their loads is open. The admin function passes the database's reason through (409 `REFUSED`).
 

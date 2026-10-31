@@ -554,21 +554,35 @@ RESET ROLE;
 SELECT pg_temp.expect_error($q$UPDATE public.projects SET status='completed' WHERE id='b1111111-1111-4111-8111-111111111111'$q$,
  '22023','A project closes its loads before it is completed');
 
--- The daily job removes licences that are due: 90 days after a load closes,
--- or after its last activity if it never closes. It deletes every file in
--- the load's folder first.
+-- The daily job removes licences that are due: 365 days after a load
+-- closes, or after its last activity if it never closes, after 30 days on
+-- the warning list, and never one the office is keeping. It deletes every
+-- file in the load's folder first.
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_user('01111111-1111-4111-8111-111111111111');
-SELECT pg_temp.assert_true((SELECT count(*)=0 FROM public.driver_licences_due_for_removal()),'Nothing is due yet');
+SELECT pg_temp.assert_true((SELECT count(*)=0 FROM public.driver_licences_due_for_removal())
+ AND (SELECT count(*)=0 FROM public.driver_licences_due_soon()),'Nothing is due yet, or due soon');
+SELECT pg_temp.assert_true((SELECT licence_due_at>now()+interval '364 days' FROM public.load_overview WHERE id='1d000000-0000-4000-8000-000000000001'),
+ 'A licence is kept 365 days after its load closes');
 SELECT public.record_driver_licence(gen_random_uuid(),'1d000000-0000-4000-8000-000000000002','{"number":"TX 2222 333"}');
 RESET ROLE;
-UPDATE public.loads SET closed_at=now()-interval '91 days' WHERE id='1d000000-0000-4000-8000-000000000001';
+UPDATE public.loads SET closed_at=now()-interval '340 days' WHERE id='1d000000-0000-4000-8000-000000000001';
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_user('01111111-1111-4111-8111-111111111111');
+SELECT pg_temp.assert_true((SELECT count(*)=0 FROM public.driver_licences_due_for_removal())
+ AND (SELECT count(*)=1 AND bool_and(NOT kept) FROM public.driver_licences_due_soon() WHERE load_id='1d000000-0000-4000-8000-000000000001'),
+ 'Within 30 days of its date a licence is on the warning list, not yet due');
+SELECT pg_temp.as_user('f1111111-1111-4111-8111-111111111111');
+SELECT pg_temp.assert_true((SELECT licence_due_at IS NOT NULL FROM public.load_overview WHERE id='1d000000-0000-4000-8000-000000000001')
+ AND (SELECT count(*)=0 FROM public.driver_licences_due_soon()),'Crews see the date, not the warning list');
+RESET ROLE;
+UPDATE public.loads SET closed_at=now()-interval '366 days' WHERE id='1d000000-0000-4000-8000-000000000001';
 ALTER TABLE public.loads DISABLE TRIGGER loads_updated_at;
 ALTER TABLE public.load_lines DISABLE TRIGGER load_lines_updated_at;
 ALTER TABLE public.load_stops DISABLE TRIGGER load_stops_updated_at;
-UPDATE public.loads SET updated_at=now()-interval '91 days' WHERE id='1d000000-0000-4000-8000-000000000002';
-UPDATE public.load_lines SET updated_at=now()-interval '91 days' WHERE load_id='1d000000-0000-4000-8000-000000000002';
-UPDATE public.load_stops SET updated_at=now()-interval '91 days' WHERE load_id='1d000000-0000-4000-8000-000000000002';
+UPDATE public.loads SET updated_at=now()-interval '366 days' WHERE id='1d000000-0000-4000-8000-000000000002';
+UPDATE public.load_lines SET updated_at=now()-interval '366 days' WHERE load_id='1d000000-0000-4000-8000-000000000002';
+UPDATE public.load_stops SET updated_at=now()-interval '366 days' WHERE load_id='1d000000-0000-4000-8000-000000000002';
 ALTER TABLE public.loads ENABLE TRIGGER loads_updated_at;
 ALTER TABLE public.load_lines ENABLE TRIGGER load_lines_updated_at;
 ALTER TABLE public.load_stops ENABLE TRIGGER load_stops_updated_at;
@@ -577,6 +591,26 @@ SELECT pg_temp.as_user('01111111-1111-4111-8111-111111111111');
 SELECT pg_temp.assert_true((SELECT array_length(storage_paths,1)=4 FROM public.driver_licences_due_for_removal()
  WHERE load_id='1d000000-0000-4000-8000-000000000001'),'The office sees what is due, with every file in its folder');
 SELECT pg_temp.expect_error($q$SELECT public.purge_driver_licence('1d000000-0000-4000-8000-000000000001')$q$,'42501','Only the server job purges');
+-- The office keeps L-0001's licence: a tracker hasn't come back.
+SELECT pg_temp.expect_error($q$SELECT public.keep_driver_licence('1d000000-0000-4000-8000-000000000001','no')$q$,'22023','Keeping a licence needs a reason');
+SELECT public.keep_driver_licence('1d000000-0000-4000-8000-000000000001','Tracker AT11-0042 not returned by the carrier');
+SELECT pg_temp.assert_true((SELECT count(*)=0 FROM public.driver_licences_due_for_removal() WHERE load_id='1d000000-0000-4000-8000-000000000001')
+ AND (SELECT kept AND keep_reason LIKE 'Tracker%' FROM public.driver_licences_due_soon() WHERE load_id='1d000000-0000-4000-8000-000000000001'),
+ 'A kept licence stays on the warning list as kept, and isn''t due for removal');
+SELECT pg_temp.expect_error($q$SELECT public.remove_driver_licence('1d000000-0000-4000-8000-000000000001','Driver gone')$q$,'22023','A kept licence isn''t removed by hand either');
+SELECT pg_temp.as_user('f1111111-1111-4111-8111-111111111111');
+SELECT pg_temp.expect_error($q$SELECT public.keep_driver_licence('1d000000-0000-4000-8000-000000000002','Crew wants it')$q$,'42501','Crews don''t keep licences');
+SELECT pg_temp.assert_true((SELECT count(*)=0 FROM public.list_project_activity('b1111111-1111-4111-8111-111111111111',null,200) WHERE action LIKE 'driver_licence%'),
+ 'Keeping a licence isn''t in crews'' activity');
+RESET ROLE;
+SET LOCAL ROLE service_role;
+SELECT pg_temp.assert_true((SELECT count(*)=0 FROM public.driver_licence_purge_queue() WHERE load_id='1d000000-0000-4000-8000-000000000001'),
+ 'The daily job skips a kept licence');
+SELECT pg_temp.expect_error($q$SELECT public.purge_driver_licence('1d000000-0000-4000-8000-000000000001')$q$,'22023','A kept licence isn''t purged');
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_user('01111111-1111-4111-8111-111111111111');
+SELECT public.release_driver_licence_hold('1d000000-0000-4000-8000-000000000001');
 RESET ROLE;
 SET LOCAL ROLE service_role;
 INSERT INTO results SELECT 'queue',jsonb_agg(to_jsonb(q)) FROM public.driver_licence_purge_queue() q;

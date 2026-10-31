@@ -26,6 +26,8 @@
     const MAX_COMPANIES = 3, MAX_STOPS = 20, MAX_LICENCE_PHOTOS = 4, PHOTO_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png' }, MAX_PHOTO_BYTES = 10 * 1024 * 1024;
     // 022's reasons (leaving without a licence, writing off, undoing, removing a licence early): 5 to 500 characters.
     const REASON_MIN = 5, REASON_MAX = 500;
+    // How far ahead the Loads board warns office staff of licences due for removal (023's driver_licences_due_soon).
+    const DUE_SOON_DAYS = 30;
     const DAY = 24 * 60 * 60 * 1000;
     const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
@@ -89,8 +91,8 @@
     /** Whether the truck may leave without an office override: 022 needs the licence number and a photo still kept. */
     const licenceReady = (licence, photos) => Boolean(licence?.licence_number) && photos.length > 0;
 
-    /** A licence can't be recorded again once its load closed more than 90 days ago (022 refuses it then). */
-    const licencePastRetention = (load, now = Date.now()) => Boolean(load.closed_at) && Date.parse(load.closed_at) < now - 90 * DAY;
+    /** Whether a load's licence is past its removal date (load_overview.licence_due_at, 023); it can't be recorded again then. */
+    const licencePastDue = (load, now = Date.now()) => Boolean(load.licence_due_at) && Date.parse(load.licence_due_at) < now;
 
     /** A typed reason → { reason } or { error }, with 022's limits. */
     function reasonText(value) {
@@ -196,9 +198,9 @@
     }
 
     const api = {
-        LOAD_STATUS, BOARD_COLUMNS, LINE_STATUS, LINE_FLAGS, STOP_KINDS, STOP_STATUS, COMPANY_ROLES, LOAD_TEXT, MAX_COMPANIES, MAX_STOPS, MAX_LICENCE_PHOTOS, REASON_MAX,
+        LOAD_STATUS, BOARD_COLUMNS, LINE_STATUS, LINE_FLAGS, STOP_KINDS, STOP_STATUS, COMPANY_ROLES, LOAD_TEXT, MAX_COMPANIES, MAX_STOPS, MAX_LICENCE_PHOTOS, REASON_MAX, DUE_SOON_DAYS,
         errorMessage, isFinished, unscannedPlace, beforeDeparture, canPlan, canEditStops, stopReached, isDate, startedInField, boardGroups, cardCounts, detailsPayload, changedKeys,
-        licenceReady, licencePastRetention, reasonText, companiesPayload, stopsPayload, moveItem, manifestByStop, printable, licenceValues, licencePhotoPath,
+        licenceReady, licencePastDue, reasonText, companiesPayload, stopsPayload, moveItem, manifestByStop, printable, licenceValues, licencePhotoPath,
         daysSince, daysText, shopContents,
     };
     root.InvenioLoads = api;

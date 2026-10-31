@@ -1413,6 +1413,11 @@ button.category-toggle:hover { background:var(--primary-soft); color:var(--prima
 .licence-photos img { width:200px; height:130px; object-fit:cover; border:1px solid var(--border); border-radius:var(--radius-md); }
 .licence-photo { display:flex; flex-direction:column; gap:.25rem; margin:0; }
 .reason-form { min-width:240px; max-width:36rem; }
+.licence-warning { border:1px solid var(--warn); border-left-width:4px; background:var(--warn-soft); color:var(--warn-deep); border-radius:var(--radius-md); padding:.75rem 1rem; margin-bottom:1rem; }
+.licence-warning-list { list-style:none; margin:.75rem 0 0; padding:0; display:grid; gap:.75rem; }
+.licence-warning-item { border-top:1px solid var(--warn); padding-top:.5rem; }
+.licence-warning a { color:inherit; font-weight:600; }
+.licence-keep { margin-bottom:.75rem; }
 .reason-form textarea { resize:vertical; }
 @media (max-width:1024px) { .load-board { grid-template-columns:repeat(2,minmax(0,1fr)); } .load-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (max-width:600px) { .load-board, .load-grid, .load-row, .stop-row { grid-template-columns:1fr; } .company-row .load-row-tools { grid-column:auto; } }
