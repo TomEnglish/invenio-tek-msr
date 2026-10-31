@@ -83,8 +83,8 @@
         const uid = tag => items.find(item => item.qr_code === tag).uid, unit = code => state.inventory.handling_unit_overview.find(row => row.code === code);
         Object.assign(unit('HU-GGGG77'), { status: 'delivered', place_id: place(3), place_name: 'Fixture Machine Works' });
         const load = (n, number, status, extra) => ({ id: loadId(n), project_id: project.id, load_number: number, status, origin_place_id: place(1), planned_date: null, truck_type: null, truck_number: null,
-            trailer_number: null, bol_number: null, driver_name: null, driver_phone: null, licence_recorded_at: null, notes: null, departed_at: null, delivered_at: null, closed_at: null,
-            created_at: days(20), updated_at: days(1), ...extra });
+            trailer_number: null, bol_number: null, driver_name: null, driver_phone: null, licence_recorded_at: null, licence_override_reason: null, licence_override_at: null,
+            started_in_field: false, notes: null, departed_at: null, delivered_at: null, closed_at: null, created_at: days(20), updated_at: days(1), edited_at: days(1), ...extra });
         const stop = (n, load, seq, placeN, extra = {}) => ({ id: stopId(n), project_id: project.id, load_id: loadId(load), seq, place_id: place(placeN), kind: 'dropoff', planned_date: null, status: 'pending', arrived_at: null, completed_at: null, ...extra });
         const line = (n, load, tag, dropoff, status, extra = {}) => ({ id: lineId(n), project_id: project.id, load_id: loadId(load), unit_id: /^HU-/.test(tag) ? unit(tag).id : null, material_id: null,
             inventory_uid: /^HU-/.test(tag) ? null : uid(tag), tag, pickup_stop_id: null, dropoff_stop_id: stopId(dropoff), status, flag: null, added_in_field: false, unit_status_before: 'sealed',
@@ -96,6 +96,8 @@
                 load(3, 'L-0003', 'delivered', { planned_date: days(13).slice(0, 10), driver_name: 'Sam Patel', departed_at: days(13), delivered_at: days(12) }),
                 load(4, 'L-0004', 'closed', { planned_date: days(130).slice(0, 10), driver_name: 'Riley Shah', departed_at: days(130), delivered_at: days(129), closed_at: days(120), licence_recorded_at: days(130) }),
                 load(5, 'L-0005', 'cancelled', { driver_name: '<img src=x onerror=alert(1)> Driver', closed_at: days(5) }),
+                // A crew started this one on the phone; the office reviews it.
+                load(6, 'L-0006', 'planning', { started_in_field: true, created_at: days(2), driver_name: 'Casey Ortiz' }),
             ],
             load_companies: [
                 { id: crypto.randomUUID(), project_id: project.id, load_id: loadId(1), position: 1, name: 'Fixture Freight Brokers', role: 'broker', contact_name: 'Ana Gomez', phone: '555-0190' },
@@ -103,7 +105,8 @@
                 { id: crypto.randomUUID(), project_id: project.id, load_id: loadId(2), position: 1, name: 'Example Haulage', role: 'carrier', contact_name: 'Lee Chen', phone: '555-0191' },
             ],
             load_stops: [stop(1, 1, 1, 3), stop(2, 1, 2, 5), stop(3, 2, 1, 3), stop(4, 2, 2, 2, { kind: 'both' }),
-                stop(5, 3, 1, 3, { status: 'done', arrived_at: days(12), completed_at: days(12) }), stop(6, 4, 1, 2, { status: 'done', arrived_at: days(129), completed_at: days(129) })],
+                stop(5, 3, 1, 3, { status: 'done', arrived_at: days(12), completed_at: days(12) }), stop(6, 4, 1, 2, { status: 'done', arrived_at: days(129), completed_at: days(129) }),
+                stop(7, 6, 1, 3)],
             load_lines: [
                 line(1, 1, 'HU-EEEE55', 1, 'planned', { unit_status_before: null }), line(2, 1, 'EL-JB-007', 2, 'planned'),
                 line(3, 2, 'HU-DDDD44', 3, 'on_board', { on_at: days(1) }), line(4, 2, 'GT2-FS-020', 4, 'on_board', { on_at: days(1) }),
@@ -127,10 +130,10 @@
         places: { get: () => state.inventory.places }, units: { get: () => state.inventory.handling_unit_overview }, items: { get: () => state.inventory.inventory_records },
     });
     const officeRole = () => ['office_staff','admin'].includes(me.role);
-    const loadsModel = InvenioLoadsModel.createModel(loadsState, { projectId: project.id, office: officeRole,
+    const loadsModel = InvenioLoadsModel.createModel(loadsState, { projectId: project.id, office: officeRole, admin: () => me.role === 'admin',
         packedIn: tag => state.inventory.handling_unit_items.find(row => row.tag === tag)?.unit_code || null });
     // Reads of the load views and tables. Licences and their photos are for office staff only.
-    const loadReads = { ...loadsModel.views, load_companies: () => state.loads.load_companies,
+    const loadReads = { ...loadsModel.views, load_companies: () => state.loads.load_companies, load_write_offs: () => state.loads.load_write_offs,
         load_driver_licences: () => officeRole() ? state.loads.load_driver_licences : [], driver_licence_photos: () => officeRole() ? state.loads.driver_licence_photos : [] };
     const loadCall = run => { try { const data = run(); save(); return success(data); } catch (error) { return { data: null, error: { code: error.code, message: error.message } }; } };
     const licencePhoto = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="480" height="300"><rect width="480" height="300" rx="16" fill="#e8eef7"/><rect x="24" y="60" width="120" height="150" fill="#b8c4d6"/><text x="170" y="100" font-size="22" font-family="sans-serif">FIXTURE LICENCE</text><text x="170" y="140" font-size="16" font-family="sans-serif">Not a real document</text></svg>');
@@ -163,15 +166,23 @@
         order(){return this;} range(a,b){this.start=a;this.end=b;return this;} limit(n){this.end=n-1;return this;}
         single(){this.one=true;return this;} maybeSingle(){return this.single();}
         lt(k,v){this.filters.push(r=>r[k]<v);return this;} in(k,v){this.filters.push(r=>v.includes(r[k]));return this;}
-        gte(k,v){this.filters.push(r=>r[k]>=v);return this;}
-        or(){return this;} on(){return this;} subscribe(callback){if(callback)callback('SUBSCRIBED');return this;}
+        gte(k,v){this.filters.push(r=>r[k]>=v);return this;} neq(k,v){this.filters.push(r=>r[k]!==v);return this;}
+        // PostgREST's or(): is and eq terms are applied; any other term matches everything, as before.
+        or(expression){
+            const terms=String(expression||'').split(',').map(term=>{ const [key,op,...rest]=term.split('.'), value=rest.join('.');
+                return r=>op==='is'?(r[key]??null)===(value==='null'?null:value):op==='eq'?String(r[key])===value:true; });
+            if(terms.length) this.filters.push(r=>terms.some(term=>term(r)));
+            return this;
+        }
+        on(){return this;} subscribe(callback){if(callback)callback('SUBSCRIBED');return this;}
         then(resolve,reject) {
             if (loadReads[this.table]) {
                 const rows = loadReads[this.table]().filter(r=>this.filters.every(f=>f(r))).slice(this.start,this.end+1).map(row=>({...row}));
                 return Promise.resolve({data:this.one?rows[0]||null:rows,error:null}).then(resolve,reject);
             }
             if (state.inventory[this.table]) return Promise.resolve(this.inventory()).then(resolve,reject);
-            let rows = this.table==='users' ? [me,{id:'f1111111-1111-4111-8111-111111111111',full_name:'Jordan Field',role:'field_worker'}] : this.table==='projects' ? state.projects : this.table==='user_projects' ? (sessionStorage.getItem('fixtureNoProjects') ? [] : state.projects.map(p=>({user_id:me.id,project_id:p.id,projects:p}))) : this.table==='receiving_records'||this.table==='materials' ? state.records : this.table==='locations' ? [{id:'d1111111-1111-4111-8111-111111111111', project_id:project.id,zone:'A',row:'1',rack:'1'}] : [];
+            let rows = this.table==='users' ? [me,{id:'f1111111-1111-4111-8111-111111111111',full_name:'Jordan Field',role:'field_worker'}] : this.table==='projects' ? state.projects : this.table==='user_projects' ? (sessionStorage.getItem('fixtureNoProjects') ? [] : state.projects.map(p=>({user_id:me.id,project_id:p.id,projects:p}))) : this.table==='receiving_records'||this.table==='materials' ? state.records : this.table==='locations' ? racks : this.table==='location_areas' ? racks.map(rack=>{ const zone=state.inventory.site_map_zones.find(z=>z.location_id===rack.id&&z.is_active!==false);
+                return {location_id:rack.id,project_id:rack.project_id,rack_zone:rack.zone,rack_row:rack.row,rack:rack.rack,is_hold_area:rack.is_hold_area,zone_id:zone?.id||null,site_map_id:zone?.map_id||null,area:zone?.name||null}; }) : [];
             const mode = new URLSearchParams(location.search).get('fixture');
             if (reportRows[this.table]) rows = mode==='empty' ? [] : reportRows[this.table];
             if ((mode==='error' && this.table==='purchase_orders' || mode==='work-error' && this.table==='receiving_records') || (mode==='gps-error' && this.table==='samsara_trackers')) return Promise.resolve({data:null,error:{message:'Fixture source unavailable'}}).then(resolve,reject);
@@ -207,6 +218,10 @@
             return {data:this.one?page[0]||null:page,error:null};
         }
     }
+    // Racks (locations); 022's location_areas pairs each with its active area.
+    const racks = [{id:'d1111111-1111-4111-8111-111111111111',project_id:project.id,zone:'A',row:'1',rack:'1',is_hold_area:false},
+        {id:'d2222222-2222-4222-8222-222222222222',project_id:project.id,zone:'A',row:'1',rack:'2',is_hold_area:false},
+        {id:'d3333333-3333-4333-8333-333333333333',project_id:project.id,zone:'H',row:'1',rack:'1',is_hold_area:true}];
     window.fixture = { state, me, calls: [] };
     window.supabase = { createClient: () => ({
         from: table => new Query(table), channel: () => new Query(''),
@@ -216,7 +231,7 @@
             if(name==='project_staff' && new URLSearchParams(location.search).get('fixture')==='staff-error') return {data:null,error:{message:'Fixture staff unavailable'}};
             if(name==='project_staff') return success([{id:me.id,full_name:me.full_name}]);
             if(name==='apply_field_operation' && payload.p_action!=='exception') return loadCall(() => loadsModel.apply(payload.p_action, payload.p_payload));
-            if(['record_driver_licence','attach_driver_licence_photo','driver_licences_due_for_removal','remove_driver_licence'].includes(name)) return loadCall(() => loadsModel.call(name, payload));
+            if(['record_driver_licence','attach_driver_licence_photo','driver_licences_due_for_removal','remove_driver_licence','remove_driver_licence_photo'].includes(name)) return loadCall(() => loadsModel.call(name, payload));
             if(name==='apply_field_operation') {
                 if(payload.p_action==='exception') Object.assign(state.records[0],{exception_owner_id:payload.p_payload.ownerId,exception_due_date:payload.p_payload.dueDate,exception_notes:payload.p_payload.notes,exception_resolution:payload.p_payload.resolution,exception_resolved:payload.p_payload.resolution!=='hold'});
                 save();return success({id:state.records[0].id});

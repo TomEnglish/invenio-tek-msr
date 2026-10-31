@@ -10,11 +10,15 @@ test('the board has a column per open status, newest planned first; closed and c
     const board = loads.boardGroups(rows);
     assert.deepEqual(board.map(group => [group.status, group.label, group.loads.map(row => row.load_number)]), [
         ['planning', 'Planning', ['L-0002', 'L-0001', 'L-0007']], ['loading', 'Loading', []], ['in_transit', 'In transit', ['L-0003']], ['delivered', 'Delivered', ['L-0006']]]);
-    assert.deepEqual(loads.boardGroups(rows, { finished: true }).map(group => group.loads.map(row => row.load_number)), [['L-0005', 'L-0004']]);
+    assert.deepEqual(loads.boardGroups(rows, { view: 'finished' }).map(group => group.loads.map(row => row.load_number)), [['L-0005', 'L-0004']]);
+    // Open loads a crew started, for the office to review; closed ones drop out.
+    rows[0].started_in_field = rows[2].started_in_field = rows[3].started_in_field = true;
+    assert.deepEqual(loads.boardGroups(rows, { view: 'field' }).map(group => group.loads.map(row => row.load_number)), [['L-0001'], [], ['L-0003'], []]);
 });
 
 test('a card lists the piece counts that are not zero', () => {
-    assert.deepEqual(loads.cardCounts(load('L-1', 'in_transit', { on_board_count: 3, delivered_count: 1200, missing_count: 1 })), ['On board 3', 'Delivered 1,200', 'Missing 1']);
+    assert.deepEqual(loads.cardCounts(load('L-1', 'in_transit', { on_board_count: 3, delivered_count: 1200, missing_count: 1, written_off_count: 2 })),
+        ['On board 3', 'Delivered 1,200', 'Missing 1', 'Written off 2']);
     assert.deepEqual(loads.cardCounts(load('L-1', 'planning')), []);
 });
 
@@ -103,12 +107,33 @@ test('only outside shops and vendors are places nobody scans', () => {
     assert.deepEqual(['outside_shop', 'vendor', 'yard', 'site', 'other', undefined].map(loads.unscannedPlace), [true, true, false, false, false, false]);
 });
 
-test('only changed details are sent, and the board says a licence is on file only until 90 days after closing', () => {
+test('only changed details are sent; a licence is ready for departure with a number and a photo, and can be recorded until 90 days after closing', () => {
     assert.deepEqual(loads.changedKeys({ originPlaceId: 'p1', notes: 'New', driverName: 'Dana' }, { originPlaceId: 'p1', notes: '', driverName: 'Dana' }), { notes: 'New' });
     assert.deepEqual(loads.changedKeys({ notes: '' }, { notes: 'Old' }), { notes: '' }, 'clearing a field is a change');
+    assert.equal(loads.licenceReady({ licence_number: 'D123' }, [{ id: 'f' }]), true);
+    assert.equal(loads.licenceReady({ licence_number: 'D123' }, []), false, 'a photo is needed too');
+    assert.equal(loads.licenceReady({ licence_number: null, removed_at: 'x' }, [{ id: 'f' }]), false, 'a removed number is no number');
+    assert.equal(loads.licenceReady(null, [{ id: 'f' }]), false);
     const now = Date.parse('2026-10-31T12:00:00Z'), day = 86400000;
-    assert.equal(loads.licenceOnFile({ licence_recorded_at: '2026-10-01T00:00:00Z', closed_at: null }, now), true);
-    assert.equal(loads.licenceOnFile({ licence_recorded_at: '2026-06-01T00:00:00Z', closed_at: new Date(now - 89 * day).toISOString() }, now), true);
-    assert.equal(loads.licenceOnFile({ licence_recorded_at: '2026-06-01T00:00:00Z', closed_at: new Date(now - 91 * day).toISOString() }, now), false);
-    assert.equal(loads.licenceOnFile({ licence_recorded_at: null, closed_at: null }, now), false);
+    assert.equal(loads.licencePastRetention({ closed_at: null }, now), false);
+    assert.equal(loads.licencePastRetention({ closed_at: new Date(now - 89 * day).toISOString() }, now), false);
+    assert.equal(loads.licencePastRetention({ closed_at: new Date(now - 91 * day).toISOString() }, now), true);
+});
+
+test("reasons are 022's 5 to 500 characters, trimmed", () => {
+    assert.deepEqual(loads.reasonText('  Lost at the dock  '), { reason: 'Lost at the dock' });
+    assert.deepEqual(loads.reasonText(' four '), { error: 'Give a reason of at least 5 characters.' });
+    assert.deepEqual(loads.reasonText('x'.repeat(500)), { reason: 'x'.repeat(500) });
+    assert.deepEqual(loads.reasonText('x'.repeat(501)), { error: 'The reason is too long (at most 500 characters).' });
+});
+
+test('the office plans loads, a crew only the ones it started; after departure only office staff change the stops not yet reached', () => {
+    const office = { office: true, working: true }, crew = { office: false, working: true }, idle = { office: false, working: false };
+    const planning = { status: 'planning', started_in_field: false }, fromField = { status: 'loading', started_in_field: true }, leaving = { status: 'in_transit', started_in_field: true };
+    assert.deepEqual([office, crew, idle].map(roles => loads.canPlan(planning, roles)), [true, false, false]);
+    assert.deepEqual([office, crew, idle].map(roles => loads.canPlan(fromField, roles)), [true, true, false]);
+    assert.deepEqual([office, crew].map(roles => loads.canPlan(leaving, roles)), [false, false], 'the plan is fixed once the truck leaves');
+    assert.deepEqual([office, crew].map(roles => loads.canEditStops(leaving, roles)), [true, false]);
+    assert.equal(loads.canEditStops({ status: 'delivered' }, office), false);
+    assert.deepEqual(['pending', 'arrived', 'done'].map(status => loads.stopReached({ status })), [false, true, true]);
 });

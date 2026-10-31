@@ -10,7 +10,8 @@
     const FINISHED = new Set(['closed', 'cancelled']);
     const LINE_STATUS = {
         planned: { label: 'Planned', chip: 'chip-muted' }, on_board: { label: 'On board', chip: 'chip-info' }, delivered: { label: 'Delivered', chip: 'chip-success' },
-        missing: { label: 'Missing', chip: 'chip-danger' }, not_loaded: { label: 'Left behind', chip: 'chip-warn' }, removed: { label: 'Removed', chip: 'chip-muted' },
+        missing: { label: 'Missing', chip: 'chip-danger' }, written_off: { label: 'Written off', chip: 'chip-muted' }, not_loaded: { label: 'Left behind', chip: 'chip-warn' },
+        removed: { label: 'Removed', chip: 'chip-muted' },
     };
     const LINE_FLAGS = { extra: 'Extra', wrong_stop: 'Wrong stop', found: 'Found' };
     const STOP_KINDS = { dropoff: 'Drop-off', pickup: 'Pick-up', both: 'Drop-off and pick-up' };
@@ -23,6 +24,8 @@
         ['notes', 'notes', 'Notes', 2000],
     ];
     const MAX_COMPANIES = 3, MAX_STOPS = 20, MAX_LICENCE_PHOTOS = 4, PHOTO_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png' }, MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+    // 022's reasons (leaving without a licence, writing off, undoing, removing a licence early): 5 to 500 characters.
+    const REASON_MIN = 5, REASON_MAX = 500;
     const DAY = 24 * 60 * 60 * 1000;
     const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
@@ -39,20 +42,32 @@
     // vendor, and only office staff finish a stop there.
     const UNSCANNED_KINDS = new Set(['outside_shop', 'vendor']);
     const unscannedPlace = kind => UNSCANNED_KINDS.has(kind);
-    // Stops and the plan can change only until the truck leaves.
     const beforeDeparture = load => load.status === 'planning' || load.status === 'loading';
+    // The office plans loads; a crew plans only a load it started. Once the truck has left, office staff can still
+    // change the stops it hasn't reached.
+    const canPlan = (load, { office, working }) => beforeDeparture(load) && (office || (working && Boolean(load.started_in_field)));
+    const canEditStops = (load, roles) => canPlan(load, roles) || (load.status === 'in_transit' && roles.office);
+    const stopReached = stop => stop.status === 'arrived' || stop.status === 'done';
     const isDate = text => /^\d{4}-\d{2}-\d{2}$/.test(text) && !Number.isNaN(Date.parse(`${text}T00:00:00Z`)) && new Date(`${text}T00:00:00Z`).toISOString().startsWith(text);
 
-    /** Board columns for open loads by status, or one list of closed and cancelled loads; newest planned first within each. */
-    function boardGroups(loads, { finished = false } = {}) {
+    /** Open loads a crew started, for the office to review. */
+    const startedInField = load => Boolean(load.started_in_field) && !isFinished(load);
+
+    /**
+     * Board columns for open loads by status (view 'open'), the same for loads a crew started ('field'), or one list of
+     * closed and cancelled loads ('finished'); newest planned first within each.
+     */
+    function boardGroups(loads, { view = 'open' } = {}) {
         const order = (a, b) => String(b.planned_date || '').localeCompare(String(a.planned_date || '')) || collator.compare(b.load_number, a.load_number);
-        if (finished) return [{ status: 'finished', label: 'Closed and cancelled', loads: loads.filter(isFinished).sort(order) }];
-        return BOARD_COLUMNS.map(status => ({ status, label: LOAD_STATUS[status].label, loads: loads.filter(load => load.status === status).sort(order) }));
+        if (view === 'finished') return [{ status: 'finished', label: 'Closed and cancelled', loads: loads.filter(isFinished).sort(order) }];
+        const shown = view === 'field' ? loads.filter(startedInField) : loads;
+        return BOARD_COLUMNS.map(status => ({ status, label: LOAD_STATUS[status].label, loads: shown.filter(load => load.status === status).sort(order) }));
     }
 
     /** The counts a board card shows, leaving out the ones that are zero. */
     function cardCounts(load) {
-        return [['On board', load.on_board_count], ['Planned', load.planned_count], ['Delivered', load.delivered_count], ['Missing', load.missing_count]]
+        return [['On board', load.on_board_count], ['Planned', load.planned_count], ['Delivered', load.delivered_count], ['Missing', load.missing_count],
+            ['Written off', load.written_off_count]]
             .filter(([, count]) => count > 0).map(([label, count]) => `${label} ${count.toLocaleString('en-US')}`);
     }
 
@@ -71,11 +86,19 @@
     /** The keys whose value differs from what the form showed: load_save changes only the keys it is sent. */
     const changedKeys = (payload, shown) => Object.fromEntries(Object.entries(payload).filter(([key, value]) => value !== shown[key]));
 
-    /**
-     * Whether a licence can still be on file. 022 keeps licence_recorded_at after removing a licence 90 days past the
-     * load's close, so the board stops saying so then.
-     */
-    const licenceOnFile = (load, now = Date.now()) => Boolean(load.licence_recorded_at) && !(load.closed_at && Date.parse(load.closed_at) < now - 90 * DAY);
+    /** Whether the truck may leave without an office override: 022 needs the licence number and a photo still kept. */
+    const licenceReady = (licence, photos) => Boolean(licence?.licence_number) && photos.length > 0;
+
+    /** A licence can't be recorded again once its load closed more than 90 days ago (022 refuses it then). */
+    const licencePastRetention = (load, now = Date.now()) => Boolean(load.closed_at) && Date.parse(load.closed_at) < now - 90 * DAY;
+
+    /** A typed reason → { reason } or { error }, with 022's limits. */
+    function reasonText(value) {
+        const reason = String(value ?? '').trim();
+        if (reason.length < REASON_MIN) return { error: `Give a reason of at least ${REASON_MIN} characters.` };
+        if (reason.length > REASON_MAX) return { error: `The reason is too long (at most ${REASON_MAX} characters).` };
+        return { reason };
+    }
 
     /** Company rows → load_save companies. Empty rows are dropped; a row with anything in it needs a name. */
     function companiesPayload(rows) {
@@ -173,9 +196,10 @@
     }
 
     const api = {
-        LOAD_STATUS, BOARD_COLUMNS, LINE_STATUS, LINE_FLAGS, STOP_KINDS, STOP_STATUS, COMPANY_ROLES, LOAD_TEXT, MAX_COMPANIES, MAX_STOPS, MAX_LICENCE_PHOTOS,
-        errorMessage, isFinished, unscannedPlace, beforeDeparture, isDate, boardGroups, cardCounts, detailsPayload, changedKeys, licenceOnFile, companiesPayload, stopsPayload, moveItem,
-        manifestByStop, printable, licenceValues, licencePhotoPath, daysSince, daysText, shopContents,
+        LOAD_STATUS, BOARD_COLUMNS, LINE_STATUS, LINE_FLAGS, STOP_KINDS, STOP_STATUS, COMPANY_ROLES, LOAD_TEXT, MAX_COMPANIES, MAX_STOPS, MAX_LICENCE_PHOTOS, REASON_MAX,
+        errorMessage, isFinished, unscannedPlace, beforeDeparture, canPlan, canEditStops, stopReached, isDate, startedInField, boardGroups, cardCounts, detailsPayload, changedKeys,
+        licenceReady, licencePastRetention, reasonText, companiesPayload, stopsPayload, moveItem, manifestByStop, printable, licenceValues, licencePhotoPath,
+        daysSince, daysText, shopContents,
     };
     root.InvenioLoads = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;

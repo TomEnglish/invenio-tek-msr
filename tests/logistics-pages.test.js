@@ -90,7 +90,7 @@ test('Loads never parses HTML, logs nothing, sends every change as an operation 
     const loads = fs.readFileSync('loads.js', 'utf8'), shops = fs.readFileSync('outside-shops.js', 'utf8');
     assert.doesNotMatch(loads + shops, /\.(insert|update|upsert|delete)\(/, 'no direct table writes: changes are operations');
     assert.match(loads, /rpc\('apply_field_operation', \{ p_operation_id: crypto\.randomUUID\(\), p_project_id: projectId, p_action: action, p_payload: payload \}\)/);
-    assert.match(loads, /rpc\('record_driver_licence', \{ p_operation_id: crypto\.randomUUID\(\), p_load_id: load\.id, p_licence: licence \}\)/);
+    assert.match(loads, /rpc\('record_driver_licence', \{ p_operation_id: crypto\.randomUUID\(\), p_load_id: load\.id, p_licence: result\.licence \}\)/);
     assert.match(loads, /\.upload\(target\.path, file, \{ contentType: file\.type, upsert: false \}\)/);
     assert.match(loads, /createSignedUrl\(photo\.storage_path, 300\)/);
     // The only URL a page builds carries a load's ID, and the print-out is given everything but the licence.
@@ -101,7 +101,8 @@ test('Loads never parses HTML, logs nothing, sends every change as an operation 
 });
 
 test('the load tables and views are project-scoped', () => {
-    for (const table of ['loads', 'load_companies', 'load_stops', 'load_lines', 'load_overview', 'load_stop_overview', 'load_line_overview', 'load_driver_licences', 'driver_licence_photos']) {
+    for (const table of ['loads', 'load_companies', 'load_stops', 'load_lines', 'load_write_offs', 'load_overview', 'load_stop_overview', 'load_line_overview', 'load_driver_licences',
+        'driver_licence_photos']) {
         assert.equal(isProjectScopedTable(table), true, table);
     }
 });

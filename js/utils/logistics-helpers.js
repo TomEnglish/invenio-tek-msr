@@ -15,8 +15,8 @@
     const UNIT_STATUS = {
         open: { label: 'Open', chip: 'chip-info' }, sealed: { label: 'Sealed', chip: 'chip-success' }, on_load: { label: 'On a load', chip: 'chip-warn' },
         delivered: { label: 'Delivered', chip: 'chip-primary' }, unpacked: { label: 'Unpacked', chip: 'chip-muted' },
-        // 022: on a truck but not unloaded where it was due, until the office marks it found.
-        missing: { label: 'Missing', chip: 'chip-danger' },
+        // 022: on a truck but not unloaded where it was due, until the office marks it found or writes it off.
+        missing: { label: 'Missing', chip: 'chip-danger' }, written_off: { label: 'Written off', chip: 'chip-muted' },
     };
     const UNIT_KINDS = { crate: 'Crate', skid: 'Skid', bundle: 'Bundle', basket: 'Basket', container: 'Container', other: 'Other' };
     const MAX_LABELS = 500;

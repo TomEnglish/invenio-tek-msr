@@ -56,43 +56,54 @@ Run `python3 tests/browser/serve.py`, then open `http://127.0.0.1:8092/places.ht
 ## Loads (`loads.html`)
 
 - **Board.** Columns for planning, loading, in transit and delivered. A switch shows closed and cancelled loads instead.
-  - Each card shows the load number, the origin and next stop, the driver, and the piece counts that aren't zero.
-  - It also shows any flags, a "Licence on file" badge and the planned date.
+  - Each card shows the load number, the origin and next stop, the driver, and the piece counts that aren't zero (written off included).
+  - It also shows any flags, "Started in the field", "Left without licence", "Licence on file" and the planned date.
+  - Office staff get a third switch, "Started in the field (N)", while crews have open loads they started. It lists those loads so the office can check them and plan the rest.
   - Everything comes from `load_overview`, read through the project scope.
-- **New load.** The form makes a load ID with `crypto.randomUUID()`. Its first `load_save` creates the load and gets its number; the drawer then opens in full.
+- **New load.** The form makes a load ID with `crypto.randomUUID()`. Its first `load_save` creates the load and gets its number; the drawer then opens in full. A load someone other than office staff creates is started in the field.
 - **Every change is one operation.** Each is `apply_field_operation` with a new operation ID.
   - 022's refusals are shown as the database words them.
   - While a change saves, the drawer is disabled and a second change says so.
   - The board and the load reload afterwards, saved or refused.
 - **The drawer.** It has sections for status, details, companies, stops, the manifest and, for office staff, the driver's licence.
   - A section with unsaved edits keeps them when another section saves; every other section is redrawn from what was just read.
-  - An edit the change made pointless is dropped: stops once the truck has left, anything once the load is finished.
+  - An edit the change made pointless is dropped: stop edits from before departure once the truck has left, anything once the load is finished.
   - Escape asks before dropping edits.
   - A finished load, or any load on a project that isn't active, shows its details and companies as text.
   - Saving details sends only the fields that changed, since `load_save` changes only the keys it is sent. Someone else's change to another field stays, and an origin retired since doesn't block saving the rest.
-- **Stops.** Stops are edited (added, reordered, removed) only until the truck leaves. New stops get their IDs on the page, so pieces planned for a stop stay with it.
-  - After departure, each stop shows what's due, delivered and missing.
-  - "Mark delivered" (office) finishes a drop-off stop without scanning. It is offered only at an outside shop or vendor, where nobody scans.
-  - "Finish stop" warns that pieces not scanned off become missing. At an outside shop or vendor only office staff finish a stop.
+- **Who plans.** Office staff plan loads; a crew plans the stops and pieces only of a load it started. Others see "The office plans…" instead of the forms.
+- **Stops.** Before departure, stops are added, reordered and removed. New stops get their IDs on the page, so pieces planned for a stop stay with it.
+  - After departure, each stop shows what's due, delivered, missing and still to pick up.
+  - Office staff can choose **Change stops** while the truck is on the road. Stops it has reached are shown as they are and stay put; the others can change, move or come off. Taking off the last stop not yet reached delivers the load.
+  - At an outside shop or vendor, office staff confirm without scanning, as `stop_complete` with `confirmAll`. The button is "Mark delivered" at a drop-off stop, "Confirm pick-ups" at a pick-up stop, and "Mark delivered and picked up" at a stop that is both. Pieces planned for pick-up there go on board.
+  - "Finish stop" warns that pieces not scanned off become missing and pieces to pick up that weren't scanned on stay behind. At an outside shop or vendor only office staff finish a stop.
 - **Manifest.** It's grouped by drop-off stop. A piece is planned by crate code or item tag, or taken off the plan, until the truck leaves.
-  - Flags (extra, wrong stop, found) and missing pieces are shown.
-  - Office staff mark a missing piece found at a place, with a note.
+  - It can be given a pick-up stop, which has to come before the stop it comes off at.
+  - "If it's planned on another load that hasn't left, move it here" sends `move: true`. The status line names the load it came from.
+  - Flags (extra, wrong stop, found), missing and written-off pieces are shown.
+  - Office staff mark a missing piece found at a place, with a note, or write it off with a reason (`line_write_off`). Writing off a crate also writes off the crates inside it and everything they hold.
+  - Administrators can undo a write-off with a reason (`line_write_off_undo`, with the ID from `load_write_offs`). The piece is missing again, and a closed load opens again until it is found or written off again.
 - **Status actions.**
   - "Mark loaded and depart" (office) is `load_depart` with `confirmAll`. It is offered only when the truck leaves an outside shop or vendor; elsewhere a crew scans pieces on.
   - "Depart with what's on board" sends the truck off with what was scanned on; the rest stays behind.
-  - "Cancel load" and "Close load" (office) call `load_close`.
+  - **The licence comes first.** 022 lets a truck leave only with the licence number and a photo of it. Without them the Status section says so.
+    - For a crew, "Depart with what's on board" is disabled, and the button points to that note.
+    - Office staff choosing either depart action get a form, "Let it leave without the licence", which needs a reason of 5 to 500 characters. It is sent as `overrideReason`, and the drawer then shows when and why the truck left without it.
+  - "Cancel load" (office) calls `load_close` with `cancel`. "Close load" (office) is offered once every stop is finished and nothing is missing.
 - **Driver's licence (office staff only).** Field staff never read it, and the page doesn't ask for it for them.
-  - The number, state and expiry are saved with `record_driver_licence`, with a new operation ID each time. The page repeats only the last four characters.
-  - Office staff on a project that isn't active can read the licence, but not change it, as 022's calls require.
+  - The number, state and expiry are saved with `record_driver_licence`, with a new operation ID each time. The page repeats the last four characters only when 022 sends them, which it does only for numbers longer than six letters and digits.
+  - Office staff on a project that isn't active can read the licence, but not change it, as 022's calls require. Once a load closed more than 90 days ago, the form isn't offered.
   - Photos are shown through 5-minute signed links.
-  - A new photo is uploaded to `driver-licences/<load id>/<new id>.jpg` (or `.png`) without upsert, then attached, both under the save lock.
+  - A new photo is uploaded to `driver-licences/<load id>/<new id>.jpg` (or `.png`) without upsert, then attached, both under the save lock. A photo is offered only while the load's folder holds fewer than four files.
   - The page lists the load's folder, so a photo that uploaded but was never attached (here or from a phone) is offered for attaching, even after the drawer was closed.
+  - **Delete photo**, in each photo's caption, deletes the file through Storage, then calls `remove_driver_licence_photo`. If the second step fails, the photo shows "The file has been deleted" with **Finish removing**. Deleting the last photo before departure warns that the truck can't leave without a new one.
+  - **Remove the licence** removes a wrong licence early. It asks why, deletes every file in the folder, then calls `remove_driver_licence(load, reason)`. The licence can then be recorded again.
 - **Printed manifest.** It opens during the click, as the crate labels do, with one page section per stop: tag, piece and high-value mark.
   - It shows the load, driver name and phone, truck, trailer, bill of lading and companies, plus signature lines for the shipper, driver and receiver.
-  - The print code is never given the licence.
-- **Removing old licences.** Removal runs from this page, so a licence is removed 90 days after its load closes, the next time office staff open Loads. When office staff open Loads (on any project), the page runs `driver_licences_due_for_removal()`, which covers every project they can see. For each load it deletes everything in the load's folder through Storage, attached or not, then calls `remove_driver_licence`.
-  - A small note says how many were removed and which couldn't be, naming a load from another project as such.
-  - 022 keeps `licence_recorded_at` after removal, so the board's "Licence on file" badge stops showing 90 days after a load closes.
+  - The print code is never given the licence, nor the reason a truck left without it.
+- **Removing old licences.** A daily job (`.github/workflows/purge-driver-licences.yml`) removes each licence 90 days after its load closes, or after the load's last change if it never closes. The page is a backup for it.
+  - When office staff open Loads (on any project), the page runs `driver_licences_due_for_removal()`, which covers every project they can see. For each due load it deletes every file 022 lists in the load's folder through Storage, then calls `remove_driver_licence`.
+  - A small note says how many were removed and which couldn't be, naming a load from another project as such. The board is then read again, since removal clears "Licence on file".
   - It runs in the background and never blocks the board.
 
 ## Outside Shops (`outside-shop-inventory.html`)
@@ -110,11 +121,14 @@ Each row shows how long the piece has been there (from `off_at`) and links to th
 
 The fixture has made-up loads:
 
-- one being planned;
+- one being planned, leaving a vendor with no licence recorded (to try leaving without it);
 - one in transit, with a licence and a photo;
-- one delivered, with a missing piece;
+- one delivered, with a missing piece (to write off, close and undo);
 - one closed long enough ago that opening Loads removes its licence;
-- one cancelled.
+- one cancelled;
+- one a crew started in the field.
+
+The fixture user is an administrator, so write-offs can be undone.
 
 ## Loads and items (database contract, migration 022)
 

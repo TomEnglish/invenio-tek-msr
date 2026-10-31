@@ -86,7 +86,7 @@ test('crate text: where it is, and what it holds', () => {
     assert.equal(logistics.contentsText({ item_count: 2, unit_count: 1 }), '2 items, 1 crate');
     assert.equal(logistics.contentsText({ item_count: 0, unit_count: 3 }), '3 crates');
     assert.equal(logistics.contentsText({ item_count: 0, unit_count: 0 }), 'Empty');
-    assert.deepEqual(Object.keys(logistics.UNIT_STATUS), ['open', 'sealed', 'on_load', 'delivered', 'unpacked', 'missing'], '021 statuses, and 022\'s missing');
+    assert.deepEqual(Object.keys(logistics.UNIT_STATUS), ['open', 'sealed', 'on_load', 'delivered', 'unpacked', 'missing', 'written_off'], '021 statuses, and 022\'s missing and written off');
     assert.deepEqual(Object.keys(logistics.UNIT_KINDS), ['crate', 'skid', 'bundle', 'basket', 'container', 'other'], '021 kinds');
     assert.deepEqual(Object.keys(logistics.PLACE_KINDS), ['yard', 'site', 'outside_shop', 'vendor', 'other'], '021 kinds');
 });

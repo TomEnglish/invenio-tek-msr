@@ -20,7 +20,7 @@ function world() {
         top_unit_id: id(n), top_code: code, place_id: null, place_name: null, ...extra });
     return {
         places: [place(1, 'North Yard', 'yard', { project_id: P }), place(2, 'Fixture Machine Works', 'outside_shop', { contact_name: 'Sam Rivera', contact_phone: '555-0142' }),
-            place(3, 'Old Shop', 'outside_shop', { is_active: false }), place(4, '<img src=x onerror=alert(1)> Fab', 'outside_shop')],
+            place(3, 'Old Shop', 'outside_shop', { is_active: false }), place(4, '<img src=x onerror=alert(1)> Fab', 'outside_shop'), place(5, 'Gulf Valve Supply', 'vendor')],
         units: [unit(11, 'HU-AAAA11', { is_high_value: true }), unit(12, 'HU-BBBB22'), unit(13, 'HU-INNER1', { parent_id: id(11), top_unit_id: id(11), top_code: 'HU-AAAA11' }),
             unit(14, 'HU-OTHER1', { project_id: 'p2' })],
         items: [{ uid: id(21), project_id: P, qr_code: 'T-100', inventory_item: 'Pump', count_status: 'counted' }, { uid: id(22), project_id: P, qr_code: 'T-101', inventory_item: 'Gasket', count_status: 'counted' }],
@@ -28,11 +28,14 @@ function world() {
     };
 }
 
-/** Plans pieces on a new load to one stop, sends it off and marks the stop delivered (or not), as the office would. */
+/**
+ * Plans pieces on a new load from a vendor to one stop, sends it off and marks the stop delivered (or not), as the office
+ * would where nobody scans (022 confirms without scanning only at shops and vendors).
+ */
 function deliver(model, loadN, stopN, placeN, codes, { confirmAll = true } = {}) {
-    model.apply('load_save', { loadId: id(loadN), originPlaceId: id(1), driverName: 'Dana', stops: [{ id: id(stopN), placeId: id(placeN) }] });
+    model.apply('load_save', { loadId: id(loadN), originPlaceId: id(5), driverName: 'Dana', stops: [{ id: id(stopN), placeId: id(placeN) }] });
     model.apply('load_plan', { loadId: id(loadN), add: codes.map(code => ({ code, dropoffStopId: id(stopN) })) });
-    model.apply('load_depart', { loadId: id(loadN), confirmAll: true });
+    model.apply('load_depart', { loadId: id(loadN), confirmAll: true, overrideReason: 'Fixture load: no licence' });
     model.apply('stop_complete', { loadId: id(loadN), stopId: id(stopN), confirmAll });
 }
 
@@ -94,7 +97,7 @@ test('each outside shop lists the crates and loose items a load delivered there,
 test('a piece that moves on is no longer at the shop, and a retired shop still holding something is listed', async () => {
     const page = await openPage((model, state) => {
         deliver(model, 31, 41, 2, ['T-100', 'T-101']);
-        deliver(model, 32, 42, 1, ['T-101']); // T-101 goes back to the yard
+        deliver(model, 32, 42, 4, ['T-101']); // T-101 goes on to another shop
         deliver(model, 33, 43, 2, ['HU-BBBB22']);
         state.places[1].is_active = false; // the shop is retired afterwards
     });

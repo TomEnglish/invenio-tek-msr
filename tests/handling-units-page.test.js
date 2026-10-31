@@ -118,7 +118,7 @@ test('lists only this project\'s crates by code, with status counts, search and 
     assert.deepEqual(page.codes(), ['HU-AAAA11', 'HU-BBBB22', 'HU-CCCC33', 'HU-DDDD44', 'HU-FFFF66', 'HU-GGGG77']);
     assert.equal(page.$('resultSummary').textContent, '6 crates');
     assert.deepEqual(page.$('filterStatus').options.map(option => option.textContent),
-        ['All statuses (6)', 'Open (3)', 'Sealed (1)', 'On a load (1)', 'Delivered (0)', 'Unpacked (1)', 'Missing (0)']);
+        ['All statuses (6)', 'Open (3)', 'Sealed (1)', 'On a load (1)', 'Delivered (0)', 'Unpacked (1)', 'Missing (0)', 'Written off (0)']);
     const row = code => page.$('unitRows').querySelectorAll('tr').find(item => item.querySelector('.mono').textContent === code);
     const cells = code => row(code).childNodes.map(cell => cell.textContent);
     assert.deepEqual(cells('HU-AAAA11').slice(1, 5), ['Lube oil spares', 'Sealed', 'North Yard laydown · T1 Pipe Racks › Rack 2', '2 items, 1 crate']);
