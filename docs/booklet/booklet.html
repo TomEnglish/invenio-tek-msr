@@ -42,8 +42,8 @@
   <div class="edition">
     <span>Edition</span><b>1 · 31 October 2026</b>
     <span>Field app</span><b>1.1.0 (build 5), over-the-air update 56cc444c</b>
-    <span>Office site</span><b>release 465adc6</b>
-    <span>Database</span><b>migrations to 022 live; 023 (keeping licences 365 days) awaiting release</b>
+    <span>Office site</span><b>release 9557eff</b>
+    <span>Database</span><b>migration 023 (licences kept 365 days)</b>
     <span>Covers</span><b>initial count, receiving, stock, crates, loads and driver check-in</b>
   </div>
 </section>
@@ -498,7 +498,6 @@
   <h2 data-toc="c-licences"><span class="n">16</span>Driver licences</h2>
   <p class="for"><span class="who office">Office</span></p>
   <p class="lede">We record the driver's licence for every load so that, if something goes missing, we know who drove the truck. It is the most sensitive data on the platform: only office staff can see it, it is never printed, and it is removed automatically when it is no longer needed.</p>
-  <div class="warn"><span class="callout-title">This edition and the release</span>This chapter describes migration 023 and the matching office page, which go live with the next release. Until then licences are removed 90 days after the load closes, without the warning panel or Keep.</div>
   <h3>Recording and checking it</h3>
   <p>Crews record the licence at check-in (chapter 10). In the load drawer, office staff see the <span class="ui">Driver's licence</span> section and can also enter it themselves:</p>
   <ul>
@@ -782,7 +781,7 @@
   <p>The app shows these as “Refused: needs a decision” and never retries them by itself. Network errors and time-outs are retried.</p>
   <h3>Separate calls</h3>
   <ul>
-    <li><strong>Licences</strong> never pass through <code>field_operations</code> or the audit log in full: <code>record_driver_licence</code>, <code>attach_driver_licence_photo</code>, <code>remove_driver_licence_photo</code>, <code>remove_driver_licence</code>, and from 023 <code>keep_driver_licence</code>, <code>release_driver_licence_hold</code> and <code>driver_licences_due_soon</code>. <code>driver_licence_purge_queue</code> and <code>purge_driver_licence</code> are for the service role only.</li>
+    <li><strong>Licences</strong> never pass through <code>field_operations</code> or the audit log in full: <code>record_driver_licence</code>, <code>attach_driver_licence_photo</code>, <code>remove_driver_licence_photo</code>, <code>remove_driver_licence</code>, <code>keep_driver_licence</code>, <code>release_driver_licence_hold</code> and <code>driver_licences_due_soon</code>. <code>driver_licence_purge_queue</code> and <code>purge_driver_licence</code> are for the service role only.</li>
     <li><strong>Reading</strong>: <code>lookup_tag</code> (what Scan should open), <code>list_project_activity</code> (the Activity tab), <code>load_licence_complete</code> and <code>load_licence_due_at</code> (licence state without the licence itself), and the views in A2.</li>
   </ul>
 </section>
@@ -802,7 +801,7 @@
     <li>Office staff see photos through signed links that expire after five minutes. Licences are never printed; the manifest leaves them out.</li>
     <li>The audit log keeps at most the last four characters, and only for numbers longer than six.</li>
     <li>On the phone the number stays in memory only, and the photos are deleted after upload, after a discard and at sign-out.</li>
-    <li>Each licence is removed 365 days after its load closes unless office staff keep it with a reason (from 023; 90 days before). The daily job removes it with the service-role key; opening the Loads page does the same as a backup.</li>
+    <li>Each licence is removed 365 days after its load closes unless office staff keep it with a reason. The daily job removes it with the service-role key; opening the Loads page does the same as a backup.</li>
   </ul>
   <h3>Accounts</h3>
   <ul>
@@ -899,13 +898,11 @@
   </ul>
   <h3>Office site</h3>
   <ul>
-    <li>Until migration 023 and its page are released, the Loads page says licences are removed after 90 days and has no warning panel.</li>
-    <li>On the website, a crew member's depart button can look available when only the licence number or only the photo is on file; the database still refuses, with the reason.</li>
     <li>Activity &amp; Audit shows administrator changes only; operational history is in Data Browser › Audit Log.</li>
     <li>Racks can be added only in Data Browser › Locations.</li>
     <li><span class="ui">Print the last N labels again</span> is lost when the page reloads; reprint from the reserved range before leaving the page.</li>
     <li>The arrival radius has no effect until trackers are connected.</li>
-    <li>On PO &amp; Installation, check that <span class="ui">Delete link</span> really removed a link before relying on it.</li>
+    <li>On PO &amp; Installation, links can't be deleted, and a link's PO and tag can't be changed; the page says so when you try.</li>
   </ul>
 </section>
 
@@ -914,7 +911,7 @@
   <table>
     <thead><tr><th style="width:13%">Edition</th><th style="width:16%">Date</th><th style="width:36%">Software covered</th><th>Changes</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td>31 Oct 2026</td><td>Field app 1.1.0 (build 5, update 56cc444c); office site release 465adc6; database to migration 022, with 023 described ahead of release</td><td>First edition.</td></tr>
+      <tr><td>1</td><td>31 Oct 2026</td><td>Field app 1.1.0 (build 5, update 56cc444c); office site release 9557eff; database migration 023</td><td>First edition.</td></tr>
     </tbody>
   </table>
   <h3>Updating this guide</h3>
