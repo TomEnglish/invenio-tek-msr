@@ -407,7 +407,7 @@
       <tr><td>Top</td><td><span class="ui">Dashboard</span> (project tiles, “Work needing attention”, “Expected arrivals”, <span class="ui">Export PDF</span>) and <span class="ui">Work Inbox</span> (chapter 18).</td></tr>
       <tr><td>Logistics</td><td><span class="ui">Outside Shops</span>, <span class="ui">Places</span>, <span class="ui">Crates</span> and <span class="ui">Loads</span> (chapters 13 to 16, 18). <span class="ui">Shipments</span> and <span class="ui">Yard Inventory</span> are read-only views of older tables.</td></tr>
       <tr><td>Planning</td><td><span class="ui">PO &amp; Installation</span> links PO items to install tags. <span class="ui">Gap Analysis</span>, <span class="ui">Delivery Dates</span> and <span class="ui">Schedule</span> are older, read-only pages.</td></tr>
-      <tr><td>Field</td><td><span class="ui">Receiving</span> (a six-step receipt for use at a desk), <span class="ui">GPS Tracking</span> (Samsara trackers, appendix A9). <span class="ui">Site Plan</span> is a demonstration page, not Site Maps.</td></tr>
+      <tr><td>Field</td><td><span class="ui">Receiving</span> (a six-step receipt for use at a desk), <span class="ui">GPS Tracking</span> (tracker positions, appendix A9). <span class="ui">Site Plan</span> is a demonstration page, not Site Maps.</td></tr>
       <tr><td>Initial Count</td><td><span class="ui">Initial Inventory</span>, <span class="ui">Inventory Categories</span> and <span class="ui">Site Maps</span> (chapters 13 and 17).</td></tr>
       <tr><td>System <span class="who admin">Admin</span></td><td><span class="ui">Data Browser</span>, <span class="ui">Users &amp; Access</span>, <span class="ui">Projects</span>, <span class="ui">Activity &amp; Audit</span> (chapter 19, appendix A7). Hidden from everyone else.</td></tr>
     </tbody>
@@ -674,7 +674,7 @@
       <tr><td>Admin function</td><td>Supabase Edge Function <code>admin-users</code>, with JWT verification on.</td><td>Invitations, users, projects and the admin audit.</td></tr>
       <tr><td>Email</td><td>Supabase Auth, sending through Resend.</td><td>Templates in <code>supabase/templates/</code>.</td></tr>
       <tr><td>Licence job</td><td>GitHub Actions, <code>purge-driver-licences.yml</code>, daily at 09:17 UTC.</td><td>Removes licences that are due and not kept.</td></tr>
-      <tr><td>Trackers</td><td>Samsara. The live sync still runs from the legacy repository.</td><td>See A9.</td></tr>
+      <tr><td>Trackers</td><td>GPS trackers from an outside provider. The live sync still runs from the legacy repository.</td><td>See A9.</td></tr>
     </tbody>
   </table>
   <p>Both clients sign in with Supabase Auth and talk to the database directly with the public key; what each person may read or change is decided inside the database by row-level security and checked functions (A4, A5). The service-role key, which bypasses those rules, is used only by the admin function, the licence job and the purchase-order import (A9), and lives only in their secret stores.</p>
@@ -839,9 +839,9 @@
 
 <section class="chapter cont">
   <h2 data-toc="a-integrations"><span class="n">A9</span>Integrations</h2>
-  <h3>Samsara trackers</h3>
-  <p>The <span class="ui">GPS Tracking</span> page shows Samsara trackers, but its data updates only while the legacy hourly job in <code>TomEnglish/MSR_F6B</code> writes to the shared database; the MSR repository's own <code>sync-samsara.yml</code> is a manual placeholder that prints the hand-over steps. The cut-over is set out in <code>docs/INTEGRATION_OWNERSHIP.md</code>.</p>
-  <p><strong>Planned.</strong> Trackers will be attached to crates and high-value items, not trucks. A server job will record positions and use each place's arrival radius to mark crates as arrived at shops and stops, with a map on each load and a warning when a tracker in transit goes quiet. Before building it, confirm with Samsara that the tags will be seen at outside shops, since they report only near a gateway.</p>
+  <h3>GPS trackers</h3>
+  <p>The <span class="ui">GPS Tracking</span> page shows the GPS trackers, but its data updates only while the legacy hourly job in <code>TomEnglish/MSR_F6B</code> writes to the shared database; the MSR repository's own tracker sync workflow is a manual placeholder that prints the hand-over steps. The cut-over is set out in <code>docs/INTEGRATION_OWNERSHIP.md</code>.</p>
+  <p><strong>Planned.</strong> Trackers will be attached to crates and high-value items, not trucks. A server job will record positions and use each place's arrival radius to mark crates as arrived at shops and stops, with a map on each load and a warning when a tracker in transit goes quiet. Before building it, confirm with the tracker provider that the tags will be seen at outside shops, since they report only near a gateway.</p>
   <h3>Purchase orders and shipments</h3>
   <p><code>sync_po_shipment_data.py</code> checks an MSR workbook and, only with <code>--apply</code>, a <code>--project-id</code> and the service-role key, imports both sheets in one transaction. Without <code>--apply</code> it only validates. It never deletes rows.</p>
 </section>

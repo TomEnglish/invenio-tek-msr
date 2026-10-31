@@ -59,7 +59,7 @@
   <text x="248" y="280" font-size="9.5" fill="#5b6676">removes licences 365 days on, unless kept</text>
   <line x1="340" y1="246" x2="340" y2="218" stroke="#8a96a8" stroke-width="1.4" marker-end="url(#pb)"/>
   <rect x="490" y="248" width="182" height="40" rx="6" fill="#fff" stroke="#8a96a8" stroke-dasharray="4 3"/>
-  <text x="502" y="265" font-size="10.5" font-weight="600" fill="#122c4c">Trackers (Samsara)</text>
+  <text x="502" y="265" font-size="10.5" font-weight="600" fill="#122c4c">GPS trackers</text>
   <text x="502" y="280" font-size="9.5" fill="#5b6676">planned: arrival at shops by tracker</text>
   <path d="M490 262 C 470 262 460 236 446 218" fill="none" stroke="#8a96a8" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#pb)"/>
 </svg>
