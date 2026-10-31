@@ -83,8 +83,9 @@
         if (load.flagged_count) badges.append(el('span', `${plural(load.flagged_count, 'flag')}`, 'chip chip-warn'));
         if (load.started_in_field) badges.append(el('span', 'Started in the field', 'chip chip-info'));
         if (load.licence_override_at) badges.append(el('span', 'Left without licence', 'chip chip-warn'));
-        // 022 clears licence_recorded_at when the licence is removed.
-        if (load.licence_recorded_at) badges.append(el('span', 'Licence on file', 'chip chip-success'));
+        // On file means what departure needs: the number and a photo (022's licence_complete). licence_recorded_at is set
+        // by either one, and stays set when a photo is deleted.
+        if (load.licence_complete) badges.append(el('span', 'Licence on file', 'chip chip-success'));
         if (badges.childNodes.length) node.append(badges);
         return node;
     }
@@ -266,7 +267,7 @@
             if (office && load.started_in_field) notes.push(`A crew started this load${load.created_at ? ` on ${new Date(load.created_at).toLocaleDateString()}` : ''}. Check its details, companies and stops, and plan the rest.`);
             if (!load.driver_name) notes.push("Add the driver's name before the truck leaves.");
             // 022 needs the licence number and a photo before the truck leaves, unless office staff let it leave without
-            // them and say why. Only office staff can read the licence; for others the load says whether one is recorded.
+            // them and say why. Only office staff can read the licence; for others the load says whether both are on file.
             const ready = officeRole ? loadsApi.licenceReady(current.licence, current.photos) : Boolean(load.licence_complete);
             if (!ready) {
                 licenceNote = el('p', office ? "No licence yet: record the driver's licence number and add a photo of it below, or let the truck leave without it and say why."

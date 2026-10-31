@@ -1069,3 +1069,60 @@ test("a load's licence section gives its removal date, and office staff keep it 
     await crew.open('L-0001');
     assert.equal(crew.find("Depart with what's on board").disabled, true, 'a photo without the number is not enough');
 });
+
+/** L-0001 as in noLicence(), with what departure needs recorded in part or in full: the number, a photo, or both. */
+function licenceParts(...parts) {
+    const state = noLicence();
+    state.loads[0].licence_recorded_at = ago(0);
+    if (parts.includes('number')) state.load_driver_licences.push({ load_id: id(31), project_id: P, licence_number: 'K555-0001-77', licence_state: 'TX', licence_expiry: null, recorded_at: ago(0), removed_at: null });
+    if (parts.includes('photo')) {
+        state.driver_licence_photos.push({ id: id(74), load_id: id(31), project_id: P, storage_path: `${id(31)}/front.jpg`, created_at: ago(0), removed_at: null });
+        state.licence_objects.push(`${id(31)}/front.jpg`);
+    }
+    return state;
+}
+
+test("'Licence on file' means the number and a photo, as departure needs; either alone, or a deleted photo, is not enough", async () => {
+    const onFile = (page, number) => page.card(number).textContent.includes('Licence on file');
+    for (const part of ['number', 'photo']) {
+        const page = await openPage({ state: licenceParts(part) });
+        assert.equal(onFile(page, 'L-0001'), false, `the ${part} alone`);
+    }
+    const page = await openPage({ state: licenceParts('number', 'photo') });
+    assert.equal(onFile(page, 'L-0001'), true);
+    // Deleting the only photo leaves licence_recorded_at set (022 doesn't clear it); the card goes by licence_complete.
+    await page.open('L-0002');
+    await page.press('Delete photo 1');
+    assert.equal(page.status(), 'Deleted photo 1.');
+    assert.ok(page.server.load('L-0002').licence_recorded_at);
+    assert.equal(onFile(page, 'L-0002'), false);
+});
+
+test("a crew can depart only with the number and a photo on file, so 022 never refuses it for the licence; office staff can still let it leave without", async () => {
+    for (const part of ['number', 'photo']) {
+        const crew = await openPage({ role: 'field_worker', state: licenceParts(part) });
+        await crew.open('L-0001');
+        const depart = crew.find("Depart with what's on board");
+        assert.deepEqual([depart.disabled, depart.getAttribute('aria-describedby')], [true, 'licenceNeeded'], `the ${part} alone`);
+    }
+    const crew = await openPage({ role: 'field_worker', state: licenceParts('number', 'photo') });
+    await crew.open('L-0001');
+    const depart = crew.find("Depart with what's on board");
+    assert.deepEqual([depart.disabled, depart.getAttribute('aria-describedby')], [false, null]);
+    assert.equal(crew.drawer.querySelector('[id="licenceNeeded"]'), null);
+    await crew.press("Depart with what's on board");
+    assert.deepEqual(plain(crew.server.ops().map(op => op.p_payload)), [{ loadId: id(31) }]);
+    assert.equal(crew.status(), 'L-0001 has left with 1 piece on board; 1 piece stayed behind.');
+    assert.equal(crew.server.load('L-0001').licence_override_at, null);
+
+    // Office staff read the licence itself: with the number but no photo they are asked why it may leave without it.
+    const office = await openPage({ state: licenceParts('number') });
+    await office.open('L-0001');
+    await office.press("Depart with what's on board");
+    assert.equal(office.confirms.length, 0, 'a form asks why instead');
+    assertFocus(office, office.input('departReason'));
+    office.set('departReason', 'Photo to follow from the carrier');
+    await office.submit('actions');
+    assert.deepEqual(plain(office.server.ops().at(-1).p_payload), { loadId: id(31), overrideReason: 'Photo to follow from the carrier' });
+    assert.equal(office.status(), "L-0001 has left without the driver's licence with 1 piece on board; 1 piece stayed behind.");
+});
