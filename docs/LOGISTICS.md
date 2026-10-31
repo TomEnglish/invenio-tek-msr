@@ -72,13 +72,13 @@ Run `python3 tests/browser/serve.py`, then open `http://127.0.0.1:8092/places.ht
   - Saving details sends only the fields that changed, since `load_save` changes only the keys it is sent. Someone else's change to another field stays, and an origin retired since doesn't block saving the rest.
 - **Stops.** Stops are edited (added, reordered, removed) only until the truck leaves. New stops get their IDs on the page, so pieces planned for a stop stay with it.
   - After departure, each stop shows what's due, delivered and missing.
-  - "Mark delivered" (office) finishes a drop-off stop without scanning.
-  - "Finish stop" warns that pieces not scanned off become missing.
+  - "Mark delivered" (office) finishes a drop-off stop without scanning. It is offered only at an outside shop or vendor, where nobody scans.
+  - "Finish stop" warns that pieces not scanned off become missing. At an outside shop or vendor only office staff finish a stop.
 - **Manifest.** It's grouped by drop-off stop. A piece is planned by crate code or item tag, or taken off the plan, until the truck leaves.
   - Flags (extra, wrong stop, found) and missing pieces are shown.
   - Office staff mark a missing piece found at a place, with a note.
 - **Status actions.**
-  - "Mark loaded and depart" (office) is `load_depart` with `confirmAll`, for a truck leaving a place where nobody scans.
+  - "Mark loaded and depart" (office) is `load_depart` with `confirmAll`. It is offered only when the truck leaves an outside shop or vendor; elsewhere a crew scans pieces on.
   - "Depart with what's on board" sends the truck off with what was scanned on; the rest stays behind.
   - "Cancel load" and "Close load" (office) call `load_close`.
 - **Driver's licence (office staff only).** Field staff never read it, and the page doesn't ask for it for them.
@@ -90,7 +90,7 @@ Run `python3 tests/browser/serve.py`, then open `http://127.0.0.1:8092/places.ht
 - **Printed manifest.** It opens during the click, as the crate labels do, with one page section per stop: tag, piece and high-value mark.
   - It shows the load, driver name and phone, truck, trailer, bill of lading and companies, plus signature lines for the shipper, driver and receiver.
   - The print code is never given the licence.
-- **Removing old licences.** When office staff open Loads (on any project), the page runs `driver_licences_due_for_removal()`, which covers every project they can see. For each load it deletes everything in the load's folder through Storage, attached or not, then calls `remove_driver_licence`.
+- **Removing old licences.** Removal runs from this page, so a licence is removed 90 days after its load closes, the next time office staff open Loads. When office staff open Loads (on any project), the page runs `driver_licences_due_for_removal()`, which covers every project they can see. For each load it deletes everything in the load's folder through Storage, attached or not, then calls `remove_driver_licence`.
   - A small note says how many were removed and which couldn't be, naming a load from another project as such.
   - 022 keeps `licence_recorded_at` after removal, so the board's "Licence on file" badge stops showing 90 days after a load closes.
   - It runs in the background and never blocks the board.

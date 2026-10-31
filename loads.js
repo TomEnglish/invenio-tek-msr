@@ -242,7 +242,9 @@
         const onBoard = current.lines.filter(line => line.status === 'on_board').length;
         if (loadsApi.beforeDeparture(load)) {
             if (!load.driver_name) notes.push("Add the driver's name before the truck leaves.");
-            if (office) {
+            const fromShop = loadsApi.unscannedPlace(places.find(place => place.id === load.origin_place_id)?.kind);
+            if (office && !fromShop && planned) notes.push('Pieces are marked loaded without scanning only for a truck leaving an outside shop or vendor; elsewhere a crew scans them on.');
+            if (office && fromShop) {
                 const depart = button('Mark loaded and depart', 'btn btn-primary', () => {
                     if (!confirm(`Mark the ${plural(planned, 'planned piece')} as loaded and send ${number} on its way? Use this for a truck leaving a place where nobody scans.`)) return;
                     void operate('load_depart', { loadId: load.id, confirmAll: true }, { failed: `Could not send ${number} on its way`, focus: 'actions',
@@ -271,7 +273,7 @@
             notes.push('Every stop is finished.');
             if (office) {
                 const close = button('Close load', 'btn btn-primary', () => {
-                    if (!confirm(`Close ${number}? Nothing on it can change after that, and its driver's licence is removed 90 days later.`)) return;
+                    if (!confirm(`Close ${number}? Nothing on it can change after that. Its driver's licence is removed after 90 days, the next time office staff open Loads.`)) return;
                     void operate('load_close', { loadId: load.id }, { failed: `Could not close ${number}`, done: () => `${number} is closed.` });
                 });
                 close.dataset.focusKey = 'actions';
@@ -411,7 +413,9 @@
 
     function stopActions(load, stop) {
         const actions = el('div', '', 'd-flex flex-wrap gap-2 mt-1'), where = `stop ${stop.seq} at ${stop.place_name}`;
-        if (office && stop.kind !== 'pickup') {
+        // At an outside shop or vendor nobody scans: office staff confirm what came off, or finish the stop.
+        const atShop = loadsApi.unscannedPlace(stop.place_kind);
+        if (office && atShop && stop.kind !== 'pickup') {
             const deliver = button('Mark delivered', 'btn btn-sm btn-primary', () => {
                 if (!confirm(`Mark the ${plural(stop.due_count, 'piece')} due at ${where} as delivered without scanning them?`)) return;
                 void operate('stop_complete', { loadId: load.id, stopId: stop.id, confirmAll: true }, { focus: `stop-${stop.id}`, failed: `Could not finish ${where}`,
@@ -420,7 +424,7 @@
             deliver.dataset.focusKey = `stop-${stop.id}`;
             actions.append(deliver);
         }
-        if (working) {
+        if (atShop ? office : working) {
             actions.append(button('Finish stop', 'btn btn-sm btn-outline', () => {
                 const warning = stop.due_count ? ` Pieces due here that weren't scanned off (${plural(stop.due_count, 'piece')} now) become missing.` : '';
                 if (!confirm(`Finish ${where}?${warning}`)) return;
@@ -565,7 +569,8 @@
     // ---- Driver's licence (office only) -----------------------------------------------------
     function renderLicence(section) {
         const load = current.load, licence = current.licence;
-        section.append(el('h3', "Driver's licence", 'h6'), el('p', 'Office staff only. Never printed, and removed 90 days after the load closes.', 'small text-muted'));
+        // Removal runs from this page, so it happens only once someone in the office opens Loads.
+        section.append(el('h3', "Driver's licence", 'h6'), el('p', 'Office staff only and never printed. Removed 90 days after the load closes, the next time office staff open Loads.', 'small text-muted'));
         if (licence?.removed_at) { section.append(el('p', `Removed ${timeText(licence.removed_at)}, 90 days after the load closed.`, 'small')); return; }
         // Changing it needs an active project (022's record and attach calls do); reading doesn't.
         if (office) {
@@ -594,9 +599,11 @@
         const photos = el('div', '', 'licence-photos');
         section.append(el('h4', 'Photos', 'h6 mt-3'), photos);
         if (!current.photos.length) photos.append(el('p', 'No photos yet.', 'small text-muted mb-0'));
+        // Each photo is a figure, so its caption can carry actions for that photo.
         current.photos.forEach((photo, index) => {
-            const image = el('img'); image.alt = `Driver's licence photo ${index + 1}`;
-            photos.append(image);
+            const figure = el('figure', '', 'licence-photo'), image = el('img'); image.alt = `Driver's licence photo ${index + 1}`;
+            figure.append(image, el('figcaption', `Photo ${index + 1} · added ${timeText(photo.created_at)}`, 'small text-muted'));
+            photos.append(figure);
             // Short-lived links: a signed URL works for five minutes.
             void supabaseClient.storage.from('driver-licences').createSignedUrl(photo.storage_path, 300).then(({ data, error }) => {
                 if (error || !data?.signedUrl) image.replaceWith(el('p', 'This photo could not be shown.', 'small text-danger mb-0'));

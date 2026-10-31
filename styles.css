@@ -1411,5 +1411,6 @@ button.category-toggle:hover { background:var(--primary-soft); color:var(--prima
 .found-form { min-width:220px; }
 .licence-photos { display:flex; flex-wrap:wrap; gap:.75rem; }
 .licence-photos img { width:200px; height:130px; object-fit:cover; border:1px solid var(--border); border-radius:var(--radius-md); }
+.licence-photo { display:flex; flex-direction:column; gap:.25rem; margin:0; }
 @media (max-width:1024px) { .load-board { grid-template-columns:repeat(2,minmax(0,1fr)); } .load-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (max-width:600px) { .load-board, .load-grid, .load-row, .stop-row { grid-template-columns:1fr; } .company-row .load-row-tools { grid-column:auto; } }

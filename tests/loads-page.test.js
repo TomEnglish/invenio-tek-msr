@@ -39,14 +39,14 @@ function world() {
         unit_status_before: 'sealed', delivered_stop_id: null, delivered_place_id: null, delivered_source: null, note: null, on_at: null, off_at: null, created_at: ago(5), updated_at: ago(5), ...extra });
     return {
         places: [place(1, 'North Yard', 'yard', { project_id: P }), place(2, 'Fixture Machine Works', 'outside_shop', { city: 'Houston' }), place(3, 'Coastal Terminal', 'site'),
-            place(4, 'Old Yard', 'yard', { is_active: false }), place(5, 'West Yard', 'yard', { project_id: 'p9' })],
+            place(4, 'Old Yard', 'yard', { is_active: false }), place(5, 'West Yard', 'yard', { project_id: 'p9' }), place(6, 'Gulf Valve Supply', 'vendor')],
         units: [unit(11, 'HU-AAAA11', 'sealed'), unit(12, 'HU-BBBB22', 'open', { parent_id: id(11), top_unit_id: id(11), top_code: 'HU-AAAA11' }),
             unit(15, 'HU-EEEE55', 'delivered', { place_id: id(2), place_name: 'Fixture Machine Works' }), unit(16, 'HU-HIGH01', 'on_load', { is_high_value: true, description: 'Instruments' }),
             unit(17, 'HU-FREE77', 'sealed')],
         items: [item(21, 'T-100', 'Pump'), item(22, 'T-101', 'Packed valve'), item(23, 'T-102', 'Spare gasket'), item(24, 'T-103', 'Cable drum'), item(25, 'T-104', 'Filter housing'), item(26, 'T-105', 'Junction box')],
         ...emptyLoads(),
         loads: [
-            load(31, 'L-0001', 'planning', { planned_date: '2026-11-03', truck_type: 'Flatbed', truck_number: 'TRK-118', trailer_number: 'TR-9', bol_number: 'BOL-1', driver_name: 'Dana Ruiz', driver_phone: '555-0170' }),
+            load(31, 'L-0001', 'planning', { origin_place_id: id(6), planned_date: '2026-11-03', truck_type: 'Flatbed', truck_number: 'TRK-118', trailer_number: 'TR-9', bol_number: 'BOL-1', driver_name: 'Dana Ruiz', driver_phone: '555-0170' }),
             load(32, 'L-0002', 'in_transit', { driver_name: 'Morgan Lee', departed_at: ago(1), licence_recorded_at: ago(1) }),
             load(33, 'L-0003', 'delivered', { driver_name: 'Sam Patel', departed_at: ago(13), delivered_at: ago(12) }),
             load(34, 'L-0004', 'closed', { driver_name: 'Riley Shah', closed_at: ago(100), licence_recorded_at: ago(130) }),
@@ -163,7 +163,7 @@ test('the board shows open loads by status, read through the project scope; clos
     const [read] = page.server.log.filter(request => request.table === 'load_overview');
     assert.deepEqual(plain(read.filters), [['project_id', P]]);
     const text = page.card('L-0001').textContent;
-    for (const part of ['L-0001', 'From North Yard · Next: Fixture Machine Works', 'Driver Dana Ruiz', 'Planned 2']) assert.ok(text.includes(part), part);
+    for (const part of ['L-0001', 'From Gulf Valve Supply · Next: Fixture Machine Works', 'Driver Dana Ruiz', 'Planned 2']) assert.ok(text.includes(part), part);
     assert.ok(page.card('L-0002').textContent.includes('Licence on file'));
     assert.ok(page.card('L-0002').textContent.includes('On board 2'));
     assert.ok(page.card('L-0003').textContent.includes('Delivered 1 · Missing 1'));
@@ -335,7 +335,7 @@ test('per stop: Mark delivered confirms without scanning; Finish stop warns that
     assert.deepEqual(plain(page.server.ops()[1].p_payload), { loadId: id(32), stopId: id(44) });
     assert.equal(page.status(), 'Finished stop 2 at Coastal Terminal. Every stop of L-0002 is finished.');
     await page.press('Close load');
-    assert.match(page.confirms[2], /^Close L-0002\? .*driver's licence is removed 90 days later\.$/);
+    assert.equal(page.confirms[2], "Close L-0002? Nothing on it can change after that. Its driver's licence is removed after 90 days, the next time office staff open Loads.");
     assert.equal(page.server.load('L-0002').status, 'closed');
 
     const other = await openPage();
@@ -364,7 +364,7 @@ test('a missing piece is marked found at a place with a note (office only)', asy
     assert.deepEqual([line.status, line.flag, line.note], ['delivered', 'found', 'On the dock']);
 });
 
-test('field workers can plan and finish stops, but not confirm without scanning, close, cancel, mark found or see licences', async () => {
+test('field workers can plan and finish stops away from shops, but not confirm without scanning, close, cancel, mark found or see licences', async () => {
     const page = await openPage({ role: 'field_worker' });
     assert.equal(page.$('newLoad').hidden, false);
     assert.equal(page.server.calls('driver_licences_due_for_removal').length, 0, 'no housekeeping');
@@ -375,7 +375,8 @@ test('field workers can plan and finish stops, but not confirm without scanning,
     assert.equal(page.server.log.filter(request => ['load_driver_licences', 'driver_licence_photos'].includes(request.table)).length, 0, 'licences are never asked for');
     await page.open('L-0002');
     assert.equal(page.find('Mark delivered at stop 1 at Fixture Machine Works'), undefined);
-    assert.ok(page.find('Finish stop 1 at Fixture Machine Works'));
+    assert.equal(page.find('Finish stop 1 at Fixture Machine Works'), undefined, 'at an outside shop only office staff finish the stop');
+    assert.ok(page.find('Finish stop 2 at Coastal Terminal'), 'anyone working the project finishes a stop at a site');
     await page.open('L-0003');
     assert.equal(page.find('Mark T-104 found'), undefined);
     assert.ok(page.section('actions').textContent.includes('The office marks them found when they turn up.'));
@@ -586,10 +587,10 @@ test('a closed load, or any load on a project that is not active, shows its deta
 
 test('details send only what changed, so another change stays and a retired origin does not block saving', async () => {
     const state = world();
-    state.places[0].is_active = false; // L-0001's origin, North Yard, is retired
+    state.places[5].is_active = false; // L-0001's origin, Gulf Valve Supply, is retired
     const page = await openPage({ state });
     await page.open('L-0001');
-    assert.equal(page.input('origin').options.find(option => option.value === id(1)).textContent, 'North Yard (retired)');
+    assert.equal(page.input('origin').options.find(option => option.value === id(6)).textContent, 'Gulf Valve Supply (retired)');
     await page.submit('details');
     assert.equal(page.status(), 'Nothing has changed.');
     assert.equal(page.server.ops().length, 0);
@@ -598,7 +599,7 @@ test('details send only what changed, so another change stays and a retired orig
     await page.submit('details');
     assert.deepEqual(plain(page.server.ops()[0].p_payload), { loadId: id(31), notes: 'Call before arriving' });
     assert.equal(page.status(), "Saved L-0001's details.");
-    assert.deepEqual([page.server.load('L-0001').driver_name, page.server.load('L-0001').origin_place_id], ['Replacement Driver', id(1)]);
+    assert.deepEqual([page.server.load('L-0001').driver_name, page.server.load('L-0001').origin_place_id], ['Replacement Driver', id(6)]);
     assert.equal(page.input('driverName').value, 'Replacement Driver', 'the form now shows the saved load');
 });
 
@@ -667,4 +668,31 @@ test('the drawer is named while it loads, and focus lands on Close once it is dr
     assertFocus(page, page.find('Close'));
     const [table] = page.section('manifest').querySelectorAll('table');
     assert.equal(table.querySelectorAll('th').at(-1).textContent, 'Actions');
+});
+
+test('confirming without scanning is offered only where nobody scans: a truck leaving, or a stop at, an outside shop or vendor', async () => {
+    const state = world();
+    state.loads[0].origin_place_id = id(1); // L-0001 leaves our own yard
+    state.load_stops.find(stop => stop.id === id(43)).place_id = id(3); // L-0002's first stop is a site
+    const page = await openPage({ state });
+    await page.open('L-0001');
+    assert.equal(page.find('Mark loaded and depart'), undefined);
+    assert.ok(page.section('actions').textContent.includes('Pieces are marked loaded without scanning only for a truck leaving an outside shop or vendor'));
+    assert.ok(page.find('Cancel load'), 'other office actions stay');
+    await page.open('L-0002');
+    assert.equal(page.find('Mark delivered at stop 1 at Coastal Terminal'), undefined);
+    assert.ok(page.find('Finish stop 1 at Coastal Terminal'));
+    const shop = await openPage();
+    await shop.open('L-0001');
+    assert.ok(shop.find('Mark loaded and depart'), 'from Gulf Valve Supply, a vendor');
+    await shop.open('L-0002');
+    assert.ok(shop.find('Mark delivered at stop 1 at Fixture Machine Works'));
+});
+
+test('the licence section says removal waits for someone in the office to open Loads, and each photo has a caption', async () => {
+    const page = await openPage();
+    await page.open('L-0002');
+    assert.ok(page.section('licence').textContent.includes('Removed 90 days after the load closes, the next time office staff open Loads.'));
+    const [figure] = page.section('licence').querySelectorAll('figure');
+    assert.ok(figure.querySelector('figcaption').textContent.startsWith('Photo 1 · added '));
 });

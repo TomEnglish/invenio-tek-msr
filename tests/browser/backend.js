@@ -91,7 +91,7 @@
             delivered_stop_id: null, delivered_place_id: null, delivered_source: null, note: null, on_at: null, off_at: null, created_at: days(20), updated_at: days(1), ...extra });
         state.loads = { ...InvenioLoadsModel.emptyLoads(),
             loads: [
-                load(1, 'L-0001', 'planning', { planned_date: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10), truck_type: 'Flatbed', truck_number: 'TRK-118', driver_name: 'Dana Ruiz', driver_phone: '555-0170' }),
+                load(1, 'L-0001', 'planning', { origin_place_id: place(4), planned_date: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10), truck_type: 'Flatbed', truck_number: 'TRK-118', driver_name: 'Dana Ruiz', driver_phone: '555-0170' }),
                 load(2, 'L-0002', 'in_transit', { planned_date: days(1).slice(0, 10), truck_type: 'Step deck', truck_number: 'TRK-204', trailer_number: 'TR-77', bol_number: 'BOL-5521', driver_name: 'Morgan Lee', driver_phone: '555-0181', departed_at: days(1), licence_recorded_at: days(1) }),
                 load(3, 'L-0003', 'delivered', { planned_date: days(13).slice(0, 10), driver_name: 'Sam Patel', departed_at: days(13), delivered_at: days(12) }),
                 load(4, 'L-0004', 'closed', { planned_date: days(130).slice(0, 10), driver_name: 'Riley Shah', departed_at: days(130), delivered_at: days(129), closed_at: days(120), licence_recorded_at: days(130) }),

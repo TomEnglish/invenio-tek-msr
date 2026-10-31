@@ -99,6 +99,10 @@ test('error text names migration 022 when it is missing and shows 022\'s refusal
     assert.equal(loads.errorMessage({ code: '42501', message: 'permission denied for function apply_field_operation' }), 'You do not have permission to make this change.');
 });
 
+test('only outside shops and vendors are places nobody scans', () => {
+    assert.deepEqual(['outside_shop', 'vendor', 'yard', 'site', 'other', undefined].map(loads.unscannedPlace), [true, true, false, false, false, false]);
+});
+
 test('only changed details are sent, and the board says a licence is on file only until 90 days after closing', () => {
     assert.deepEqual(loads.changedKeys({ originPlaceId: 'p1', notes: 'New', driverName: 'Dana' }, { originPlaceId: 'p1', notes: '', driverName: 'Dana' }), { notes: 'New' });
     assert.deepEqual(loads.changedKeys({ notes: '' }, { notes: 'Old' }), { notes: '' }, 'clearing a field is a change');

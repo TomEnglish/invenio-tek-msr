@@ -35,6 +35,10 @@
     }
 
     const isFinished = load => FINISHED.has(load.status);
+    // The user's decision: pieces are confirmed without scanning only where nobody scans, an outside shop or a
+    // vendor, and only office staff finish a stop there.
+    const UNSCANNED_KINDS = new Set(['outside_shop', 'vendor']);
+    const unscannedPlace = kind => UNSCANNED_KINDS.has(kind);
     // Stops and the plan can change only until the truck leaves.
     const beforeDeparture = load => load.status === 'planning' || load.status === 'loading';
     const isDate = text => /^\d{4}-\d{2}-\d{2}$/.test(text) && !Number.isNaN(Date.parse(`${text}T00:00:00Z`)) && new Date(`${text}T00:00:00Z`).toISOString().startsWith(text);
@@ -170,7 +174,7 @@
 
     const api = {
         LOAD_STATUS, BOARD_COLUMNS, LINE_STATUS, LINE_FLAGS, STOP_KINDS, STOP_STATUS, COMPANY_ROLES, LOAD_TEXT, MAX_COMPANIES, MAX_STOPS, MAX_LICENCE_PHOTOS,
-        errorMessage, isFinished, beforeDeparture, isDate, boardGroups, cardCounts, detailsPayload, changedKeys, licenceOnFile, companiesPayload, stopsPayload, moveItem,
+        errorMessage, isFinished, unscannedPlace, beforeDeparture, isDate, boardGroups, cardCounts, detailsPayload, changedKeys, licenceOnFile, companiesPayload, stopsPayload, moveItem,
         manifestByStop, printable, licenceValues, licencePhotoPath, daysSince, daysText, shopContents,
     };
     root.InvenioLoads = api;
