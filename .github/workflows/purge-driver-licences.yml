@@ -1,6 +1,7 @@
 name: Remove expired driver licences
-# Daily: removes driver licence numbers and photos 90 days after a load
-# closes, or after its last activity if it never closes (migration 022).
+# Daily: removes driver licence numbers and photos 365 days after a load
+# closes, or after its last activity if it never closes, unless the office
+# is keeping one (migrations 022 and 023).
 # Needs the SUPABASE_SERVICE_ROLE_KEY repository secret.
 on:
   schedule:
