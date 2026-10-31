@@ -649,9 +649,12 @@ const LINK_DISCIPLINES = ['Civil', 'Electrical', 'Instrumentation', 'Mechanical'
 // can change while the form is open.
 let linkEditing = null;
 
-/** A detail as the database keeps it: text without whitespace at either end, a number, or nothing. */
+/**
+ * A detail as the database keeps it: text without whitespace at either end, a number, or nothing. Line breaks are
+ * compared as a text area gives them back (a browser turns CRLF into LF), so a stored CRLF isn't seen as a change.
+ */
 function linkDetail(value, type) {
-    const text = value == null ? '' : String(value).trim();
+    const text = value == null ? '' : String(value).replace(/\r\n?/g, '\n').trim();
     if (text === '') return null;
     return type === 'number' ? Number(text) : text;
 }
@@ -776,6 +779,8 @@ async function saveLinkEdit(linkId) {
     } catch (error) {
         console.error('Error editing link:', error);
         say(`Not saved: ${error.message}`);
+        // Changed since the form opened: read the links again, so opening the form again starts from what's stored.
+        if (error.code === '40001') await loadMaterialLinks();
     } finally {
         save.disabled = false;
     }

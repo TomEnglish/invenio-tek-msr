@@ -14,8 +14,9 @@
 -- trackers first. There is still no delete policy: this is the only way.
 --
 -- A trigger holds the browser's roles to that: a link keeps its number and its
--- project, a new link always gets the next number (so a deleted link's number
--- never comes back), and the eight details change only through the function.
+-- project, a new link takes the next number and no other (so a deleted link's
+-- number never comes back), and the eight details change only through the
+-- function.
 BEGIN;
 
 -- Text without whitespace at either end (tabs, line breaks and no-break spaces
@@ -32,7 +33,14 @@ begin
   return new;
  end if;
  if tg_op='INSERT' then
-  new.id:=nextval(pg_get_serial_sequence('public.material_links','id'));
+  -- The column default has just drawn the next number; any other number is one the browser chose.
+  begin
+   if new.id is distinct from currval(pg_get_serial_sequence('public.material_links','id')) then
+    raise exception 'A new link takes the next number' using errcode='42501';
+   end if;
+  exception when object_not_in_prerequisite_state then
+   raise exception 'A new link takes the next number' using errcode='42501';
+  end;
   return new;
  end if;
  if new.id is distinct from old.id then

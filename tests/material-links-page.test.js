@@ -165,6 +165,35 @@ test('a live update while the form is open is neither undone nor overwritten', a
     assert.equal(clash.row(7).quantity, 5);
 });
 
+test('a description stored with CRLF line breaks is not sent back unchanged', async () => {
+    const page = await openPage({ role: 'admin', links: [link(7, { po_description: 'Line one\r\nLine two' })] });
+    await page.run('editLink(7)');
+    // A browser's text area gives line breaks back as LF.
+    page.field('linkEdit-po_description').value = 'Line one\nLine two';
+    page.field('linkEdit-quantity').value = '3';
+    page.field('linkEditReason').value = 'Counted again on site';
+    await page.run('saveLinkEdit(7)');
+    assert.deepEqual(page.server.rpcs[0][1].p_changes, { quantity: 3 });
+});
+
+test('after a "changed since" refusal the list is read again, so opening the form again starts from what is stored', async () => {
+    const page = await openPage({ role: 'admin' });
+    await page.run('editLink(7)');
+    page.row(7).quantity = 5; // changed in the database without a live update reaching the page
+    page.field('linkEdit-quantity').value = '3';
+    page.field('linkEditReason').value = 'Counted again on site';
+    await page.run('saveLinkEdit(7)');
+    assert.match(page.field('linkEditMessage').textContent, /has changed since the form opened \(quantity\)/);
+    await page.run('editLink(7)');
+    assert.equal(page.field('linkEdit-quantity').value, '5');
+    page.field('linkEdit-quantity').value = '3';
+    page.field('linkEditReason').value = 'Counted again on site';
+    await page.run('saveLinkEdit(7)');
+    assert.deepEqual(page.server.rpcs[1][1].p_expected, { quantity: 5 });
+    assert.deepEqual(page.alerts, ['✓ Link #7 updated.']);
+    assert.equal(page.row(7).quantity, 3);
+});
+
 test('a link deleted while the form is open says so instead of doing nothing', async () => {
     const page = await openPage({ role: 'admin' });
     await page.run('editLink(7)');

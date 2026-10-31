@@ -33,10 +33,13 @@ END $$;
 SELECT pg_temp.expect_error($q$UPDATE public.material_links SET install_tag='V-999' WHERE id=901$q$,'42501','office staff can''t change an install tag directly');
 SELECT pg_temp.expect_error($q$UPDATE public.material_links SET project_id='b2222222-2222-4222-8222-222222222222' WHERE id=901$q$,'42501','a link stays in its project');
 SELECT pg_temp.expect_error($q$UPDATE public.material_links SET id=88888 WHERE id=901$q$,'42501','a link keeps its number, so no one can swap links');
-DO $$ DECLARE n bigint; BEGIN
- INSERT INTO public.material_links(id,po_id,project_id) VALUES (902,'PO-REUSE','b1111111-1111-4111-8111-111111111111') RETURNING id INTO n;
- PERFORM pg_temp.assert_true(n NOT IN (901,902,903,904,905),'a new link gets the next number, not the one it asked for');
- DELETE FROM public.material_links WHERE id=n;
+SELECT pg_temp.expect_error($q$INSERT INTO public.material_links(id,po_id,project_id) VALUES (906,'PO-CHOSEN','b1111111-1111-4111-8111-111111111111')$q$,
+ '42501','a new link can''t choose its number, so a deleted link''s number never comes back');
+DO $$ DECLARE a bigint; b bigint; BEGIN
+ INSERT INTO public.material_links(po_id,project_id) VALUES ('PO-NEW-1','b1111111-1111-4111-8111-111111111111') RETURNING id INTO a;
+ INSERT INTO public.material_links(po_id,project_id) VALUES ('PO-NEW-2','b1111111-1111-4111-8111-111111111111'),('PO-NEW-3','b1111111-1111-4111-8111-111111111111');
+ SELECT max(id) INTO b FROM public.material_links WHERE po_id LIKE 'PO-NEW-%';
+ PERFORM pg_temp.assert_true(b=a+2,'office staff still make links, and the numbers run on without gaps');
 END $$;
 SELECT pg_temp.expect_error($q$SELECT public.admin_update_material_link(901,'{"install_tag":"V-999"}','Tag was mistyped')$q$,'42501','office staff can''t edit a link');
 SELECT pg_temp.expect_error($q$SELECT public.admin_delete_material_link(901,'Made in error')$q$,'42501','office staff can''t delete a link');
