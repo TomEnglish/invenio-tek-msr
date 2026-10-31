@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <meta name="theme-color" content="#0369a1">
+    <title>Places - Invenio Field MSR</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="styles.css?v=20261029places">
+    <style>html:not(.auth-ready) body { visibility: hidden; }</style>
+
+</head>
+
+<body>
+<section class="work-page">
+    <header class="work-page-header"><div><p class="eyebrow">Logistics</p><h1>Places</h1><p class="text-muted">Our yards and sites, outside shops and vendors, shared by every project. A map point and arrival radius let a tracker's arrival be recognised.</p></div><div class="work-page-actions"><button type="button" id="addPlace" class="btn btn-primary" hidden>Add place</button></div></header>
+    <p id="pageMessage" role="status" aria-live="polite" tabindex="-1"></p>
+    <section class="card mb-3" aria-label="Filters"><div class="card-body inventory-filters">
+        <label for="filterKind">Kind<select id="filterKind" class="form-select"></select></label>
+        <label for="filterSearch">Search<input type="search" id="filterSearch" class="form-control" placeholder="Name, address or contact" autocomplete="off"></label>
+    </div></section>
+    <div class="inventory-toolbar"><div class="view-switch" role="group" aria-label="Show"><button type="button" id="showActive" class="btn btn-sm" aria-pressed="true">Active</button><button type="button" id="showRetired" class="btn btn-sm" aria-pressed="false">Retired</button></div><p id="resultSummary" class="small text-muted mb-0" role="status"></p></div>
+    <div class="places-layout">
+        <section class="card" aria-label="Places">
+            <div class="table-responsive"><table class="table"><thead><tr><th scope="col">Name</th><th scope="col">Kind</th><th scope="col">Address</th><th scope="col">Arrival radius</th><th scope="col">Contact</th></tr></thead><tbody id="placeRows"></tbody></table></div>
+        </section>
+        <section class="card" aria-labelledby="placesMapTitle">
+            <div class="card-header"><h2 id="placesMapTitle" class="h6 mb-0">Map</h2><div id="mapLegend" class="map-legend" aria-label="Marker colours"></div></div>
+            <div id="placesMap" class="places-map" role="region" aria-label="Places on the map"></div>
+            <p id="mapNote" class="small text-muted card-body mb-0"></p>
+        </section>
+    </div>
+</section>
+<dialog id="placeDrawer" class="review-drawer" aria-labelledby="placeTitle"><div id="placeContent"></div><p id="placeStatus" class="small mt-2 mb-0" role="status" aria-live="polite"></p></dialog>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="supabase-config.js?v=20260424f"></script>
+    <script src="js/utils/constants.js?v=20260424f"></script>
+    <script src="js/utils/formatting.js?v=20260424f"></script>
+    <script src="js/utils/branding.js?v=20261010portal"></script>
+    <script src="js/utils/supabase-client.js?v=20260424f"></script>
+    <script src="js/utils/project-scope.js?v=20261029places"></script>
+    <script src="js/utils/user-access.js?v=20260908a"></script>
+    <script src="js/utils/auth-guard.js?v=20260908a"></script>
+    <script src="js/utils/sidebar.js?v=20261029places"></script>
+    <script src="js/utils/inventory-helpers.js?v=20261028area3"></script>
+    <script src="js/utils/logistics-helpers.js?v=20261029places"></script>
+    <script src="places.js?v=20261029places"></script>
+</body>
+</html>

@@ -252,4 +252,32 @@ except subprocess.CalledProcessError as error:
 assert sql(f"SELECT parent_id IS NULL FROM public.site_map_zones WHERE id='{south}'") == 't'
 assert sql(f"BEGIN ISOLATION LEVEL REPEATABLE READ; UPDATE public.site_map_zones SET name='South yard' WHERE id='{south}'; COMMIT; SELECT name FROM public.site_map_zones WHERE id='{south}';") == 'South yard'
 print('Concurrency passed: areas are added or moved only at READ COMMITTED; renames work at any level', flush=True)
+
+
+# Two phones packing at once: crossing nests cannot make a loop, and one item
+# cannot land in two crates.
+def pack(operation, payload):
+    return f"""SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','f1111111-1111-4111-8111-111111111111',true);
+SELECT public.apply_field_operation('{operation}','{first_project}','pack','{payload}');"""
+
+
+sql('BEGIN;' + pack('21000000-0000-4000-8000-000000000001', '{"unitCode":"HU-RACEA"}') + 'COMMIT;')
+sql('BEGIN;' + pack('21000000-0000-4000-8000-000000000002', '{"unitCode":"HU-RACEB"}') + 'COMMIT;')
+overlap(
+    'crossing crate packs cannot make a loop',
+    pack('21000000-0000-4000-8000-000000000003', '{"unitCode":"HU-RACEA","add":["HU-RACEB"]}'),
+    pack('21000000-0000-4000-8000-000000000004', '{"unitCode":"HU-RACEB","add":["HU-RACEA"]}'),
+    '22023',
+)
+assert sql("SELECT count(*) FROM public.handling_units WHERE code IN ('HU-RACEA','HU-RACEB') AND parent_id IS NOT NULL") == '1'
+sql(f"""INSERT INTO public.inventory_records(project_id,qr_code,inventory_item,count_status,source)
+ VALUES('{first_project}','RACE-ITEM','Race valve','counted','field');""")
+overlap(
+    'one item cannot be packed into two crates at once',
+    pack('21000000-0000-4000-8000-000000000005', '{"unitCode":"HU-RACEC","add":["RACE-ITEM"]}'),
+    pack('21000000-0000-4000-8000-000000000006', '{"unitCode":"HU-RACED","add":["RACE-ITEM"]}'),
+    '22023',
+)
+assert sql("SELECT count(*) FROM public.handling_unit_contents WHERE tag='RACE-ITEM' AND removed_at IS NULL") == '1'
 PY

@@ -40,6 +40,11 @@
         'site_maps',
         'site_map_zones',
         'inventory_photos',
+        // Places (021) are shared by every project, so they are not listed here.
+        'handling_units',
+        'handling_unit_contents',
+        'handling_unit_overview',
+        'handling_unit_items',
     ]);
 
     let currentUserId = null;
