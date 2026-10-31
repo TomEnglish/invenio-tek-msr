@@ -77,6 +77,12 @@ begin
 end $$;
 create trigger site_maps_place_guard before insert or update of place_id,project_id on public.site_maps
  for each row execute function public.site_map_place_guard();
+-- An existing plan belongs to its project's yard or site, where the project
+-- has just one.
+update public.site_maps m set place_id=p.id
+ from (select project_id,(array_agg(id))[1] as id from public.places where kind in ('yard','site') and is_active and project_id is not null
+  group by project_id having count(*)=1) p
+ where m.place_id is null and p.project_id=m.project_id;
 
 create function public.material_position_guard() returns trigger
 language plpgsql set search_path=public,pg_temp as $$
@@ -200,6 +206,8 @@ begin
   raise exception 'Office access to an active project is required' using errcode='42501';
  end if;
  perform 1 from public.projects where id=p_project_id for update;
+ -- Receiving and counting a tag wait for an import, and it for them.
+ perform pg_advisory_xact_lock(hashtextextended('tags:'||p_project_id::text,0));
  if jsonb_typeof(p_items) is distinct from 'array' or jsonb_array_length(p_items) not between 1 and 5000 then
   raise exception 'Provide between 1 and 5000 items' using errcode='22023';
  end if;
@@ -620,11 +628,15 @@ begin
   else public.is_office_user() and public.has_project_access(v_load.project_id) end;
 exception when invalid_text_representation then return false;
 end $$;
+-- Uploads to one load's folder take turns, so a fifth file can't land
+-- alongside a fourth.
 create function public.can_add_driver_licence_path(path text) returns boolean
-language sql stable security definer set search_path=public as $$
- select public.can_access_driver_licence_path(path,true)
-  and (select count(*) from storage.objects o where o.bucket_id='driver-licences' and split_part(o.name,'/',1)=split_part(path,'/',1))<4
-$$;
+language plpgsql volatile security definer set search_path=public as $$
+begin
+ if not public.can_access_driver_licence_path(path,true) then return false; end if;
+ perform pg_advisory_xact_lock(hashtextextended('driver-licences:'||split_part(path,'/',1),0));
+ return (select count(*) from storage.objects o where o.bucket_id='driver-licences' and split_part(o.name,'/',1)=split_part(path,'/',1))<4;
+end $$;
 create function public.can_remove_driver_licence_path(path text) returns boolean
 language plpgsql stable security definer set search_path=public as $$
 declare v_load public.loads;
@@ -785,10 +797,10 @@ end $$;
 
 -- Where something is put: an active place the project can use and, if given,
 -- an area of a live site plan. The area has to be at that place: on a plan
--- drawn for it or, on a plan not yet tied to a place, at one of the project's
--- own yards or sites. With no place, the area's plan names it. p_require_area
--- asks for an area wherever the place has a plan with areas (with no place,
--- wherever the project has one, as before).
+-- drawn for it or, on a plan not yet tied to a place, at a yard or site
+-- (never a shop or vendor). With no place, the area's plan names it.
+-- p_require_area asks for an area wherever the place has a plan with areas
+-- (with no place, wherever the project has one, as before).
 create function public.logistics_position(p_project_id uuid,p_place_id uuid,p_map_id uuid,p_zone_id uuid,p_require_area boolean)
 returns table(place_id uuid,site_map_id uuid,zone_id uuid,location text)
 language plpgsql stable set search_path=public,pg_temp as $$
@@ -810,7 +822,7 @@ begin
   end if;
   if v_place.id is null then
    if v_map.place_id is not null then v_place:=public.logistics_place(p_project_id,v_map.place_id); end if;
-  elsif v_map.place_id is distinct from v_place.id and not (v_map.place_id is null and v_place.project_id is not distinct from p_project_id) then
+  elsif v_map.place_id is distinct from v_place.id and not (v_map.place_id is null and v_place.kind in ('yard','site')) then
    raise exception 'That area isn''t at %',v_place.name using errcode='22023';
   end if;
  elsif p_require_area and exists(select 1 from public.site_map_zones z join public.site_maps m on m.id=z.map_id
@@ -821,16 +833,24 @@ begin
  return query select v_place.id,v_map.id,v_zone.id,case when v_zone.id is not null then public.site_map_zone_path(v_zone.id) end;
 end $$;
 
--- Put a loose item somewhere. A material follows the rack of its new area,
--- when the area has one; a count record's pin and area text belong to where
--- it was, so they go.
-create function public.logistics_place_item(p_material_id uuid,p_inventory_uid uuid,p_place_id uuid,p_map_id uuid,p_zone_id uuid,p_location text)
-returns void language plpgsql set search_path=public,pg_temp as $$
+-- Put a loose item somewhere. A material takes the rack of its new area (none
+-- if the area has no rack), and off to another place without an area it is no
+-- longer on a yard rack; a change of rack is recorded as a movement. A count
+-- record's pin and area text belong to where it was, so they go.
+create function public.logistics_place_item(p_actor uuid,p_material_id uuid,p_inventory_uid uuid,p_place_id uuid,p_map_id uuid,p_zone_id uuid,
+ p_location text,p_reason text) returns void language plpgsql set search_path=public,pg_temp as $$
+declare v_before public.materials; v_after public.materials;
 begin
  if p_material_id is not null then
+  select * into v_before from public.materials where id=p_material_id;
   update public.materials m set place_id=p_place_id,site_map_id=p_map_id,zone_id=p_zone_id,
-   location_id=case when p_zone_id is not null then (select z.location_id from public.site_map_zones z where z.id=p_zone_id) else m.location_id end
-  where m.id=p_material_id;
+   location_id=case when p_zone_id is not null then (select z.location_id from public.site_map_zones z where z.id=p_zone_id)
+    when p_place_id is distinct from m.place_id then null else m.location_id end
+  where m.id=p_material_id returning * into v_after;
+  if v_after.location_id is not null and v_after.location_id is distinct from v_before.location_id then
+   insert into public.material_movements(project_id,material_id,from_location_id,to_location_id,moved_by,reason)
+   values(v_after.project_id,v_after.id,v_before.location_id,v_after.location_id,p_actor,p_reason);
+  end if;
  end if;
  if p_inventory_uid is not null then
   update public.inventory_records i set place_id=p_place_id,site_map_id=p_map_id,zone_id=p_zone_id,pin_x=null,pin_y=null,
@@ -860,6 +880,12 @@ language sql stable set search_path=public as $$
  select case r.exception_resolution when 'hold' then 'on hold' else 'being returned to the vendor' end
  from public.materials m join public.receiving_records r on r.id=m.receiving_record_id
  where m.id=p_material_id and r.has_exception and r.exception_resolution in ('hold','return_to_vendor')
+$$;
+
+-- Held stock goes only to a hold area: an area linked to a hold-area rack.
+create function public.logistics_hold_area(p_zone_id uuid) returns boolean
+language sql stable set search_path=public as $$
+ select coalesce((select l.is_hold_area from public.site_map_zones z join public.locations l on l.id=z.location_id where z.id=p_zone_id),false)
 $$;
 
 -- The first held material in a crate or the crates inside it, as a sentence.
@@ -1012,13 +1038,14 @@ begin
 end $$;
 
 -- A piece already on another load. If it is only planned on a load that
--- hasn't left, p_move takes it off that plan; otherwise it is refused.
--- Returns the load it came from, if any.
-create function public.logistics_take_piece(p_load_id uuid,p_unit_id uuid,p_material_id uuid,p_inventory_uid uuid,p_tag text,p_move boolean)
+-- hasn't left, p_move takes it off that plan; otherwise it is refused. When
+-- planning (rather than loading the truck), a crew can take a piece only
+-- from a load a crew started. Returns the load it came from, if any.
+create function public.logistics_take_piece(p_load_id uuid,p_unit_id uuid,p_material_id uuid,p_inventory_uid uuid,p_tag text,p_move boolean,p_planning boolean)
 returns text language plpgsql set search_path=public,pg_temp as $$
 declare v record;
 begin
- select x.id,x.status,l.load_number,l.status as load_status into v from public.load_lines x join public.loads l on l.id=x.load_id
+ select x.id,x.status,l.load_number,l.status as load_status,l.started_in_field into v from public.load_lines x join public.loads l on l.id=x.load_id
   where x.status in ('planned','on_board','missing') and x.load_id<>p_load_id
    and (x.unit_id=p_unit_id or x.material_id=p_material_id or x.inventory_uid=p_inventory_uid)
   for update of x;
@@ -1031,6 +1058,9 @@ begin
  end if;
  if not p_move then
   raise exception '% is planned on load %; move it to this load or take it off that plan first',p_tag,v.load_number using errcode='22023';
+ end if;
+ if p_planning and not v.started_in_field and not public.is_office_user() then
+  raise exception 'The office planned % on load %; ask the office to move it',p_tag,v.load_number using errcode='42501';
  end if;
  update public.load_lines set status='removed',note=left(coalesce(note||' ','')||'Moved to another load.',500) where id=v.id;
  return v.load_number;
@@ -1144,7 +1174,8 @@ begin
     update public.handling_unit_contents set removed_at=now(),removed_by=p_actor
      where unit_id=v_unit.id and removed_at is null and lower(tag)=lower(v_tag) returning * into v_existing;
     if not found then raise exception '% isn''t in this crate',v_tag using errcode='22023'; end if;
-    perform public.logistics_place_item(v_existing.material_id,v_existing.inventory_uid,v_top.place_id,v_top.site_map_id,v_top.zone_id,v_top.location);
+    perform public.logistics_place_item(p_actor,v_existing.material_id,v_existing.inventory_uid,v_top.place_id,v_top.site_map_id,v_top.zone_id,
+     v_top.location,'Taken out of '||v_unit.code);
     v_removed:=v_removed||v_existing.tag;
    end if;
   exception when sqlstate '22023' or sqlstate '42501' or sqlstate '23505' then
@@ -1289,7 +1320,8 @@ begin
  v_before:=to_jsonb(v_unit);
  v_top:=public.handling_unit_top(v_unit.id);
  for v_content in select * from public.handling_unit_contents c where c.unit_id=v_unit.id and c.removed_at is null for update loop
-  perform public.logistics_place_item(v_content.material_id,v_content.inventory_uid,v_top.place_id,v_top.site_map_id,v_top.zone_id,v_top.location);
+  perform public.logistics_place_item(p_actor,v_content.material_id,v_content.inventory_uid,v_top.place_id,v_top.site_map_id,v_top.zone_id,
+   v_top.location,'Unpacked from '||v_unit.code);
   update public.handling_unit_contents set removed_at=now(),removed_by=p_actor where id=v_content.id;
   v_items:=v_items+1;
  end loop;
@@ -1309,9 +1341,10 @@ end $$;
 -- move: {unitCode, placeId?, siteMapId?, zoneId?, capturedAt?} A crate moved
 -- without being opened keeps its seal. Only an outermost crate that isn't on
 -- a truck moves, and a sealed one needs an area where its place has a plan.
+-- A crate holding stock on hold goes, for crews, only to a hold area.
 create function public.logistics_move(p_actor uuid,p_operation_id uuid,p_project_id uuid,p_payload jsonb) returns jsonb
 language plpgsql set search_path=public,pg_temp as $$
-declare v_code text; v_unit public.handling_units; v_before jsonb; v_place uuid; v_map uuid; v_zone uuid; v_pos record; v_holder text;
+declare v_code text; v_unit public.handling_units; v_before jsonb; v_place uuid; v_map uuid; v_zone uuid; v_pos record; v_holder text; v_held text;
 begin
  v_code:=upper(btrim(coalesce(p_payload->>'unitCode','')));
  if v_code !~ '^HU-[A-Z0-9]{4,20}$' then
@@ -1338,6 +1371,12 @@ begin
  end if;
  v_before:=to_jsonb(v_unit);
  select * into v_pos from public.logistics_position(p_project_id,coalesce(v_place,v_unit.place_id),v_map,v_zone,v_unit.status='sealed');
+ if not public.is_office_user() then
+  v_held:=public.logistics_unit_hold(v_unit.id);
+  if v_held is not null and not public.logistics_hold_area(v_pos.zone_id) then
+   raise exception '% holds %; until the office releases it, the crate can only go to a hold area',v_unit.code,v_held using errcode='22023';
+  end if;
+ end if;
  update public.handling_units set place_id=v_pos.place_id,site_map_id=v_pos.site_map_id,zone_id=v_pos.zone_id,location=v_pos.location
   where id=v_unit.id returning * into v_unit;
  insert into public.audit_log(user_id,action,entity_type,entity_id,details,project_id)
@@ -1348,11 +1387,12 @@ end $$;
 
 -- relocate: {tag, placeId?, siteMapId?, zoneId?, reason?, capturedAt?}
 -- Correct where a loose item is without counting it again (a received item
--- can't be recounted). A material follows the rack of its new area.
+-- can't be recounted), wherever it was recorded. A material takes the rack of
+-- its new area; one on hold goes, for crews, only to a hold area.
 create function public.logistics_relocate(p_actor uuid,p_operation_id uuid,p_project_id uuid,p_payload jsonb) returns jsonb
 language plpgsql set search_path=public,pg_temp as $$
 declare v_tag text; v_mid uuid; v_uid uuid; v_material public.materials; v_item public.inventory_records; v_before jsonb; v_after jsonb;
- v_place uuid; v_map uuid; v_zone uuid; v_pos record; v_reason text;
+ v_place uuid; v_map uuid; v_zone uuid; v_pos record; v_reason text; v_hold text;
 begin
  v_tag:=public.logistics_text(p_payload,'tag',120,'Tag');
  if v_tag is null then raise exception 'Tag number is required' using errcode='22023'; end if;
@@ -1378,12 +1418,13 @@ begin
   perform public.logistics_item_loose(v_tag,v_material.id,null,'move');
   v_before:=to_jsonb(v_material);
   select * into v_pos from public.logistics_position(p_project_id,coalesce(v_place,v_material.place_id),v_map,v_zone,false);
-  perform public.logistics_place_item(v_material.id,null,v_pos.place_id,v_pos.site_map_id,v_pos.zone_id,v_pos.location);
-  select * into v_material from public.materials where id=v_material.id;
-  if v_material.location_id is not null and v_material.location_id is distinct from (v_before->>'location_id')::uuid then
-   insert into public.material_movements(project_id,material_id,from_location_id,to_location_id,moved_by,reason)
-   values(p_project_id,v_material.id,(v_before->>'location_id')::uuid,v_material.location_id,p_actor,coalesce(v_reason,'Moved to '||coalesce(v_pos.location,'a new area')));
+  v_hold:=public.logistics_material_hold(v_material.id);
+  if v_hold is not null and not public.is_office_user() and not public.logistics_hold_area(v_pos.zone_id) then
+   raise exception '% is %; until the office releases it, it can only go to a hold area',v_tag,v_hold using errcode='22023';
   end if;
+  perform public.logistics_place_item(p_actor,v_material.id,null,v_pos.place_id,v_pos.site_map_id,v_pos.zone_id,v_pos.location,
+   coalesce(v_reason,'Moved to '||coalesce(v_pos.location,'a new place')));
+  select * into v_material from public.materials where id=v_material.id;
   v_after:=to_jsonb(v_material);
  elsif v_uid is not null then
   select * into v_item from public.inventory_records where uid=v_uid for update;
@@ -1397,7 +1438,7 @@ begin
   perform public.logistics_item_loose(v_tag,null,v_item.uid,'move');
   v_before:=to_jsonb(v_item);
   select * into v_pos from public.logistics_position(p_project_id,coalesce(v_place,v_item.place_id),v_map,v_zone,false);
-  perform public.logistics_place_item(null,v_item.uid,v_pos.place_id,v_pos.site_map_id,v_pos.zone_id,v_pos.location);
+  perform public.logistics_place_item(p_actor,null,v_item.uid,v_pos.place_id,v_pos.site_map_id,v_pos.zone_id,v_pos.location,null);
   select * into v_item from public.inventory_records where uid=v_item.uid;
   v_after:=to_jsonb(v_item);
  else
@@ -1420,8 +1461,8 @@ end $$;
 -- capturedAt?} Only the keys sent are changed. A load a crew creates is
 -- started in the field. The office plans stops, except on a load started in
 -- the field; once the truck has left, only office staff change stops, and
--- only ones it hasn't reached. A change made before the load's latest saved
--- change is refused.
+-- only ones it hasn't reached (with none left to reach, the load is
+-- delivered). A change made before the load's latest saved change is refused.
 -- ---------------------------------------------------------------------------
 create function public.logistics_load_save(p_actor uuid,p_operation_id uuid,p_project_id uuid,p_payload jsonb) returns jsonb
 language plpgsql set search_path=public,pg_temp as $$
@@ -1449,7 +1490,10 @@ begin
 
  select * into v_load from public.loads where id=v_id for update;
  if not found then
-  -- Numbers take turns per project.
+  -- The project stays active while the load is added (completing it waits),
+  -- and numbers take turns per project.
+  perform 1 from public.projects p where p.id=p_project_id and p.status='active' for share;
+  if not found then raise exception 'This project isn''t active; loads can''t be added' using errcode='22023'; end if;
   perform pg_advisory_xact_lock(hashtextextended('loads:'||p_project_id::text,0));
   select coalesce(max(substring(l.load_number from 3)::integer),0)+1 into v_number from public.loads l where l.project_id=p_project_id;
   insert into public.loads(id,project_id,load_number,origin_place_id,planned_date,truck_type,truck_number,trailer_number,bol_number,notes,
@@ -1559,6 +1603,9 @@ begin
     where x.load_id=v_load.id and x.status in ('planned','on_board') and (d.kind='pickup' or p.kind='dropoff' or p.seq>=d.seq)) then
    raise exception 'Every planned piece needs a drop-off stop after its pick-up stop' using errcode='22023';
   end if;
+  if v_load.status='in_transit' and not exists(select 1 from public.load_stops s where s.load_id=v_load.id and s.status in ('pending','arrived')) then
+   update public.loads set status='delivered',delivered_at=now() where id=v_load.id returning * into v_load;
+  end if;
  end if;
 
  insert into public.audit_log(user_id,action,entity_type,entity_id,details,project_id)
@@ -1628,7 +1675,7 @@ begin
     update public.load_lines set dropoff_stop_id=v_drop.id,pickup_stop_id=v_pick.id where id=v_line.id;
    else
     v_from:=public.logistics_take_piece(v_load.id,v_piece.unit_id,v_piece.material_id,v_piece.inventory_uid,v_piece.tag,
-     public.logistics_flag(v_elem,'move','Move'));
+     public.logistics_flag(v_elem,'move','Move'),true);
     if v_piece.unit_id is not null and v_piece.unit_status not in ('open','sealed','delivered') then
      raise exception '% is %; it can''t go on a load',v_piece.tag,replace(v_piece.unit_status,'_',' ') using errcode='22023';
     end if;
@@ -1654,7 +1701,9 @@ end $$;
 -- dropoffStopId?, move?}], undo?: [code], partial?, capturedAt?} A piece that
 -- wasn't planned needs a drop-off stop. A scan made before the truck left
 -- counts as loaded at the start even if it uploads later, so a second
--- phone's scans aren't lost; one whose drop-off is already done is missing.
+-- phone's scans aren't lost, unless the piece has travelled on another load
+-- since; one whose drop-off is already done is missing. A crew may take a
+-- piece another load had planned (move), since it is on this truck.
 create function public.logistics_load_on(p_actor uuid,p_operation_id uuid,p_project_id uuid,p_payload jsonb) returns jsonb
 language plpgsql set search_path=public,pg_temp as $$
 declare
@@ -1743,9 +1792,14 @@ begin
      raise exception '% is %; it can''t go on a load',v_piece.tag,replace(v_piece.unit_status,'_',' ') using errcode='22023';
     end if;
     v_status:=case when v_drop.status='done' then 'missing' else 'on_board' end;
+    if v_late and exists(select 1 from public.load_lines y where y.load_id<>v_load.id
+      and (y.unit_id=v_piece.unit_id or y.material_id=v_piece.material_id or y.inventory_uid=v_piece.inventory_uid)
+      and y.status in ('on_board','delivered','missing','written_off') and coalesce(y.off_at,y.on_at,y.updated_at)>v_captured) then
+     raise exception '% travelled on another load after this scan was made; the scan is out of date',v_piece.tag using errcode='22023';
+    end if;
     if not v_has or v_line.status='not_loaded' then
      v_from:=public.logistics_take_piece(v_load.id,v_piece.unit_id,v_piece.material_id,v_piece.inventory_uid,v_piece.tag,
-      public.logistics_flag(v_elem,'move','Move'));
+      public.logistics_flag(v_elem,'move','Move'),false);
     end if;
     if v_has then
      update public.load_lines set status=v_status,dropoff_stop_id=v_drop.id,pickup_stop_id=v_at.id,unit_status_before=v_piece.unit_status,
@@ -1772,7 +1826,7 @@ begin
  if v_load.status='planning' and exists(select 1 from public.load_lines x where x.load_id=v_load.id and x.status='on_board') then
   update public.loads set status='loading' where id=v_load.id;
  end if;
- if v_at.id is not null and v_at.status='pending' then
+ if v_at.id is not null and v_at.status='pending' and cardinality(v_on)>0 then
   update public.load_stops set status='arrived',arrived_at=v_on_at,arrived_source='scan' where id=v_at.id;
  end if;
  insert into public.audit_log(user_id,action,entity_type,entity_id,details,project_id)
@@ -1854,8 +1908,8 @@ end $$;
 -- arrived. A piece due somewhere else is flagged wrong_stop, one the records
 -- didn't have on the truck is flagged extra, and a missing one is found.
 -- Until the load is closed, a later scan of a piece already unloaded at
--- another stop moves it here. Unloaded pieces take the stop's place, and the
--- area chosen if the place has a site plan.
+-- another stop moves it here, unless it has moved on since. Unloaded pieces
+-- take the stop's place, and the area chosen if the place has a site plan.
 create function public.logistics_load_off(p_actor uuid,p_operation_id uuid,p_project_id uuid,p_payload jsonb) returns jsonb
 language plpgsql set search_path=public,pg_temp as $$
 declare
@@ -1883,9 +1937,6 @@ begin
  else
   select v_place.id as place_id,null::uuid as site_map_id,null::uuid as zone_id,null::text as location into v_pos;
  end if;
- if v_stop.status='pending' then
-  update public.load_stops set status='arrived',arrived_at=v_off_at,arrived_source='scan' where id=v_stop.id returning * into v_stop;
- end if;
  for v_code in select e from jsonb_array_elements_text(public.logistics_list(p_payload,'pieces','pieces')) e loop
   begin
    v_skip:=false;
@@ -1899,6 +1950,19 @@ begin
     if v_line.delivered_stop_id is not distinct from v_stop.id or (v_captured is not null and v_captured<v_line.off_at) then
      v_skip:=true;
     else
+     -- Only where it last came off can be corrected, not once it has moved on.
+     select o.load_number into v_other from public.logistics_open_line(v_piece.unit_id,v_piece.material_id,v_piece.inventory_uid,v_load.id) o;
+     if v_other is not null then
+      raise exception '% is on load % now; it can''t come off this load again',v_piece.tag,v_other using errcode='22023';
+     end if;
+     if exists(select 1 from public.load_lines y where y.id<>v_line.id and y.created_at>v_line.created_at
+       and y.status in ('on_board','delivered','missing','written_off')
+       and (y.unit_id=v_piece.unit_id or y.material_id=v_piece.material_id or y.inventory_uid=v_piece.inventory_uid)) then
+      raise exception '% has travelled on another load since it came off here',v_piece.tag using errcode='22023';
+     end if;
+     if v_piece.unit_id is not null and v_piece.unit_status<>'delivered' then
+      raise exception '% is % now; it can''t come off this load again',v_piece.tag,replace(v_piece.unit_status,'_',' ') using errcode='22023';
+     end if;
      v_flag:=case when v_line.flag='extra' then 'extra' when v_line.dropoff_stop_id<>v_stop.id then 'wrong_stop'
       when v_line.flag='wrong_stop' then null else v_line.flag end;
      update public.load_lines set flag=v_flag,delivered_stop_id=v_stop.id,delivered_place_id=v_place.id,delivered_source='scan',
@@ -1934,7 +1998,8 @@ begin
      update public.handling_units set status='delivered',place_id=v_pos.place_id,site_map_id=v_pos.site_map_id,zone_id=v_pos.zone_id,location=v_pos.location
       where id=v_piece.unit_id;
     else
-     perform public.logistics_place_item(v_piece.material_id,v_piece.inventory_uid,v_pos.place_id,v_pos.site_map_id,v_pos.zone_id,v_pos.location);
+     perform public.logistics_place_item(p_actor,v_piece.material_id,v_piece.inventory_uid,v_pos.place_id,v_pos.site_map_id,v_pos.zone_id,
+      v_pos.location,'Unloaded from '||v_load.load_number);
     end if;
     v_done:=v_done+1;
     v_tags:=v_tags||v_piece.tag;
@@ -1945,6 +2010,9 @@ begin
    v_refused:=v_refused||jsonb_build_object('code',v_code,'message',v_msg,'sqlstate',v_state);
   end;
  end loop;
+ if v_stop.status='pending' and v_done>0 then
+  update public.load_stops set status='arrived',arrived_at=v_off_at,arrived_source='scan' where id=v_stop.id;
+ end if;
  insert into public.audit_log(user_id,action,entity_type,entity_id,details,project_id)
   values(p_actor,'load_unloaded','load',v_load.id,jsonb_build_object('operation_id',p_operation_id,'stop_id',v_stop.id,'pieces',to_jsonb(v_tags),
    'corrected',v_corrected,'refused',v_refused,'captured_at',v_captured),p_project_id);
@@ -1991,7 +2059,8 @@ begin
    if v_line.unit_id is not null then
     update public.handling_units set status='delivered',place_id=v_place.id,site_map_id=null,zone_id=null,location=null where id=v_line.unit_id;
    else
-    perform public.logistics_place_item(v_line.material_id,v_line.inventory_uid,v_place.id,null,null,null);
+    perform public.logistics_place_item(p_actor,v_line.material_id,v_line.inventory_uid,v_place.id,null,null,null,
+     'Delivered by '||v_load.load_number);
    end if;
    v_delivered:=v_delivered+1;
   else
@@ -2091,7 +2160,7 @@ begin
  if v_line.unit_id is not null then
   update public.handling_units set status='delivered',place_id=v_place.id,site_map_id=null,zone_id=null,location=null where id=v_line.unit_id;
  else
-  perform public.logistics_place_item(v_line.material_id,v_line.inventory_uid,v_place.id,null,null,null);
+  perform public.logistics_place_item(p_actor,v_line.material_id,v_line.inventory_uid,v_place.id,null,null,null,'Found after a load');
  end if;
  insert into public.audit_log(user_id,action,entity_type,entity_id,details,project_id)
   values(p_actor,'load_piece_found','load',v_line.load_id,jsonb_build_object('operation_id',p_operation_id,'line_id',v_line.id,'tag',v_line.tag,'place_id',v_place.id),p_project_id);
@@ -2152,7 +2221,8 @@ end $$;
 
 -- line_write_off_undo (administrators only): {writeOffId, reason}. The piece
 -- turned up after all: everything goes back as it was, and the piece is
--- missing again until it is scanned or marked found.
+-- missing again until it is scanned or marked found; a closed load opens
+-- again (delivered) so it can be.
 create function public.logistics_line_write_off_undo(p_actor uuid,p_operation_id uuid,p_project_id uuid,p_payload jsonb) returns jsonb
 language plpgsql set search_path=public,pg_temp as $$
 declare v_write_off public.load_write_offs; v_line public.load_lines; v_reason text; v_other text;
@@ -2172,7 +2242,10 @@ begin
  if v_other is not null then
   raise exception '% is on load % now; take it off that load first',v_line.tag,v_other using errcode='22023';
  end if;
+ perform 1 from public.projects p where p.id=p_project_id and p.status='active' for share;
+ if not found then raise exception 'This project isn''t active' using errcode='22023'; end if;
  update public.load_lines set status='missing' where id=v_line.id;
+ update public.loads set status='delivered',closed_at=null,closed_by=null where id=v_line.load_id and status='closed';
  update public.handling_units u set status=a.status from jsonb_to_recordset(v_write_off.affected->'units') a(id uuid,status text)
   where u.id=a.id and u.status='written_off';
  update public.materials m set status=a.status,current_quantity=a.current_quantity
@@ -2216,11 +2289,11 @@ BEGIN
   'logistics_text(jsonb,text,integer,text)','logistics_date(jsonb,text,text)','logistics_id(jsonb,text,text)',
   'logistics_flag(jsonb,text,text)','logistics_list(jsonb,text,text)','logistics_captured(jsonb)','logistics_code(text)',
   'logistics_tag(uuid,text)','logistics_load(uuid,uuid)','logistics_place(uuid,uuid)',
-  'logistics_position(uuid,uuid,uuid,uuid,boolean)','logistics_place_item(uuid,uuid,uuid,uuid,uuid,text)',
+  'logistics_position(uuid,uuid,uuid,uuid,boolean)','logistics_place_item(uuid,uuid,uuid,uuid,uuid,uuid,text,text)','logistics_hold_area(uuid)',
   'logistics_stop(public.loads,uuid,text)','logistics_stop_name(public.load_stops)',
   'logistics_material_hold(uuid)','logistics_unit_hold(uuid)','logistics_open_line(uuid,uuid,uuid,uuid)',
   'logistics_item_state(uuid,uuid)','logistics_item_loose(text,uuid,uuid,text)','logistics_unit_free(public.handling_units)',
-  'logistics_piece(uuid,text,boolean)','logistics_take_piece(uuid,uuid,uuid,uuid,text,boolean)','logistics_load_summary(uuid)',
+  'logistics_piece(uuid,text,boolean)','logistics_take_piece(uuid,uuid,uuid,uuid,text,boolean,boolean)','logistics_load_summary(uuid)',
   'logistics_pack(uuid,uuid,uuid,jsonb)','logistics_unpack(uuid,uuid,uuid,jsonb)','logistics_move(uuid,uuid,uuid,jsonb)',
   'logistics_relocate(uuid,uuid,uuid,jsonb)','logistics_load_save(uuid,uuid,uuid,jsonb)','logistics_load_plan(uuid,uuid,uuid,jsonb)',
   'logistics_load_on(uuid,uuid,uuid,jsonb)','logistics_load_depart(uuid,uuid,uuid,jsonb)','logistics_load_off(uuid,uuid,uuid,jsonb)',
@@ -2232,6 +2305,7 @@ END $$;
 
 -- ---------------------------------------------------------------------------
 -- Field operations: as in 021, except
+--  receiving and count: one tag at a time, and both wait for an import.
 --  receiving: HU- crate labels aren't item tags; a tag matches whatever its
 --   capitals; the inspection condition is required; an item on a truck is
 --   received when it comes off. Only an accepted delivery uses up the tag and
@@ -2241,7 +2315,8 @@ END $$;
 --  count: HU- labels aren't counted; an item in a crate, on a truck or written
 --   off isn't recounted; placeId says where, and the area has to be there; a
 --   count made before a newer one is refused (capturedAt); a tag received
---   before it was counted is marked received.
+--   before it was counted is marked received, and its material moves to
+--   where it was counted unless it is packed, travelling or (for crews) held.
 --  transfer: refused for an item in a crate, on a truck or away from our
 --   yards and sites; on hold or being returned, only to a hold area (office
 --   staff excepted). The material follows its new rack's area.
@@ -2260,7 +2335,7 @@ declare
  item public.inventory_records; item_uid uuid; tag text; item_name text; count_qty numeric; count_uom text; count_condition text;
  v_category_id uuid; v_parent_id uuid; v_proposed_name text; v_pin_x numeric; v_pin_y numeric; created boolean;
  v_pos record; v_state record; v_receipt uuid; v_captured timestamptz; v_high boolean; v_hold text; v_away text;
- v_zone_id uuid; v_map_id uuid; v_place_id uuid; v_office boolean;
+ v_zone_id uuid; v_map_id uuid; v_place_id uuid; v_office boolean; v_weight numeric;
 begin
  if actor is null or not public.can_work_project(p_project_id) then
   raise exception 'An active account and assignment to an active project are required' using errcode='42501';
@@ -2303,11 +2378,17 @@ begin
   if target_location is null or not exists(select 1 from public.locations l where l.id=target_location and l.project_id=p_project_id) then
    raise exception 'Location must belong to this project' using errcode='42501';
   end if;
-  if coalesce(p_payload#>>'{material,weight}','0') !~ '^[0-9]{1,12}(\.[0-9]{1,6})?$' then
-   raise exception 'Weight must be a number that isn''t negative' using errcode='22023';
-  end if;
+  begin
+   v_weight:=nullif(btrim(coalesce(p_payload#>>'{material,weight}','')),'')::numeric;
+  exception when others then
+   raise exception 'Weight must be a number' using errcode='22023';
+  end;
+  if v_weight<0 then raise exception 'Weight cannot be negative' using errcode='22023'; end if;
+  if v_weight>1e12 then raise exception 'Weight must be a real number' using errcode='22023'; end if;
   v_high:=case when jsonb_typeof(p_payload#>'{material,is_high_value}')='boolean' then (p_payload#>>'{material,is_high_value}')::boolean else false end;
   -- The tag is this project's, whatever its capitals, spelt as it was counted.
+  perform pg_advisory_xact_lock_shared(hashtextextended('tags:'||p_project_id::text,0));
+  perform pg_advisory_xact_lock(hashtextextended('tag:'||p_project_id::text||':'||lower(tag),0));
   select * into item from public.inventory_records i where i.project_id=p_project_id and lower(btrim(i.qr_code))=lower(tag) for update;
   tag:=coalesce(btrim(item.qr_code),tag);
   insert into public.qr_codes(code_value,entity_type,project_id) values(tag,'item',p_project_id) on conflict do nothing;
@@ -2325,7 +2406,7 @@ begin
   insert into public.receiving_records(project_id,qr_code_id,status,material_type,size,grade,qty,accepted_qty,weight,description,spec,vendor,po_number,delivery_ticket,carrier,
    condition,damage_notes,inspection_pass,has_exception,exception_type,location_id,created_by)
   values(p_project_id,qr.id,decision,trim(p_payload#>>'{material,material_type}'),p_payload#>>'{material,size}',p_payload#>>'{material,grade}',qty,accepted,
-   (p_payload#>>'{material,weight}')::numeric,p_payload#>>'{material,description}',p_payload#>>'{material,spec}',p_payload#>>'{po,vendor}',p_payload#>>'{po,po_number}',
+   v_weight,p_payload#>>'{material,description}',p_payload#>>'{material,spec}',p_payload#>>'{po,vendor}',p_payload#>>'{po,po_number}',
    p_payload#>>'{po,delivery_ticket}',p_payload#>>'{po,carrier}',count_condition,p_payload#>>'{inspection,damage_notes}',
    coalesce((p_payload#>>'{inspection,inspection_pass}')::boolean,false),coalesce((p_payload#>>'{decision,has_exception}')::boolean,false),
    nullif(p_payload#>>'{decision,exception_type}',''),target_location,actor) returning id into record_id;
@@ -2399,6 +2480,8 @@ begin
    v_pin_x:=round((p_payload#>>'{pin,x}')::numeric,6); v_pin_y:=round((p_payload#>>'{pin,y}')::numeric,6);
    if v_pin_x not between 0 and 1 or v_pin_y not between 0 and 1 then raise exception 'Pin must be on the map' using errcode='22023'; end if;
   end if;
+  perform pg_advisory_xact_lock_shared(hashtextextended('tags:'||p_project_id::text,0));
+  perform pg_advisory_xact_lock(hashtextextended('tag:'||p_project_id::text||':'||lower(tag),0));
   select * into item from public.inventory_records i where i.project_id=p_project_id and lower(btrim(i.qr_code))=lower(tag) for update;
   created:=not found;
   if not created then
@@ -2446,12 +2529,14 @@ begin
     last_scanned_at=now(),last_scanned_by=(select coalesce(u.full_name,u.email) from public.users u where u.id=actor)
    where i.id=item.id returning * into item;
   end if;
-  -- A received item is where it was counted, unless it is packed or travelling.
+  -- A received item is where it was counted, unless it is packed, travelling
+  -- or, for crews, on hold and the count isn't in a hold area.
   if v_receipt is not null and (v_pos.place_id is not null or v_pos.zone_id is not null) then
    select m.id into operation.material_id from public.materials m where m.receiving_record_id=v_receipt and m.status='in_yard';
    select * into v_state from public.logistics_item_state(operation.material_id,null);
-   if operation.material_id is not null and v_state.unit_id is null and v_state.line_status is null then
-    perform public.logistics_place_item(operation.material_id,null,v_pos.place_id,v_pos.site_map_id,v_pos.zone_id,v_pos.location);
+   if operation.material_id is not null and v_state.unit_id is null and v_state.line_status is null
+     and (v_office or public.logistics_material_hold(operation.material_id) is null or public.logistics_hold_area(v_pos.zone_id)) then
+    perform public.logistics_place_item(actor,operation.material_id,null,v_pos.place_id,v_pos.site_map_id,v_pos.zone_id,v_pos.location,'Counted here');
    end if;
   end if;
   result:=jsonb_build_object('uid',item.uid,'id',item.id,'created',created,'category_id',item.category_id,'count_status',item.count_status);
@@ -2590,7 +2675,7 @@ $$;
 create function public.record_driver_licence(p_operation_id uuid,p_load_id uuid,p_licence jsonb) returns jsonb
 language plpgsql security definer set search_path=public,pg_temp as $$
 declare actor uuid:=auth.uid(); v_load public.loads; v_row public.load_driver_licences; v_op public.load_licence_operations;
- v_number text; v_state text; v_expiry date; v_captured timestamptz;
+ v_number text; v_state text; v_expiry date; v_captured timestamptz; v_last4 text;
 begin
  if p_operation_id is null or jsonb_typeof(p_licence) is distinct from 'object' then
   raise exception 'Operation ID and licence details are required' using errcode='22023';
@@ -2621,6 +2706,8 @@ begin
  if v_number !~ '^[A-Z0-9][A-Z0-9 -]{2,39}$' then
   raise exception 'Enter the licence number: 3 to 40 letters, numbers, spaces or dashes' using errcode='22023';
  end if;
+ -- Only a long number's last four characters are ever repeated back or logged.
+ v_last4:=case when length(regexp_replace(v_number,'[^A-Z0-9]','','g'))>6 then right(regexp_replace(v_number,'[^A-Z0-9]','','g'),4) end;
  v_state:=public.logistics_text(p_licence,'state',40,'Issuing state');
  v_expiry:=public.logistics_date(p_licence,'expiry','Expiry date');
  insert into public.load_driver_licences(load_id,project_id,licence_number,licence_state,licence_expiry,recorded_by,recorded_at)
@@ -2630,8 +2717,8 @@ begin
  insert into public.load_licence_operations(operation_id,load_id,project_id,user_id) values(p_operation_id,p_load_id,v_load.project_id,actor);
  update public.loads set licence_recorded_at=coalesce(v_captured,now()) where id=p_load_id;
  insert into public.audit_log(user_id,action,entity_type,entity_id,details,project_id)
-  values(actor,'driver_licence_recorded','load',p_load_id,jsonb_build_object('operation_id',p_operation_id,'last4',right(v_number,4)),v_load.project_id);
- return jsonb_build_object('load_id',p_load_id,'recorded',true,'last4',right(v_number,4));
+  values(actor,'driver_licence_recorded','load',p_load_id,jsonb_build_object('operation_id',p_operation_id,'last4',v_last4),v_load.project_id);
+ return jsonb_build_object('load_id',p_load_id,'recorded',true,'last4',v_last4);
 end $$;
 
 -- Attach a photo already uploaded to driver-licences/<load id>/<name>.jpg.
@@ -2663,8 +2750,8 @@ begin
 end $$;
 
 -- Office staff take back a wrong photo: delete the file through Storage,
--- then record it here.
-create function public.remove_driver_licence_photo(p_path text) returns void
+-- then record it here, with a reason if they like.
+create function public.remove_driver_licence_photo(p_path text,p_reason text default null) returns void
 language plpgsql security definer set search_path=public,pg_temp as $$
 declare v_photo public.driver_licence_photos;
 begin
@@ -2678,7 +2765,8 @@ begin
  end if;
  update public.driver_licence_photos set removed_at=now() where id=v_photo.id;
  insert into public.audit_log(user_id,action,entity_type,entity_id,details,project_id)
-  values(auth.uid(),'driver_licence_photo_removed','load',v_photo.load_id,jsonb_build_object('photo',split_part(p_path,'/',2)),v_photo.project_id);
+  values(auth.uid(),'driver_licence_photo_removed','load',v_photo.load_id,jsonb_build_object('photo',split_part(p_path,'/',2),
+   'reason',left(nullif(btrim(coalesce(p_reason,'')),''),500)),v_photo.project_id);
 end $$;
 
 -- Clears a load's licence once every file in its folder is gone. Internal.
@@ -2759,11 +2847,11 @@ begin
 end $$;
 
 revoke all on function public.driver_licence_due_at(uuid),public.driver_licence_clear(public.loads,uuid,text,text),
- public.record_driver_licence(uuid,uuid,jsonb),public.attach_driver_licence_photo(uuid,text),public.remove_driver_licence_photo(text),
+ public.record_driver_licence(uuid,uuid,jsonb),public.attach_driver_licence_photo(uuid,text),public.remove_driver_licence_photo(text,text),
  public.remove_driver_licence(uuid,text),public.driver_licences_due_for_removal(),
  public.driver_licence_purge_queue(),public.purge_driver_licence(uuid) from public,anon,authenticated;
 grant execute on function public.record_driver_licence(uuid,uuid,jsonb),public.attach_driver_licence_photo(uuid,text),
- public.remove_driver_licence_photo(text),public.remove_driver_licence(uuid,text),public.driver_licences_due_for_removal() to authenticated;
+ public.remove_driver_licence_photo(text,text),public.remove_driver_licence(uuid,text),public.driver_licences_due_for_removal() to authenticated;
 grant execute on function public.driver_licence_purge_queue(),public.purge_driver_licence(uuid) to service_role;
 
 -- ---------------------------------------------------------------------------

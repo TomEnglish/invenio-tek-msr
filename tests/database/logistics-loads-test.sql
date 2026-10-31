@@ -117,6 +117,8 @@ SELECT pg_temp.expect_error($q$SELECT pg_temp.op('load_plan','{"loadId":"1d00000
  '22023','A packed item travels with its crate');
 SELECT pg_temp.expect_error($q$SELECT pg_temp.op('load_plan','{"loadId":"1d000000-0000-4000-8000-000000000001","add":[{"code":"MAT-2","dropoffStopId":"5d000000-0000-4000-8000-000000000011"}]}')$q$,
  '22023','A piece is on one load at a time');
+SELECT pg_temp.expect_error($q$SELECT pg_temp.op('load_plan','{"loadId":"1d000000-0000-4000-8000-000000000001","add":[{"code":"MAT-2","dropoffStopId":"5d000000-0000-4000-8000-000000000011","move":true}]}')$q$,
+ '42501','A crew can''t plan a piece off the office''s load');
 SELECT pg_temp.expect_error($q$SELECT pg_temp.op('load_plan','{"loadId":"1d000000-0000-4000-8000-000000000001","add":[{"code":"MAT-5","dropoffStopId":"5d000000-0000-4000-8000-000000000021"}]}')$q$,
  '22023','A drop-off stop belongs to the same load');
 SELECT pg_temp.expect_error($q$SELECT pg_temp.op('load_plan','{"loadId":"1d000000-0000-4000-8000-000000000001","add":[{"code":"MAT-5"}]}')$q$,
@@ -316,6 +318,8 @@ SELECT pg_temp.assert_true((SELECT top_code='HU-B0001' AND place_name='Rewind Sh
 SELECT pg_temp.assert_true((SELECT position='at_place' AND place_name='Rewind Shop' FROM public.item_positions WHERE tag='ROTOR-1')
  AND (SELECT position='in_crate' AND place_name='Rewind Shop' FROM public.item_positions WHERE tag='CV-1'),
  'A loose item is where it came off, and a packed one where its crate is');
+SELECT pg_temp.assert_true((SELECT m.location_id IS NULL FROM public.materials m JOIN public.qr_codes q ON q.id=m.qr_code_id WHERE q.code_value='MAT-4'),
+ 'A material that came off at a shop is no longer on its yard rack');
 SELECT pg_temp.expect_error($q$SELECT pg_temp.op('transfer',(SELECT jsonb_build_object('materialId',m.id,'fromLocationId',m.location_id,
  'toLocationId','c1111111-1111-4111-8111-111111111111') FROM public.materials m JOIN public.qr_codes q ON q.id=m.qr_code_id WHERE q.code_value='MAT-4'))$q$,
  '22023','An item at a shop isn''t moved to a yard rack');
@@ -383,6 +387,8 @@ SELECT pg_temp.expect_error($q$SELECT pg_temp.op('line_write_off_undo',jsonb_bui
  'reason','Found at the depot'))$q$,'42501','Only an administrator undoes a write-off');
 SELECT pg_temp.as_user('a1111111-1111-4111-8111-111111111111');
 SELECT pg_temp.op('line_write_off_undo',jsonb_build_object('writeOffId',(SELECT result->>'write_off_id' FROM results WHERE name='wo'),'reason','Found at the carrier''s depot'));
+SELECT pg_temp.assert_true((SELECT status='delivered' AND closed_at IS NULL FROM public.loads WHERE id='1d000000-0000-4000-8000-000000000001'),
+ 'Undoing a write-off opens the closed load again, so the piece can be found');
 SELECT pg_temp.assert_true((SELECT status='missing' FROM public.handling_units WHERE code='HU-D0001')
  AND (SELECT status='open' FROM public.handling_units WHERE code='HU-E0001')
  AND (SELECT m.status='in_yard' AND m.current_quantity=4 FROM public.materials m JOIN public.qr_codes q ON q.id=m.qr_code_id WHERE q.code_value='MAT-3')
@@ -395,6 +401,7 @@ SELECT pg_temp.expect_error($q$SELECT pg_temp.op('line_found',jsonb_build_object
 SELECT pg_temp.as_user('01111111-1111-4111-8111-111111111111');
 SELECT pg_temp.op('line_found',jsonb_build_object('lineId',(SELECT id FROM public.load_lines WHERE tag='HU-D0001' AND status='missing'),
  'placeId','9b333333-3333-4333-8333-333333333333','note','At the carrier''s depot'));
+SELECT pg_temp.op('load_close','{"loadId":"1d000000-0000-4000-8000-000000000001"}');
 SELECT pg_temp.assert_true((SELECT status='closed' AND delivered_count=7 AND missing_count=0 AND written_off_count=1 AND flagged_count=4 AND stops_done=3
  FROM public.load_overview WHERE id='1d000000-0000-4000-8000-000000000001'),'The closed load adds up');
 
@@ -487,6 +494,51 @@ SELECT pg_temp.assert_true((SELECT licence_recorded_at IS NULL FROM public.loads
 SELECT pg_temp.as_user('f1111111-1111-4111-8111-111111111111');
 SELECT public.record_driver_licence(gen_random_uuid(),'1d000000-0000-4000-8000-000000000005','{"number":"NM 5555 778"}');
 SELECT pg_temp.expect_error($q$SELECT public.remove_driver_licence('1d000000-0000-4000-8000-000000000005','Mistake')$q$,'42501','Field users can''t remove a licence');
+
+-- Later trips win over stale scans. HU-F0001 and HU-G0001 are planned on
+-- L-0006; only HU-F0001 goes on, and HU-G0001 leaves on L-0007 instead.
+SELECT pg_temp.op('pack','{"unitCode":"HU-F0001","add":["MAT-1"],"placeId":"9b111111-1111-4111-8111-111111111111","zoneId":"2b111111-1111-4111-8111-111111111111","seal":true}');
+SELECT pg_temp.op('pack','{"unitCode":"HU-G0001","add":["MAT-5"],"placeId":"9b111111-1111-4111-8111-111111111111","zoneId":"2b111111-1111-4111-8111-111111111111","seal":true}');
+SELECT pg_temp.op('load_save','{"loadId":"1d000000-0000-4000-8000-000000000006","originPlaceId":"9b111111-1111-4111-8111-111111111111","driverName":"Lee Park",
+ "stops":[{"id":"5d000000-0000-4000-8000-000000000061","placeId":"9b333333-3333-4333-8333-333333333333"},
+  {"id":"5d000000-0000-4000-8000-000000000062","placeId":"9b222222-2222-4222-8222-222222222222"}]}');
+SELECT pg_temp.op('load_plan','{"loadId":"1d000000-0000-4000-8000-000000000006","add":[
+ {"code":"HU-F0001","dropoffStopId":"5d000000-0000-4000-8000-000000000061"},{"code":"HU-G0001","dropoffStopId":"5d000000-0000-4000-8000-000000000062"}]}');
+SELECT pg_temp.op('load_on','{"loadId":"1d000000-0000-4000-8000-000000000006","pieces":["HU-F0001"]}');
+INSERT INTO results VALUES('short',public.record_driver_licence(gen_random_uuid(),'1d000000-0000-4000-8000-000000000006','{"number":"AB12"}'));
+SELECT pg_temp.assert_true((SELECT result->'last4'='null'::jsonb FROM results WHERE name='short'),'A short licence number is never repeated back');
+SELECT pg_temp.op('load_save','{"loadId":"1d000000-0000-4000-8000-000000000007","originPlaceId":"9b111111-1111-4111-8111-111111111111","driverName":"Kim Vo",
+ "stops":[{"id":"5d000000-0000-4000-8000-000000000071","placeId":"9b222222-2222-4222-8222-222222222222"}]}');
+SELECT pg_temp.as_user('01111111-1111-4111-8111-111111111111');
+SELECT pg_temp.op('load_depart','{"loadId":"1d000000-0000-4000-8000-000000000006","overrideReason":"Licence photo to follow by email"}');
+SELECT pg_temp.as_user('f1111111-1111-4111-8111-111111111111');
+SELECT pg_temp.op('load_on','{"loadId":"1d000000-0000-4000-8000-000000000007","pieces":[{"code":"HU-G0001","dropoffStopId":"5d000000-0000-4000-8000-000000000071"}]}');
+SELECT pg_temp.as_user('01111111-1111-4111-8111-111111111111');
+SELECT pg_temp.op('load_depart','{"loadId":"1d000000-0000-4000-8000-000000000007","overrideReason":"Licence photo to follow by email"}');
+SELECT pg_temp.as_user('f1111111-1111-4111-8111-111111111111');
+SELECT pg_temp.op('load_off','{"loadId":"1d000000-0000-4000-8000-000000000007","stopId":"5d000000-0000-4000-8000-000000000071","pieces":["HU-G0001"]}');
+SELECT pg_temp.expect_error($q$SELECT pg_temp.op('load_on','{"loadId":"1d000000-0000-4000-8000-000000000006","pieces":["HU-G0001"],"capturedAt":"2020-01-01T08:00:00Z"}')$q$,
+ '22023','A late scan of a piece that has since travelled on another load is out of date');
+INSERT INTO results VALUES('nothing_off',pg_temp.op('load_off','{"loadId":"1d000000-0000-4000-8000-000000000006","stopId":"5d000000-0000-4000-8000-000000000062",
+ "pieces":["NOPE-1"],"partial":true}'));
+SELECT pg_temp.assert_true((SELECT status='pending' FROM public.load_stops WHERE id='5d000000-0000-4000-8000-000000000062'),
+ 'A scan-off where nothing came off doesn''t mark the stop arrived');
+SELECT pg_temp.op('load_off','{"loadId":"1d000000-0000-4000-8000-000000000006","stopId":"5d000000-0000-4000-8000-000000000061","pieces":["HU-F0001"]}');
+SELECT pg_temp.op('load_save','{"loadId":"1d000000-0000-4000-8000-000000000008","originPlaceId":"9b333333-3333-4333-8333-333333333333","driverName":"Kim Vo",
+ "stops":[{"id":"5d000000-0000-4000-8000-000000000081","placeId":"9b111111-1111-4111-8111-111111111111"}]}');
+SELECT pg_temp.op('load_on','{"loadId":"1d000000-0000-4000-8000-000000000008","pieces":[{"code":"HU-F0001","dropoffStopId":"5d000000-0000-4000-8000-000000000081"}]}');
+SELECT pg_temp.expect_error($q$SELECT pg_temp.op('load_off','{"loadId":"1d000000-0000-4000-8000-000000000006","stopId":"5d000000-0000-4000-8000-000000000062","pieces":["HU-F0001"]}')$q$,
+ '22023','A crate on another truck can''t be marked off an earlier load');
+SELECT pg_temp.assert_true((SELECT status='on_load' FROM public.handling_units WHERE code='HU-F0001'),'The crate stays on the truck it is on');
+SELECT pg_temp.op('stop_complete','{"loadId":"1d000000-0000-4000-8000-000000000006","stopId":"5d000000-0000-4000-8000-000000000061"}');
+SELECT pg_temp.as_user('01111111-1111-4111-8111-111111111111');
+SELECT pg_temp.op('load_save','{"loadId":"1d000000-0000-4000-8000-000000000006","stops":[
+ {"id":"5d000000-0000-4000-8000-000000000061","placeId":"9b333333-3333-4333-8333-333333333333"}]}');
+SELECT pg_temp.assert_true((SELECT status='delivered' FROM public.loads WHERE id='1d000000-0000-4000-8000-000000000006'),
+ 'Taking off the last stop not yet reached finishes the load');
+SELECT pg_temp.assert_true((SELECT details->'last4'='null'::jsonb FROM public.audit_log WHERE action='driver_licence_recorded'
+ AND entity_id='1d000000-0000-4000-8000-000000000006'),'A short licence number isn''t logged');
+SELECT pg_temp.as_user('f1111111-1111-4111-8111-111111111111');
 
 -- Crews see activity without licences, phone numbers or whole records.
 SELECT pg_temp.assert_true((SELECT count(*)>0 AND count(*) FILTER (WHERE action LIKE 'driver_licence%')=0

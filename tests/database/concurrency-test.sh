@@ -328,4 +328,41 @@ overlap(
 )
 assert sql("SELECT count(*) FROM public.qr_codes WHERE lower(code_value)='race-tag'") == '1'
 assert sql("SELECT count(*) FROM public.materials m JOIN public.qr_codes q ON q.id=m.qr_code_id WHERE lower(q.code_value)='race-tag'") == '1'
+
+
+# Receiving and counting one tag at once, in a project with no site plan:
+# the count waits for the receipt and is linked to it, so the item doesn't
+# end up with two records.
+second_project = 'b3333333-3333-4333-8333-333333333333'
+sql(f"""INSERT INTO public.projects(id,name) VALUES('{second_project}','Race Two');
+INSERT INTO public.user_projects(user_id,project_id) VALUES('f1111111-1111-4111-8111-111111111111','{second_project}');""")
+second_rack = sql(f"INSERT INTO public.locations(project_id,zone,row,rack) VALUES('{second_project}','R','1','1') RETURNING id")
+
+
+def as_worker(operation, project, action, payload):
+    return f"""SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','f1111111-1111-4111-8111-111111111111',true);
+SELECT public.apply_field_operation('{operation}','{project}','{action}','{payload}');"""
+
+
+overlap(
+    'a count made while the tag is being received is linked to the receipt',
+    as_worker('23000000-0000-4000-8000-000000000003', second_project, 'receiving',
+              '{"qrCodeValue":"RACE-77","material":{"material_type":"Valve","qty":1},"decision":{"status":"accepted"},'
+              f'"inspection":{{"condition":"good"}},"location":{{"location_id":"{second_rack}"}}}}'),
+    as_worker('23000000-0000-4000-8000-000000000004', second_project, 'count', '{"tag":"race-77","name":"Race valve","quantity":"1"}'),
+    '00000',
+)
+assert sql("SELECT count_status||'|'||(receiving_record_id IS NOT NULL) FROM public.inventory_records WHERE lower(qr_code)='race-77'") == 'received|true'
+
+
+# Completing a project while a crew adds a load to it: completing waits, then
+# refuses, so no load is left open in a completed project.
+overlap(
+    'a project cannot be completed while a load is being added to it',
+    as_worker('24000000-0000-4000-8000-000000000001', second_project, 'load_save', '{"loadId":"1f000000-0000-4000-8000-000000000001"}'),
+    f"UPDATE public.projects SET status='completed' WHERE id='{second_project}';",
+    '22023',
+)
+assert sql(f"SELECT status FROM public.projects WHERE id='{second_project}'") == 'active'
 PY

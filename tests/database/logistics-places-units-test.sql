@@ -264,7 +264,30 @@ SELECT pg_temp.op(gen_random_uuid(),'transfer','{"materialId":"e6666666-6666-466
 SELECT set_config('request.jwt.claim.sub','01111111-1111-4111-8111-111111111111',true);
 SELECT pg_temp.pack('{"unitCode":"HU-HELD01","add":["HELD-1"]}');
 SELECT pg_temp.assert_true((SELECT count(*)=1 FROM public.handling_unit_items WHERE tag='HELD-1'),'Office staff can pack held stock');
+RESET ROLE;
+INSERT INTO public.site_map_zones(id,map_id,project_id,name,shape,location_id) VALUES
+ ('2b444444-4444-4444-8444-444444444444','5b111111-1111-4111-8111-111111111111','b1111111-1111-4111-8111-111111111111','Hold bay',
+  '[[0.6,0.1],[0.9,0.1],[0.9,0.3]]','c2222222-2222-4222-8222-222222222222');
+INSERT INTO public.qr_codes(id,project_id,code_value,entity_type) VALUES
+ ('d5555555-5555-4555-8555-555555555555','b1111111-1111-4111-8111-111111111111','HELD-2','item');
+INSERT INTO public.receiving_records(id,project_id,qr_code_id,material_type,qty,created_by,status,has_exception,exception_type,exception_resolution,location_id) VALUES
+ ('e7777777-7777-4777-8777-777777777777','b1111111-1111-4111-8111-111111111111','d5555555-5555-4555-8555-555555555555','Gasket',5,
+  'f1111111-1111-4111-8111-111111111111','accepted',true,'damage','return_to_vendor','c2222222-2222-4222-8222-222222222222');
+INSERT INTO public.materials(id,project_id,receiving_record_id,qr_code_id,material_type,qty,current_quantity,location_id) VALUES
+ ('e8888888-8888-4888-8888-888888888888','b1111111-1111-4111-8111-111111111111','e7777777-7777-4777-8777-777777777777',
+  'd5555555-5555-4555-8555-555555555555','Gasket',5,5,'c2222222-2222-4222-8222-222222222222');
+UPDATE public.qr_codes SET entity_id='e7777777-7777-4777-8777-777777777777' WHERE id='d5555555-5555-4555-8555-555555555555';
+SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','f1111111-1111-4111-8111-111111111111',true);
+SELECT pg_temp.expect_error($q$SELECT pg_temp.op(gen_random_uuid(),'move','{"unitCode":"HU-HELD01","placeId":"9a222222-2222-4222-8222-222222222222",
+ "zoneId":"2b222222-2222-4222-8222-222222222222"}')$q$,'22023','A crate holding held stock goes only to a hold area');
+SELECT pg_temp.op(gen_random_uuid(),'move','{"unitCode":"HU-HELD01","placeId":"9a222222-2222-4222-8222-222222222222","zoneId":"2b444444-4444-4444-8444-444444444444"}');
+SELECT pg_temp.expect_error($q$SELECT pg_temp.op(gen_random_uuid(),'relocate','{"tag":"HELD-2","zoneId":"2b222222-2222-4222-8222-222222222222"}')$q$,
+ '22023','Stock being returned to the vendor is relocated only to a hold area');
+SELECT pg_temp.op(gen_random_uuid(),'relocate','{"tag":"HELD-2","zoneId":"2b444444-4444-4444-8444-444444444444"}');
+SELECT pg_temp.op(gen_random_uuid(),'count','{"tag":"held-2","name":"Gasket","quantity":"5","zoneId":"2b222222-2222-4222-8222-222222222222"}');
+SELECT pg_temp.assert_true((SELECT zone_id='2b444444-4444-4444-8444-444444444444' AND location_id='c2222222-2222-4222-8222-222222222222'
+ FROM public.materials WHERE id='e8888888-8888-4888-8888-888888888888'),'Counting held stock elsewhere doesn''t move it out of the hold area');
 
 -- Issuing a packed material in full takes it out of its crate.
 INSERT INTO results SELECT 'issue',pg_temp.op(gen_random_uuid(),'issue',
