@@ -1,0 +1,65 @@
+<svg viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The platform: the field app on phones and the office website both work through one shared database, with over-the-air app updates, a daily licence job and planned tracker feeds" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif">
+  <defs>
+    <marker id="pa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#122c4c"/></marker>
+    <marker id="pb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8a96a8"/></marker>
+  </defs>
+  <!-- Field app -->
+  <rect x="8" y="34" width="182" height="168" rx="8" fill="#e3f3ea" stroke="#157347"/>
+  <text x="20" y="56" font-size="13" font-weight="700" fill="#0f5c38">Field app</text>
+  <text x="20" y="72" font-size="10" fill="#2b4a3a">iPhone and Android · works offline</text>
+  <g font-size="10.5" fill="#1c2533">
+    <text x="20" y="96">Scan · Receive · Count</text>
+    <text x="20" y="114">Material: move, issue, correct</text>
+    <text x="20" y="132">Crates: pack, seal, move</text>
+    <text x="20" y="150">Loads: check in, load out,</text>
+    <text x="20" y="164">depart, unload, finish stops</text>
+    <text x="20" y="186" fill="#0f5c38" font-weight="600">Sync: queue, refusals, retry</text>
+  </g>
+  <!-- Database -->
+  <rect x="236" y="20" width="208" height="196" rx="8" fill="#e8eefc" stroke="#174fda"/>
+  <text x="250" y="42" font-size="13" font-weight="700" fill="#1b3f9e">Shared database</text>
+  <g font-size="10.5" fill="#1c2533">
+    <text x="250" y="66">Projects, places, plans, racks</text>
+    <text x="250" y="83">Tags, count records, materials</text>
+    <text x="250" y="100">Crates, loads, stops, manifests</text>
+    <text x="250" y="117">Activity and audit log</text>
+  </g>
+  <rect x="250" y="128" width="180" height="36" rx="5" fill="#fff" stroke="#9db5f2"/>
+  <text x="258" y="143" font-size="10" font-weight="600" fill="#1b3f9e">Private storage</text>
+  <text x="258" y="157" font-size="9.5" fill="#3b4a60">photos · site plans · licences</text>
+  <rect x="250" y="170" width="180" height="36" rx="5" fill="#fff" stroke="#9db5f2"/>
+  <text x="258" y="185" font-size="10" font-weight="600" fill="#1b3f9e">Rules in the database</text>
+  <text x="258" y="199" font-size="9.5" fill="#3b4a60">every change checked, per project</text>
+  <!-- Office site -->
+  <rect x="490" y="34" width="182" height="168" rx="8" fill="#f2f5f9" stroke="#0d294a"/>
+  <text x="502" y="56" font-size="13" font-weight="700" fill="#0d294a">Office site (MSR)</text>
+  <text x="502" y="72" font-size="10" fill="#3b4a60">web browser · office and admin</text>
+  <g font-size="10.5" fill="#1c2533">
+    <text x="502" y="96">Places · Site plans · Racks</text>
+    <text x="502" y="114">Crates and labels</text>
+    <text x="502" y="132">Loads board · Outside Shops</text>
+    <text x="502" y="150">Inventory import · Exceptions</text>
+    <text x="502" y="168">Users and projects (admin)</text>
+    <text x="502" y="186" fill="#0d294a" font-weight="600">Driver licences (office only)</text>
+  </g>
+  <!-- arrows -->
+  <line x1="190" y1="100" x2="234" y2="100" stroke="#122c4c" stroke-width="1.6" marker-end="url(#pa)" marker-start="url(#pa)"/>
+  <text x="212" y="92" font-size="9" fill="#122c4c" text-anchor="middle">reads,</text>
+  <text x="212" y="116" font-size="9" fill="#122c4c" text-anchor="middle">steps</text>
+  <line x1="490" y1="100" x2="446" y2="100" stroke="#122c4c" stroke-width="1.6" marker-end="url(#pa)" marker-start="url(#pa)"/>
+  <text x="468" y="92" font-size="9" fill="#122c4c" text-anchor="middle">reads,</text>
+  <text x="468" y="116" font-size="9" fill="#122c4c" text-anchor="middle">steps</text>
+  <!-- bottom feeds -->
+  <rect x="8" y="248" width="182" height="40" rx="6" fill="#fff" stroke="#8a96a8"/>
+  <text x="20" y="265" font-size="10.5" font-weight="600" fill="#122c4c">App updates</text>
+  <text x="20" y="280" font-size="9.5" fill="#5b6676">new screens reach phones over the air</text>
+  <line x1="99" y1="246" x2="99" y2="204" stroke="#8a96a8" stroke-width="1.4" marker-end="url(#pb)"/>
+  <rect x="236" y="248" width="208" height="40" rx="6" fill="#fff" stroke="#8a96a8"/>
+  <text x="248" y="265" font-size="10.5" font-weight="600" fill="#122c4c">Daily licence job</text>
+  <text x="248" y="280" font-size="9.5" fill="#5b6676">removes licences 365 days on, unless kept</text>
+  <line x1="340" y1="246" x2="340" y2="218" stroke="#8a96a8" stroke-width="1.4" marker-end="url(#pb)"/>
+  <rect x="490" y="248" width="182" height="40" rx="6" fill="#fff" stroke="#8a96a8" stroke-dasharray="4 3"/>
+  <text x="502" y="265" font-size="10.5" font-weight="600" fill="#122c4c">GPS trackers</text>
+  <text x="502" y="280" font-size="9.5" fill="#5b6676">planned: arrival at shops by tracker</text>
+  <path d="M490 262 C 470 262 460 236 446 218" fill="none" stroke="#8a96a8" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#pb)"/>
+</svg>

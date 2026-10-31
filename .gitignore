@@ -60,3 +60,6 @@ supabase/.temp/
 
 # Backend (Flask - no longer needed with Supabase)
 backend/material_tracking.db
+
+# Built field guide (docs/booklet/README.md)
+docs/booklet/*.pdf

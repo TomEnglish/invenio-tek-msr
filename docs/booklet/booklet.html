@@ -1,0 +1,926 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Invenio Field Platform field guide</title>
+<!-- css -->
+</head>
+<body>
+
+<!-- ============================================================ Cover -->
+<section class="cover">
+  <div class="partners">
+    <img class="kindred" src="images/kindred-industrial-services.png" alt="Kindred Industrial Services">
+    <span class="sep" aria-hidden="true"></span>
+    <img class="invenio" src="images/invenio-technologies-light.png" alt="Invenio Technologies">
+  </div>
+  <p class="joint">A joint project of Kindred Industrial Services and Invenio Technologies</p>
+  <div class="kicker">Invenio Field Platform</div>
+  <h1>Field guide</h1>
+  <p class="sub">How to use the field app and the office site, the rules they set for work on the ground, and how the platform is built and run.</p>
+  <div class="art">
+    <svg viewBox="0 0 640 150" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A piece's journey: count, pack, load, depart, deliver" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif">
+      <line x1="40" y1="88" x2="600" y2="88" stroke="#3b5f8f" stroke-width="2" stroke-dasharray="6 6"/>
+      <g fill="none" stroke="#60a5fa" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M22 26 h26 l12 12 l-12 12 h-26 z"/><circle cx="30" cy="38" r="3"/>
+        <rect x="160" y="24" width="32" height="28" rx="2"/><path d="M160 34 h32 M176 24 v10"/>
+        <rect x="302" y="22" width="12" height="12"/><rect x="320" y="22" width="12" height="12"/><rect x="302" y="40" width="12" height="12"/><path d="M322 42 h8 v8 M330 50 h-2"/>
+        <path d="M426 30 h34 v20 h-34 z M460 36 h12 l8 8 v6 h-20"/><circle cx="436" cy="52" r="4"/><circle cx="468" cy="52" r="4"/>
+        <path d="M600 54 c-12 -14 -14 -20 -14 -26 a14 14 0 0 1 28 0 c0 6 -2 12 -14 26 z"/><circle cx="600" cy="28" r="4.5"/>
+      </g>
+      <g fill="#0d294a" stroke="#60a5fa" stroke-width="2.4">
+        <circle cx="40" cy="88" r="7"/><circle cx="176" cy="88" r="7"/><circle cx="317" cy="88" r="7"/><circle cx="453" cy="88" r="7"/><circle cx="600" cy="88" r="7"/>
+      </g>
+      <g font-size="15" font-weight="600" fill="#d6e3f7" text-anchor="middle">
+        <text x="40" y="122">Count</text><text x="176" y="122">Pack</text><text x="317" y="122">Load</text><text x="453" y="122">Depart</text><text x="600" y="122">Deliver</text>
+      </g>
+      <g font-size="10.5" fill="#8fb0dc" text-anchor="middle">
+        <text x="40" y="140">tag by tag</text><text x="176" y="140">crates, sealed</text><text x="317" y="140">scanned on</text><text x="453" y="140">licence on file</text><text x="600" y="140">scanned off</text>
+      </g>
+    </svg>
+  </div>
+  <div class="edition">
+    <span>Edition</span><b>1 · 31 October 2026</b>
+    <span>Field app</span><b>1.1.0 (build 5), over-the-air update 56cc444c</b>
+    <span>Office site</span><b>release 465adc6</b>
+    <span>Database</span><b>migrations to 022 live; 023 (keeping licences 365 days) awaiting release</b>
+    <span>Covers</span><b>initial count, receiving, stock, crates, loads and driver check-in</b>
+  </div>
+</section>
+
+<!-- ============================================================ Contents -->
+<section class="toc">
+  <h2>Contents</h2>
+  <p class="intro">Crews read Parts I, II and IV. Office staff read Parts I, III and IV. Administrators and whoever runs releases also need Part V. This edition will be updated as the software changes; the revision history is at the end.</p>
+  <div class="toc-cols">
+    <div>
+      <div class="tpart">Part I · Getting started</div>
+      <ol>
+        <li class="e"><span class="t"><i>1</i>The platform at a glance</span><span class="toc-page" data-for="c-platform"></span></li>
+        <li class="e"><span class="t"><i>2</i>What the records let us do</span><span class="toc-page" data-for="c-outcomes"></span></li>
+        <li class="e"><span class="t"><i>3</i>Signing in and choosing a project</span><span class="toc-page" data-for="c-signin"></span></li>
+        <li class="e"><span class="t"><i>4</i>Working offline and Sync</span><span class="toc-page" data-for="c-sync"></span></li>
+      </ol>
+      <div class="tpart">Part II · Field crews: the app</div>
+      <ol>
+        <li class="e"><span class="t"><i>5</i>Scan</span><span class="toc-page" data-for="c-scan"></span></li>
+        <li class="e"><span class="t"><i>6</i>Receiving a delivery</span><span class="toc-page" data-for="c-receive"></span></li>
+        <li class="e"><span class="t"><i>7</i>Counting what is already here</span><span class="toc-page" data-for="c-count"></span></li>
+        <li class="e"><span class="t"><i>8</i>Stock: moving, issuing, correcting</span><span class="toc-page" data-for="c-inventory"></span></li>
+        <li class="e"><span class="t"><i>9</i>Crates</span><span class="toc-page" data-for="c-crates"></span></li>
+        <li class="e"><span class="t"><i>10</i>Loads on the phone</span><span class="toc-page" data-for="c-loads"></span></li>
+        <li class="e"><span class="t"><i>11</i>Activity</span><span class="toc-page" data-for="c-activity"></span></li>
+      </ol>
+      <div class="tpart">Part III · Office: the website</div>
+      <ol>
+        <li class="e"><span class="t"><i>12</i>Finding your way on the office site</span><span class="toc-page" data-for="c-office"></span></li>
+        <li class="e"><span class="t"><i>13</i>Places, site maps, areas and racks</span><span class="toc-page" data-for="c-places"></span></li>
+        <li class="e"><span class="t"><i>14</i>Crate labels and the crates list</span><span class="toc-page" data-for="c-labels"></span></li>
+        <li class="e"><span class="t"><i>15</i>The Loads board</span><span class="toc-page" data-for="c-board"></span></li>
+        <li class="e"><span class="t"><i>16</i>Driver licences</span><span class="toc-page" data-for="c-licences"></span></li>
+        <li class="e"><span class="t"><i>17</i>Importing the expected list</span><span class="toc-page" data-for="c-import"></span></li>
+        <li class="e"><span class="t"><i>18</i>Exceptions, holds and outside shops</span><span class="toc-page" data-for="c-exceptions"></span></li>
+        <li class="e"><span class="t"><i>19</i>Users, projects and access</span><span class="toc-page" data-for="c-admin"></span></li>
+      </ol>
+    </div>
+    <div>
+      <div class="tpart">Part IV · Rules and definitions</div>
+      <ol>
+        <li class="e"><span class="t"><i>20</i>What the system refuses</span><span class="toc-page" data-for="c-enforced"></span></li>
+        <li class="e"><span class="t"><i>21</i>Rules for crews</span><span class="toc-page" data-for="c-crew-rules"></span></li>
+        <li class="e"><span class="t"><i>22</i>Rules for the office</span><span class="toc-page" data-for="c-office-rules"></span></li>
+        <li class="e"><span class="t"><i>23</i>Definitions</span><span class="toc-page" data-for="c-definitions"></span></li>
+      </ol>
+      <div class="tpart">Part V · Technical appendix</div>
+      <ol>
+        <li class="e"><span class="t"><i>A1</i>Architecture and where it runs</span><span class="toc-page" data-for="a-arch"></span></li>
+        <li class="e"><span class="t"><i>A2</i>The data model</span><span class="toc-page" data-for="a-data"></span></li>
+        <li class="e"><span class="t"><i>A3</i>Life cycles and statuses</span><span class="toc-page" data-for="a-life"></span></li>
+        <li class="e"><span class="t"><i>A4</i>How a change reaches the database</span><span class="toc-page" data-for="a-ops"></span></li>
+        <li class="e"><span class="t"><i>A5</i>Security and privacy</span><span class="toc-page" data-for="a-security"></span></li>
+        <li class="e"><span class="t"><i>A6</i>Setting up a new project</span><span class="toc-page" data-for="a-setup"></span></li>
+        <li class="e"><span class="t"><i>A7</i>Administration functions</span><span class="toc-page" data-for="a-admin"></span></li>
+        <li class="e"><span class="t"><i>A8</i>Releasing changes</span><span class="toc-page" data-for="a-release"></span></li>
+        <li class="e"><span class="t"><i>A9</i>Integrations</span><span class="toc-page" data-for="a-integrations"></span></li>
+        <li class="e"><span class="t"><i>A10</i>Known limits in this edition</span><span class="toc-page" data-for="a-limits"></span></li>
+        <li class="e"><span class="t"><i>A11</i>Revision history</span><span class="toc-page" data-for="a-history"></span></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ Part I -->
+<section class="part">
+  <div class="num">Part I</div>
+  <h1>Getting started</h1>
+  <p>What the platform is, who does what, what it lets us do, and how to sign in and keep work flowing when there is no signal.</p>
+  <ul>
+    <li>The platform at a glance</li>
+    <li>What the records let us do</li>
+    <li>Signing in and choosing a project</li>
+    <li>Working offline and Sync</li>
+  </ul>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="c-platform"><span class="n">1</span>The platform at a glance</h2>
+  <p class="lede">Two tools share one set of records. Crews use the <strong>field app</strong> on their phones in the yard, on site and at the truck. The office uses the <strong>office site</strong> in a web browser. What one does, the other sees as soon as the phone has synced.</p>
+  <figure>
+    <!-- svg:platform -->
+    <figcaption><b>The platform.</b> The field app and the office site read the same database and send every change to it as a step. The database checks each step against the rules before saving it. Photos, site plans and driver licences are kept in private storage.</figcaption>
+  </figure>
+
+  <h3>Who does what</h3>
+  <table>
+    <thead><tr><th style="width:24%">Role</th><th style="width:20%">Works in</th><th>Can</th></tr></thead>
+    <tbody>
+      <tr><td>Field worker <span class="who crew">Crew</span></td><td>Field app</td><td>Scan, receive deliveries, count, move and issue stock, pack and move crates, start a load for a truck that turns up, check drivers in, load out, depart once the licence is on file, unload and finish stops at our own yards and sites.</td></tr>
+      <tr><td>Office staff <span class="who office">Office</span></td><td>Office site, and the app</td><td>Everything a crew can, plus: places, site maps and crate labels; planning loads; letting a truck leave without the licence (with a reason); confirming deliveries at outside shops and vendors; marking pieces found, writing them off, closing and cancelling loads; driver licences; exceptions and holds; importing the expected list; shipping stock out.</td></tr>
+      <tr><td>Administrator <span class="who admin">Admin</span></td><td>Office site</td><td>Everything office staff can, plus users and access, projects, the Data Browser, the admin audit, correcting material records and undoing a write-off.</td></tr>
+    </tbody>
+  </table>
+  <p>The screens only hide buttons a person can't use; the database itself enforces every role (appendix A5). When this guide says <strong>office</strong>, it means office staff and administrators alike.</p>
+
+  <h3>Projects</h3>
+  <p>Every record belongs to a project, and each person works only in the projects they are assigned to. Two things are shared by every project: <strong>places</strong> (yards, sites, outside shops and vendors) and <strong>crate labels</strong>, whose HU- codes are unique across all projects.</p>
+  <ul>
+    <li><strong>Active</strong>: people can work in it.</li>
+    <li><strong>Completed</strong>: read only. Pages say “This project is read-only.”</li>
+    <li><strong>Archived</strong>: hidden from everyone; its records are kept.</li>
+  </ul>
+  <div class="warn"><span class="callout-title">Practise in Training Yard</span>Training Yard is a practice project with its own place, site plan, racks and crate labels. Practise there, and never in Main Yard, North Site or South Site: practice scans in a real project become real records.</div>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="c-outcomes"><span class="n">2</span>What the records let us do</h2>
+  <p class="lede">The platform is only as good as the scans behind it. When crews scan as they work and the office keeps the setup current, these are the questions it answers.</p>
+  <div class="outcome"><h3>Fewer lost items</h3><p>Every tag and every crate has one current answer to “where is it?”: in an area of a yard or site, inside a crate, on a truck, missing from a truck, or gone (issued, shipped or written off). When a stop is finished, anything due there that wasn't scanned off is marked <strong>missing</strong> on that load, so the search starts the same day, at the right truck and stop. A write-off needs a reason.</p></div>
+  <div class="outcome"><h3>Better reconstruction planning</h3><p>Counts and receipts record what each item is, its category (for example Gas Turbine 2 › Lube Oil › Cooler), its condition with photos, and the area of the site plan it sits in. Before a work package starts, the office can see what is on hand for it and where, instead of sending crews to look.</p></div>
+  <div class="outcome"><h3>Clearer priorities for loads and refurbishment</h3><p>Outside Shops lists what is at each shop, since when, and which load took it there. The Loads board shows what is planned, loading, in transit and delivered. Items that have sat at a shop longest, and pieces still waiting for a truck, are in plain view when deciding what moves next.</p></div>
+  <div class="outcome"><h3>Planned receiving laydowns</h3><p>Site plans divide each yard and site into named areas, nested as deep as needed (Laydown A › Bay 3), with racks linked to areas. Deliveries, counts and sealed crates all land in a named area, so the office can see what each laydown holds and plan where the next deliveries go.</p></div>
+  <div class="outcome"><h3>Fewer logistics delays</h3><p>A truck can't leave until the driver is checked in with the licence on file, or the office records why it may leave without. Stops run in order, the printed manifest travels with the driver, and the crew at each of our yards and sites can see what is coming before the truck arrives, then scan it off on arrival.</p></div>
+  <div class="outcome"><h3>Accountable records</h3><p>Every change records who made it and when, and corrections, write-offs and holds record why. Crews see their own activity; the office sees everyone's.</p></div>
+  <div class="note"><span class="callout-title">The deal</span>Each of these depends on two habits: crews scan at the moment things happen (on the truck, off the truck, into a crate, into an area), and the office keeps places, site plans and racks up to date. Part IV sets out both.</div>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="c-signin"><span class="n">3</span>Signing in and choosing a project</h2>
+  <h3>The field app</h3>
+  <ol class="steps">
+    <li>Open the app. It shows “Loading session...”, then a card titled <span class="ui">Sign in</span> with the line “Laydown yard management”.</li>
+    <li>Enter <span class="ui">Email</span> and <span class="ui">Password</span> and tap <span class="ui">Sign In</span>. <span class="ui">Forgot password?</span> sends a reset link to your email.</li>
+    <li>Crews land on <span class="ui">Scan</span>. Office staff and administrators land on <span class="ui">Dashboard</span>.</li>
+  </ol>
+  <p>The first sign-in on a phone needs a connection. After that, someone who signed in online on that phone can reopen the app offline on “previously verified access”; uploads wait until access can be checked again.</p>
+  <p><strong>Choosing a project.</strong> The app opens the project last used on that phone, or else the first one assigned. The project name is at the top right; with several projects it is a button that opens <span class="ui">Select project</span>. Drafts and saved work are kept separately for each account and project. With no project at all the app shows “Project access pending”; ask an administrator, then tap <span class="ui">Check access again</span>.</p>
+  <p><strong>Tabs.</strong> Crews have <span class="ui">Scan</span>, <span class="ui">Count</span>, <span class="ui">Loads</span>, <span class="ui">Inventory</span> and <span class="ui">Activity</span>. Office users have <span class="ui">Dashboard</span>, <span class="ui">Materials</span>, <span class="ui">Exceptions</span>, <span class="ui">Locations</span>, <span class="ui">Scan</span>, <span class="ui">QR Codes</span>, <span class="ui">Activity</span>, <span class="ui">Reports</span> and, for administrators, <span class="ui">Data Browser</span>; they reach Count and Loads from the Dashboard cards <span class="ui">Initial field count</span> and <span class="ui">Loads</span>.</p>
+  <p><strong>Signing out.</strong> Tap the sign-out icon at the top right and confirm <span class="ui">Sign Out</span>. Read chapter 4 first: signing out deletes any driver licence that hasn't uploaded yet.</p>
+
+  <h3>The office site</h3>
+  <p>New people are invited by an administrator (chapter 19).</p>
+  <ol class="steps">
+    <li>Open the email “Finish your Invenio invitation”. Its code lasts one hour and works once, and only the newest email's code is valid.</li>
+    <li>Press <span class="ui">Finish account setup</span>. On “Enter your email code”, fill <span class="ui">Invited email address</span> and <span class="ui">Email code</span>, then press <span class="ui">Verify code</span>.</li>
+    <li>Choose a password of at least 8 characters, enter it twice and press <span class="ui">Update Password</span>.</li>
+  </ol>
+  <p>After that, open the office site from the link in your invitation email and bookmark it; it opens on “Sign in” (Material Status Report). <span class="ui">Forgot password?</span> sends a reset code by email; enter it, then set a new password. A wrong or old code shows “This code is incorrect, expired or already used.” Someone with no project sees “Access pending” and a <span class="ui">Check access</span> button.</p>
+  <p>The header has the active-project selector (it asks before leaving unsaved work), <span class="ui">Search records...</span>, a theme switch and a bell that opens the Work Inbox. Your email and <span class="ui">Sign Out</span> are at the foot of the sidebar.</p>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="c-sync"><span class="n">4</span>Working offline and Sync</h2>
+  <p class="lede">The app saves everything on the phone first and uploads it, in order, whenever it has signal.</p>
+  <p>When there is no signal, a yellow bar reads “You are offline — changes will sync when reconnected”, or “You are offline — 3 pending”. Every tab has a <span class="ui">Sync &amp; recovery</span> link at the top, with a count when anything is waiting. When the database refuses a step, the banner says so, for example “1 queued action refused: open Sync to decide”.</p>
+  <h3>What works without signal</h3>
+  <ul>
+    <li><strong>Works offline:</strong> scanning crate labels, counting (with the data saved the last time Count was opened online), packing crates, every step of a load, and moving and issuing stock.</li>
+    <li><strong>Needs signal:</strong> a fresh sign-in; the rack list in Receiving, unless a rack was carried over from the count; the material page's “Where”; Activity.</li>
+  </ul>
+  <h3>The Sync &amp; recovery screen</h3>
+  <p>The top shows the project, “N pending submissions” and <span class="ui">Sync now</span>. Each item shows what it is, when it was saved and one of these states:</p>
+  <table class="tight">
+    <thead><tr><th style="width:28%">State</th><th>Meaning and what to do</th></tr></thead>
+    <tbody>
+      <tr><td>Saved on device</td><td>Waiting for signal. Nothing to do.</td></tr>
+      <tr><td>Upload interrupted</td><td>The connection dropped mid-upload. It retries by itself, or tap <span class="ui">Upload now</span>.</td></tr>
+      <tr><td>Needs attention</td><td>Five tries failed. Tap <span class="ui">Retry upload</span> when the signal is good, or discard it; ask the office if it keeps failing.</td></tr>
+      <tr><td>Refused: needs a decision</td><td>The database said no and gave a reason. It is never retried by itself. Fix it (<span class="ui">Fix in Count</span>, <span class="ui">Move it to this load</span>), or discard it. A refused driver licence can only be discarded and recorded again in Driver check-in.</td></tr>
+    </tbody>
+  </table>
+  <p>A discard can't be undone. <span class="ui">Support details</span> shows the submission ID, tries and last error to pass to the office.</p>
+  <h3>Loads upload in order</h3>
+  <p>A load's steps upload strictly in the order they were made. One refused or stuck step holds back the later steps of that load, and <span class="ui">Depart</span> and <span class="ui">Finish stop</span> stay blocked, with a <span class="ui">View Sync</span> link, until it is retried or discarded. Steps that are only waiting for signal don't block, so a truck can be loaded and sent off with no signal at all. Tap <span class="ui">Done</span> on a load-out or unload screen before switching project, or the last few scans can be lost.</p>
+  <h3>The driver's licence on the phone</h3>
+  <p>The licence number, issuing state and expiry are kept only in the app's memory until they upload: if the app closes first, they must be typed again. The photos are temporary files, deleted after upload, after a discard, and at sign-out. Sync never shows the licence number or the driver's phone number.</p>
+  <div class="never"><span class="callout-title">Before you sign out</span>Signing out deletes every driver licence and licence photo that hasn't uploaded. Other saved work stays on the phone for that account and project and uploads at the next sign-in. Check Sync first.</div>
+</section>
+
+<!-- ============================================================ Part II -->
+<section class="part">
+  <div class="num">Part II</div>
+  <h1>Field crews: the app</h1>
+  <p>Step by step through the field app, in the order work usually happens: scanning, receiving, counting, stock, crates and trucks.</p>
+  <ul>
+    <li>Scan</li>
+    <li>Receiving a delivery</li>
+    <li>Counting what is already here</li>
+    <li>Stock: moving, issuing, correcting</li>
+    <li>Crates</li>
+    <li>Loads on the phone</li>
+    <li>Activity</li>
+  </ul>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="c-scan"><span class="n">5</span>Scan</h2>
+  <p class="for"><span class="who crew">Crew</span><span class="who office">Office</span></p>
+  <p class="lede">Scan is where most work starts. Point the camera at a tag or a crate label and the app opens the right screen for it.</p>
+  <ol class="steps">
+    <li>Aim at the label, or tap <span class="ui">Enter Code Manually</span>, type the <span class="ui">Code Value</span> and tap <span class="ui">Submit</span>. After each scan the camera pauses; tap <span class="ui">Scan Again</span>. Without camera permission the app asks for it (<span class="ui">Grant Permission</span>).</li>
+    <li>The app decides what the code is and opens the matching screen (table below).</li>
+    <li><span class="ui">Pack a crate</span> (or <span class="ui">Continue packing HU-…</span>) starts packing; see chapter 9.</li>
+  </ol>
+  <table>
+    <thead><tr><th style="width:30%">You scan</th><th>The app opens</th></tr></thead>
+    <tbody>
+      <tr><td>A crate label (HU-…)</td><td>The crate screen, from the phone's copy, even offline (chapter 9). Capitals don't matter.</td></tr>
+      <tr><td>A received item</td><td>Its material page (chapter 8).</td></tr>
+      <tr><td>A counted or expected item, or a tag new to this project</td><td>Receiving (chapter 6). A counted tag arrives filled in, with a banner such as “Counted Oct 30 in Zone B”, and the rack linked to that area already chosen.</td></tr>
+      <tr><td>A tag that can't be received now</td><td>A message under the camera, for example “… is on load L-0003; receive it when it comes off.”, “… has been received and is no longer in stock.” or “… was written off on a load; an administrator can undo that.”</td></tr>
+    </tbody>
+  </table>
+  <p><strong>Tags and projects.</strong> An item tag is unique within its project, whatever the capitals, so a tag from another project counts as new here. Crate labels are unique across all projects: another project's label shows “This label hasn't been packed yet”, and packing it is refused with “This label belongs to another project”.</p>
+  <div class="note"><span class="callout-title">Offline</span>With no signal, or no answer within five seconds, any item tag opens Receiving and the database checks it on upload. A tag that was already received comes back refused in Sync with “This tag has already been received”. Discard it there.</div>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="c-receive"><span class="n">6</span>Receiving a delivery</h2>
+  <p class="for"><span class="who crew">Crew</span><span class="who office">Office</span></p>
+  <p class="lede">Receiving records a delivery at the gate: what came, against which order, its condition and photos, the decision, and the rack it goes to. Start by scanning the item's tag.</p>
+  <p>The header shows “Step n of 7” with the step's title and “QR:” with the tag.</p>
+  <ol class="steps">
+    <li><strong>Material details.</strong> Choose the <span class="ui">Material Type</span> (Pipe, Fitting, Valve, Flange, Structural Steel, Plate, Tubing, Bolt/Fastener, Gasket, Electrical, Instrumentation, Other) and fill <span class="ui">Quantity</span>, <span class="ui">Size</span>, <span class="ui">Grade</span>, <span class="ui">Weight (lbs)</span>, <span class="ui">Description</span> and <span class="ui">Spec</span>.</li>
+    <li><strong>PO / delivery.</strong> <span class="ui">Vendor</span>, <span class="ui">PO Number</span>, <span class="ui">Delivery Ticket #</span>, <span class="ui">Carrier</span>, all optional.</li>
+    <li><strong>Photos.</strong> Choose the <span class="ui">Photo Type</span> (General, Damage, Delivery Ticket), then <span class="ui">Take Photo</span> or <span class="ui">From Library</span>. Photos are optional but always worth it for damage.</li>
+    <li><strong>Inspection.</strong> <span class="ui">Condition</span> Good, Damaged or Mixed (Damaged and Mixed ask for <span class="ui">Damage Notes</span>), and <span class="ui">Inspection Pass?</span></li>
+    <li><strong>Decision.</strong> <span class="ui">Accept</span>, <span class="ui">Partial Accept</span> (enter the accepted quantity, more than 0 and less than delivered) or <span class="ui">Reject</span>. Damage or a failed inspection flags an exception automatically; otherwise answer <span class="ui">Flag Exception?</span> and optionally choose the type (Wrong Type, Wrong Count, Damage).</li>
+    <li><strong>Location.</strong> Pick the rack, shown as “Zone - Row r, Rack k”; hold racks carry a <span class="ui">HOLD AREA</span> badge. Tap <span class="ui">Review receiving</span>.</li>
+    <li><strong>Review.</strong> Check each section (each has <span class="ui">Edit</span>) and tap <span class="ui">Submit receiving</span>. The app shows “Receiving saved”, then “Receiving synced” once the receipt and photos are uploaded.</li>
+  </ol>
+  <div class="warn"><span class="callout-title">Finish one receipt at a time</span>An unfinished receipt can't be picked up again later: scanning another tag starts a new one. The rack list also needs signal, unless the rack came over from the count.</div>
+  <p>Holds are not set here. A flagged exception goes to the office, which decides to hold, return or release the stock (chapter 18).</p>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="c-count"><span class="n">7</span>Counting what is already here</h2>
+  <p class="for"><span class="who crew">Crew</span><span class="who office">Office</span></p>
+  <p class="lede">The initial count records what is already in a yard or on a site, tag by tag: what it is, its category, where it is on the site plan, and a photo. The office can import the list of tags it expects first (chapter 17), so the count shows what is still to find.</p>
+  <h3>Count home</h3>
+  <p>The top line shows when the data was last updated, for example “Updated Oct 30 14:05 · saved for offline use”. Tiles show <span class="ui">Expected</span>, <span class="ui">Counted</span>, <span class="ui">Received</span> and “N of M tags found”, which adds “· 1 needs attention in Sync” when a count was refused or stopped retrying. A refused count isn't counted as found, and its tag goes back to <span class="ui">Not found yet</span>. <span class="ui">Not found yet</span> lists expected tags still to find, with a search box; tapping one counts it without scanning. <span class="ui">Recent counts</span> shows each count's state.</p>
+  <h3>Counting a tag</h3>
+  <ol class="steps">
+    <li><strong>Scan</strong> the item's tag. The QR value is the tag number. The banner says whether it is an <em>expected item</em>, a <em>new tag</em> (added to the list) or <em>already counted</em> (saving updates that count).</li>
+    <li><strong>Item.</strong> Fill <span class="ui">Item name</span>, <span class="ui">Quantity</span> and <span class="ui">Unit</span> (EA, FT, LF, LB, SET, BOX, PAL), plus <span class="ui">Part number</span>, <span class="ui">Condition</span>, <span class="ui">Description</span> and <span class="ui">Notes</span> as needed. Tap <span class="ui">Next: category</span>.</li>
+    <li><strong>Category.</strong> Search or browse and tap <span class="ui">Use “…”</span>. If the right category is missing, tap <span class="ui">Propose new category here</span>; the office reviews it, and the item is saved under it now.</li>
+    <li><strong>Location.</strong> Choose the site plan if there are several. Tap the plan where the item is: the pin drops and the smallest area under your finger is chosen. Or pick from the area list. An area is required when the plan has areas; the pin is optional.</li>
+    <li><strong>Photo and review.</strong> Take a photo (optional, but it helps the office confirm the item), check the summary and tap <span class="ui">Save count</span>. <span class="ui">Count next</span> keeps the category and location for the next tag.</li>
+  </ol>
+  <h3>Tags the count refuses</h3>
+  <ul>
+    <li>“HU- codes are crate labels; count the items inside the crate.”</li>
+    <li>“Tag … has already been received, so it doesn't need counting.”</li>
+    <li>“… is packed in HU-…; take it out of the crate before counting it.”</li>
+    <li>“… is on load L-0003; count it when it comes off.”</li>
+  </ul>
+  <div class="tip"><span class="callout-title">Before going out of signal</span>Open Count once while online. It saves the categories, site plans and expected tags on the phone; without that it says “open Count once while online”.</div>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="c-inventory"><span class="n">8</span>Stock: moving, issuing, correcting</h2>
+  <p class="for"><span class="who crew">Crew</span><span class="who office">Office</span></p>
+  <p class="lede">Received material lives on the <span class="ui">Inventory</span> tab (office: <span class="ui">Materials</span>). Each item opens on its material page, which says what it is, how much is left and where it is. Search finds an item by its type, its grade or part of its QR code.</p>
+  <p>The page shows <span class="ui">Quantity</span>, <span class="ui">Size</span>, <span class="ui">Grade</span>, <span class="ui">Weight</span>, <span class="ui">Spec</span>, <span class="ui">QR Code</span>, <span class="ui">Rack</span>, <span class="ui">Where</span> and <span class="ui">Received</span>. “Where” reads, for example, “On load L-0003”, “Missing from load L-0003”, “In crate HU-ABC123 (inside HU-XYZ789) at Yard · Rack 2” or “Place · Area”; crate and load lines open those screens.</p>
+  <h3>Actions</h3>
+  <table>
+    <thead><tr><th style="width:22%">Action</th><th>What it asks</th></tr></thead>
+    <tbody>
+      <tr><td>Transfer</td><td>A <span class="ui">New Location</span> (hold racks marked HOLD) and an optional reason. Then <span class="ui">Confirm Transfer</span>.</td></tr>
+      <tr><td>Issue</td><td><span class="ui">Job Number</span>, <span class="ui">Work Order</span> (optional) and <span class="ui">Quantity to Issue</span>. Then <span class="ui">Confirm Issue</span>. Issuing all of a packed item takes it out of its crate; issuing part leaves the rest packed and opens the crate.</td></tr>
+      <tr><td>Ship Out <span class="who office">Office</span></td><td><span class="ui">Destination</span>, <span class="ui">Carrier</span>, <span class="ui">Tracking Number</span> and <span class="ui">Quantity to Ship</span>. Then <span class="ui">Confirm Shipment</span>.</td></tr>
+      <tr><td>Correct where it is</td><td>Records where an item really is, without counting it again: choose the <span class="ui">Place</span>, then an area, an optional reason, and <span class="ui">Save the location</span>. For items in the yard that aren't packed.</td></tr>
+    </tbody>
+  </table>
+  <p>Each action goes to Sync, and the app says “Saved”. A greyed-out action says why in a yellow box, for example “… is packed in HU-…; take it out of the crate first.” or “… is on load L-0003; it can be moved, issued or shipped when it comes off.”</p>
+  <h3>Holds and returns</h3>
+  <p>When the office puts stock on hold or returns it to the vendor (chapter 18), crews see “… is on hold; the office releases it before it can be issued.” Until it is released it can't be packed, loaded or issued, and it can only be transferred to a hold area; the location list then shows hold racks only.</p>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="c-crates"><span class="n">9</span>Crates</h2>
+  <p class="for"><span class="who crew">Crew</span><span class="who office">Office</span></p>
+  <p class="lede">A crate is anything that holds pieces and moves as one: a crate, skid, bundle, basket or container. Each has its own HU- label, printed by the office. A crate is never split: it goes to one stop, and comes apart only when it is unpacked.</p>
+  <h3>Packing a crate</h3>
+  <ol class="steps">
+    <li>On Scan, tap <span class="ui">Pack a crate</span> and scan the crate's label. A new label becomes a crate the first time it is packed.</li>
+    <li><strong>Details.</strong> Choose the <span class="ui">Type</span>, add a description, and switch on <span class="ui">High value</span> if it is; everyone who scans it will see that. Tap <span class="ui">Next: scan items</span>.</li>
+    <li><strong>Items.</strong> The camera keeps scanning; the counter shows how many are in the crate. Each scan answers, for example “… added.” or “… is already in crate HU-…; take it out of that crate first.” An item must be counted or received before it can be packed. Scan another crate's label to put that crate inside.</li>
+    <li><strong>Location.</strong> Choose the <span class="ui">Place</span>, then the area, from the list or by tapping the plan. A crate inside another crate goes wherever the outer one is.</li>
+    <li><strong>Review.</strong> Tap <span class="ui">Seal crate</span> when it is closed up, or <span class="ui">Save open</span> to keep adding later. Sealing needs something inside, and an area wherever the place has a site plan with areas. Changing a sealed crate opens it again.</li>
+  </ol>
+  <h3>The crate screen</h3>
+  <p>Scanning a label opens the crate: its status (Open, Sealed, On a load, Delivered, Unpacked, Missing, Written off), <span class="ui">High value</span> if set, where it is (“Inside HU-…”, “On load L-0003”, “Delivered to …”, “Last at …”) and its contents. The buttons are:</p>
+  <ul>
+    <li><span class="ui">Pack / add items</span>: add more, or tap <span class="ui">Take out</span> on a row, then save.</li>
+    <li><span class="ui">Move crate…</span>: choose a new place and area and tap <span class="ui">Save the move</span>. Nothing is unpacked and a sealed crate stays sealed.</li>
+    <li><span class="ui">Unpack…</span>: the items come out where the crate stands, and the label can be packed again.</li>
+  </ul>
+  <div class="note"><span class="callout-title">Crates inside crates</span>Crates nest up to five deep. An inner crate travels with its outer crate and can't be moved or loaded by itself. A crate that is planned on a load, on a truck or missing can't be packed, unpacked or moved until it is taken off the load, unloaded or found.</div>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="c-loads"><span class="n">10</span>Loads on the phone</h2>
+  <p class="for"><span class="who crew">Crew</span><span class="who office">Office</span></p>
+  <p class="lede">A load is one trip by an outside carrier's truck: where it starts, the stops it makes, the driver and companies, and every crate and loose piece on it. The office usually plans loads on the website; crews check the driver in, scan pieces on, send the truck off and scan pieces off at our yards and sites.</p>
+  <figure>
+    <!-- svg:workflow -->
+    <figcaption><b>How work flows.</b> Set-up and planning sit with the office; counting, packing, loading out and unloading at our yards and sites sit with the crew; at outside shops and vendors the office confirms deliveries and pick-ups.</figcaption>
+  </figure>
+
+  <h3>The Loads tab</h3>
+  <p>The tab lists open loads (planning, loading, in transit). Each card shows the route, progress such as “4 of 10 on board” or “3 delivered, 5 on board, 1 missing”, the driver and the date. <span class="ui">New load</span> starts one for a truck that turns up unplanned: fill <span class="ui">Starts at</span>, the date, the stops (each <span class="ui">Drop-off</span>, <span class="ui">Pick-up</span> or <span class="ui">Both</span>) and the truck details, then <span class="ui">Save load</span>. It works offline; the load gets its number (L-0001…) when it uploads.</p>
+  <p>The load screen shows <span class="ui">Pieces</span>, the <span class="ui">Route</span> (each stop Done, Arrived or To come) and <span class="ui">Truck and driver</span>, with the licence state: “Licence on file”, “Licence saved on this device”, “Licence incomplete”, “No licence recorded yet” or “Left without a licence (the office gave a reason)”.</p>
+
+  <h3>Driver check-in</h3>
+  <ol class="steps">
+    <li><strong>Driver.</strong> <span class="ui">Driver’s name</span> and <span class="ui">Driver’s phone</span>.</li>
+    <li><strong>Companies.</strong> Up to three, “from the one we hired to the one whose truck it is”: name, role (Broker, Carrier, Dispatcher, Other), contact and phone.</li>
+    <li><strong>Licence.</strong> <span class="ui">Licence number</span>, <span class="ui">Issuing state</span>, <span class="ui">Expiry</span>, a photo of the <span class="ui">Front of the licence</span> and, if useful, the back.</li>
+    <li><strong>Review</strong> and <span class="ui">Save check-in</span>. From then on the licence shows only as “Licence on file”; nobody in the field can read it back.</li>
+  </ol>
+
+  <h3>Loading out</h3>
+  <ol class="steps">
+    <li>Tap <span class="ui">Load out</span> and scan each piece as it goes on the truck. The counter reads “12 of 14 on board” and the list ticks each piece.</li>
+    <li>A piece that isn't planned asks where it comes off: tap a stop, or <span class="ui">Leave it off</span>. A piece planned on another load that hasn't left can be moved to this one.</li>
+    <li>Tap a ticked row to take a piece off again. Scan the crate, not the items packed inside it.</li>
+    <li>Tap <span class="ui">Depart…</span> when the truck is ready.</li>
+  </ol>
+
+  <h3>Departing</h3>
+  <p>The screen asks “Ready to leave?” and lists any planned pieces that will stay behind. It won't let the truck go until the driver's name is in, the licence (number and a photo of the front) is on file or waiting to upload, something is on board, and no earlier step of this load is stuck in Sync.</p>
+  <div class="never"><span class="callout-title">No licence, no departure</span>Crews can't send a truck without the licence. Only the office can let it leave without, and has to give a reason (5 to 500 characters), which is recorded on the load with their name.</div>
+
+  <h3>Unloading at a stop</h3>
+  <ol class="steps">
+    <li>Tap <span class="ui">Unload at a stop</span> and choose the stop, for example “1. Gulf Machine · Drop-off · 3 due”.</li>
+    <li>Scan each piece as it comes off. At our own yards and sites, choose the <span class="ui">Area</span> where the pieces go, from that place's site plans. The app answers “… off.”, or flags it: wrong stop, an extra piece that wasn't on the list, or a missing piece now found.</li>
+    <li>Tap <span class="ui">Finish stop…</span>. The app lists any pieces due here that haven't been scanned off: they will be marked <strong>missing</strong>. Tap <span class="ui">Finish stop</span>, or <span class="ui">Keep scanning</span>.</li>
+  </ol>
+  <p>At outside shops and vendors, crews scan off what they hand over but don't finish the stop: “… is an outside shop or vendor: scan off what you hand over, and the office confirms the stop.” A piece scanned off after its stop was finished is still recorded; a missing one is then found.</p>
+  <p><strong>What only the office does</strong>: let a truck leave without the licence, finish stops at shops and vendors, change stops after the truck leaves, ship stock out; and, on the website only, plan pieces, confirm pieces without scanning, mark pieces found, write them off, and close or cancel loads.</p>
+</section>
+
+<section class="chapter cont">
+  <h2 data-toc="c-activity"><span class="n">11</span>Activity</h2>
+  <p class="for"><span class="who crew">Crew</span><span class="who office">Office</span></p>
+  <p>The <span class="ui">Activity</span> tab lists recent work, newest first: crews see their own, the office sees everyone's. Entries read like “Received …”, “Counted …”, “Transferred …”, “Packed new crate HU-…”, “Loaded L-0003”, “L-0003 left” or “Finished a stop on L-0003”, with who and when. <span class="ui">Load More</span> fetches older entries. Activity needs signal, and never lists anything about driver licences.</p>
+</section>
+
+<!-- ============================================================ Part III -->
+<section class="part">
+  <div class="num">Part III</div>
+  <h1>Office: the website</h1>
+  <p>Setting up places and site plans, printing crate labels, planning and following loads, looking after driver licences, and running users and projects.</p>
+  <ul>
+    <li>Finding your way on the office site</li>
+    <li>Places, site maps, areas and racks</li>
+    <li>Crate labels and the crates list</li>
+    <li>The Loads board</li>
+    <li>Driver licences</li>
+    <li>Importing the expected list</li>
+    <li>Exceptions, holds and outside shops</li>
+    <li>Users, projects and access</li>
+  </ul>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="c-office"><span class="n">12</span>Finding your way on the office site</h2>
+  <p class="for"><span class="who office">Office</span><span class="who admin">Admin</span></p>
+  <p class="lede">The sidebar groups the pages. The ones this guide covers are current; a few older pages remain from before the field app and are marked below.</p>
+  <table>
+    <thead><tr><th style="width:20%">Group</th><th>Pages</th></tr></thead>
+    <tbody>
+      <tr><td>Top</td><td><span class="ui">Dashboard</span> (project tiles, “Work needing attention”, “Expected arrivals”, <span class="ui">Export PDF</span>) and <span class="ui">Work Inbox</span> (chapter 18).</td></tr>
+      <tr><td>Logistics</td><td><span class="ui">Outside Shops</span>, <span class="ui">Places</span>, <span class="ui">Crates</span> and <span class="ui">Loads</span> (chapters 13 to 16, 18). <span class="ui">Shipments</span> and <span class="ui">Yard Inventory</span> are read-only views of older tables.</td></tr>
+      <tr><td>Planning</td><td><span class="ui">PO &amp; Installation</span> links PO items to install tags. <span class="ui">Gap Analysis</span>, <span class="ui">Delivery Dates</span> and <span class="ui">Schedule</span> are older, read-only pages.</td></tr>
+      <tr><td>Field</td><td><span class="ui">Receiving</span> (a six-step receipt for use at a desk), <span class="ui">GPS Tracking</span> (tracker positions, appendix A9). <span class="ui">Site Plan</span> is a demonstration page, not Site Maps.</td></tr>
+      <tr><td>Initial Count</td><td><span class="ui">Initial Inventory</span>, <span class="ui">Inventory Categories</span> and <span class="ui">Site Maps</span> (chapters 13 and 17).</td></tr>
+      <tr><td>System <span class="who admin">Admin</span></td><td><span class="ui">Data Browser</span>, <span class="ui">Users &amp; Access</span>, <span class="ui">Projects</span>, <span class="ui">Activity &amp; Audit</span> (chapter 19, appendix A7). Hidden from everyone else.</td></tr>
+    </tbody>
+  </table>
+  <p><strong>Search.</strong> <span class="ui">Search records...</span> in the header looks through materials, receipts, purchase orders, shipments and QR codes (at least two characters, up to 20 results a group). A result opens “Record details”, with its photos and any exception.</p>
+  <p><strong>Read-only pages.</strong> On a completed project every page is read-only. Pages also show text instead of forms when you lack the role for an action, saying who can do it, for example “Office staff manage site maps. You can view plans and zones.”</p>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="c-places"><span class="n">13</span>Places, site maps, areas and racks</h2>
+  <p class="for"><span class="who office">Office</span></p>
+  <p class="lede">Where things are rests on three layers: <strong>places</strong> (the yard, site, shop or vendor), <strong>site maps</strong> (a plan of one yard or site, divided into named <strong>areas</strong>), and <strong>racks</strong>, the older receiving locations, each linked to an area.</p>
+  <h3>Places</h3>
+  <p>Places are shared by every project. Everyone sees the list and the map; office staff edit. Nothing is deleted, and names are unique among active places.</p>
+  <ol class="steps">
+    <li>On <span class="ui">Places</span>, press <span class="ui">Add place</span>. Choose the <span class="ui">Kind</span> (Yard, Site, Outside shop, Vendor, Other) and a <span class="ui">Name</span>. A yard or site can belong to one project, or be shared by every project.</li>
+    <li>Fill the <span class="ui">Address</span>, <span class="ui">Contacts</span> and <span class="ui">Notes</span>.</li>
+    <li>Under <span class="ui">Map point</span>, click the map, drag the pin or type coordinates. Set the <span class="ui">Arrival radius (metres)</span> (25 to 20,000; 300 if left blank) for trackers later.</li>
+    <li>Press <span class="ui">Add place</span>, or <span class="ui">Save changes</span> when editing.</li>
+  </ol>
+  <p><span class="ui">Retire</span> takes a place out of use for new crates and loads; it stays on record and <span class="ui">Restore</span> brings it back. If someone else edits the same place while your form is open, the page tells you to reopen it rather than overwrite their change.</p>
+  <h3>Site maps and areas</h3>
+  <ol class="steps">
+    <li>On <span class="ui">Site Maps</span>, press <span class="ui">New map</span>. Give it a name, choose the <span class="ui">Place</span> it draws, and upload the <span class="ui">Plan image</span> (PNG, JPG or WEBP). Press <span class="ui">Create map</span>.</li>
+    <li>Press <span class="ui">Draw area</span> and click each corner, then <span class="ui">Finish area</span>. Name it, pick a colour, choose what it sits <span class="ui">Inside</span> (another area, or the top level) and its <span class="ui">Rack</span>, and <span class="ui">Save area</span>.</li>
+    <li>Use <span class="ui">Add area inside…</span> on a row to nest areas, for example Laydown A › Bay 3.</li>
+  </ol>
+  <p>Areas are never deleted. <span class="ui">Make inactive</span> hides an area, and everything inside it, from crews. A plan tied to a place supplies the areas used at that place; a plan tied to no place can be used at any of the project's yards and sites.</p>
+  <h3>Racks</h3>
+  <p>Each area links to at most one rack, and each rack to one area. Receiving still records a rack; the link lets the count, crates and receipts all point at the same area. <span class="ui">Racks without an area</span> lists any rack not yet linked: work through it until it is empty. Racks themselves are added in <span class="ui">Data Browser</span> › <span class="ui">Locations</span> (appendix A7); include at least one hold-area rack.</p>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="c-labels"><span class="n">14</span>Crate labels and the crates list</h2>
+  <p class="for"><span class="who office">Office</span></p>
+  <p class="lede">Crate labels are printed in batches before crews need them. A label becomes a crate the first time a crew packs it.</p>
+  <ol class="steps">
+    <li>On <span class="ui">Crates</span>, press <span class="ui">Print crate labels</span> and enter <span class="ui">How many labels?</span> (1 to 500; six fit on a Letter page).</li>
+    <li>Press <span class="ui">Reserve and print</span>. A print window opens; each label is a large QR code holding only its code (for example HU-7K3QX9), printed underneath.</li>
+    <li>The page confirms the range reserved. <span class="ui">Print the last N labels again</span> reprints the same batch without new codes, until the page is reloaded.</li>
+  </ol>
+  <p>If pop-ups are blocked, nothing is reserved: allow pop-ups for the site and try again.</p>
+  <p>The list shows every crate the crews have packed, with its status, where it is (“Inside HU-…”, place and area, or “On load L-…”), contents and when it was sealed. Filter by status or search by code or description; the drawer lists the items and any crates inside.</p>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="c-board"><span class="n">15</span>The Loads board</h2>
+  <p class="for"><span class="who office">Office</span></p>
+  <p class="lede">The <span class="ui">Loads</span> page is where the office plans trucks and follows them: columns for <span class="ui">Planning</span>, <span class="ui">Loading</span>, <span class="ui">In transit</span> and <span class="ui">Delivered</span>, then <span class="ui">Closed and cancelled</span>.</p>
+  <p>Each card shows the load number and date, “From … · Next: …”, the driver, piece counts, and chips such as “N flags”, “Started in the field”, “Left without licence” and “Licence on file”. Loads that crews started appear in <span class="ui">Started in the field</span> so the office can check them.</p>
+  <h3>Planning a load</h3>
+  <ol class="steps">
+    <li>Press <span class="ui">New load</span>, fill the details and press <span class="ui">Create load</span>. The drawer opens with its sections: <span class="ui">Status</span>, <span class="ui">Details</span>, <span class="ui">Companies</span>, <span class="ui">Stops</span>, <span class="ui">Manifest</span> and <span class="ui">Driver's licence</span>.</li>
+    <li><strong>Details:</strong> origin, planned date, truck type and numbers, bill of lading, driver name and phone, notes. <span class="ui">Save details</span>.</li>
+    <li><strong>Companies:</strong> up to three, from the one we hired to the one whose truck it is. <span class="ui">Save companies</span>.</li>
+    <li><strong>Stops:</strong> <span class="ui">Add stop</span> for each place, with its kind (Drop-off, Pick-up, Drop-off and pick-up) and date; reorder with the arrows; <span class="ui">Save stops</span>. Up to 20 stops.</li>
+    <li><strong>Manifest:</strong> enter a crate code or item tag, choose where it <span class="ui">Comes off at</span> (and, for a pick-up, where it is <span class="ui">Picked up at</span>), and press <span class="ui">Add to the plan</span>. Tick the box to move a piece from another load that hasn't left.</li>
+  </ol>
+  <p>Each section saves on its own and keeps unsaved edits in the others. On a load a crew started, that crew plans the stops until the truck leaves.</p>
+  <h3>Departure</h3>
+  <ul>
+    <li><span class="ui">Depart with what's on board</span>: once pieces have been scanned on. Planned pieces that weren't scanned on stay behind.</li>
+    <li><span class="ui">Mark loaded and depart</span>: only when the truck starts at an outside shop or vendor, where nobody scans; it marks every planned piece loaded.</li>
+    <li>Without the licence, either button opens <span class="ui">Let it leave without the licence</span>: write why (5 to 500 characters) and press <span class="ui">Leave without the licence</span>. The reason, your name and the time show on the load.</li>
+  </ul>
+  <h3>On the road</h3>
+  <p>Each stop shows “Due · Delivered · Missing · To pick up” and its state (Pending, Arrived, Done). <span class="ui">Change stops</span> changes, moves or removes stops the truck hasn't reached; removing the last one left delivers the load.</p>
+  <p><strong>Outside shops and vendors.</strong> Nobody scans there, so the office confirms: <span class="ui">Mark delivered</span>, <span class="ui">Confirm pick-ups</span> or <span class="ui">Mark delivered and picked up</span>, depending on the stop. This also finishes the stop. At our own yards and sites the crew finishes the stop from the phone.</p>
+  <h3>Missing pieces</h3>
+  <p>A piece due at a finished stop that wasn't scanned off is missing. If a crew scans it off later, at any stop, it is found. Otherwise:</p>
+  <ul>
+    <li><span class="ui">Mark found</span>: say where it was found, with an optional note.</li>
+    <li><span class="ui">Write off</span>: say why. Writing off a crate writes off everything inside it.</li>
+    <li><span class="ui">Undo write-off</span> <span class="who admin">Admin</span>: say why it is put back. The piece is missing again, and a closed load reopens.</li>
+  </ul>
+  <h3>Closing and cancelling</h3>
+  <p><span class="ui">Close load</span> is offered once every stop is finished and nothing is missing. <span class="ui">Cancel load</span> is offered only before the truck leaves; crates already on it go back to how they were. Neither can be undone, except that undoing a write-off reopens a closed load.</p>
+  <p><span class="ui">Print manifest</span> prints the load, driver and phone, truck, bill of lading and companies, one table per stop (tag, piece, high value, checked) and signature lines for shipper, driver and receiver. It never includes licence details.</p>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="c-licences"><span class="n">16</span>Driver licences</h2>
+  <p class="for"><span class="who office">Office</span></p>
+  <p class="lede">We record the driver's licence for every load so that, if something goes missing, we know who drove the truck. It is the most sensitive data on the platform: only office staff can see it, it is never printed, and it is removed automatically when it is no longer needed.</p>
+  <div class="warn"><span class="callout-title">This edition and the release</span>This chapter describes migration 023 and the matching office page, which go live with the next release. Until then licences are removed 90 days after the load closes, without the warning panel or Keep.</div>
+  <h3>Recording and checking it</h3>
+  <p>Crews record the licence at check-in (chapter 10). In the load drawer, office staff see the <span class="ui">Driver's licence</span> section and can also enter it themselves:</p>
+  <ul>
+    <li><strong>Number:</strong> <span class="ui">Licence number</span>, <span class="ui">Issuing state</span> and <span class="ui">Expiry date</span>, then <span class="ui">Save licence</span>. The page repeats only the last four characters (“…ending 1234”), and only for numbers longer than six characters.</li>
+    <li><strong>Photos:</strong> <span class="ui">Add a photo</span> (JPEG or PNG, up to 10 MB), up to four per load; <span class="ui">Delete photo</span> removes one.</li>
+    <li><strong>Remove it early:</strong> <span class="ui">Remove the licence</span> asks why, for example a wrong licence.</li>
+  </ul>
+  <p><strong>Never</strong> print, export, photograph or copy a licence outside the platform, or send its number by email or message. Crews can add a licence but can't read one back, by design.</p>
+  <h3>How long it is kept</h3>
+  <figure>
+    <!-- svg:licence -->
+    <figcaption><b>A licence over time.</b> Kept 365 days after the load closes, with a warning 30 days before. The office can keep one longer, with a reason, until it releases it.</figcaption>
+  </figure>
+  <p>A daily job removes each licence, its number and its photos, <strong>365 days after the load closes</strong> (for a load that never closes, 365 days after the last activity on it). Thirty days before that, the Loads page shows office staff a panel, <span class="ui">Driver licences due for removal in the next 30 days</span>, covering all their projects.</p>
+  <ol class="steps">
+    <li>Press <span class="ui">Show the N licences</span> to see each load and its date.</li>
+    <li>To keep one, press <span class="ui">Keep</span>, write why (for example “the driver still has our GPS tracker”) and press <span class="ui">Keep the licence</span>. It won't be removed until office staff release it.</li>
+    <li>When the reason is resolved, press <span class="ui">Release</span>. If the date has passed, the next daily run removes it.</li>
+  </ol>
+  <p>The same <span class="ui">Keep</span> and <span class="ui">Release</span> buttons, and the removal date, are in the load drawer. A kept licence can't be removed early until it is released. When office staff open Loads, the page also removes any licence that is due and not kept, as a backup to the daily job.</p>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="c-import"><span class="n">17</span>Importing the expected list</h2>
+  <p class="for"><span class="who office">Office</span></p>
+  <p class="lede">Before an initial count, the office can import the tags it expects to find, so crews can see what is still missing and every expected item arrives with its details.</p>
+  <ol class="steps">
+    <li>On <span class="ui">Initial Inventory</span>, press <span class="ui">Import expected tags</span> and choose a spreadsheet (.xlsx) or CSV file, up to 20 MB and 5,000 rows.</li>
+    <li>Match the file's columns to the fields. <span class="ui">Tag</span> is required; <span class="ui">Not imported</span> skips a column.</li>
+    <li>Press <span class="ui">Preview import</span>. This is a dry run: any problem blocks the whole file until it is fixed.</li>
+    <li>Press <span class="ui">Apply import</span>. The page reports how many tags are new, refreshed and skipped, and how many categories were added.</li>
+  </ol>
+  <p>Tags already counted or received are never overwritten. A category path such as “Gas Turbine 2 › Lube Oil › Cooler” creates any missing levels. Tags are unique within a project whatever their capitals.</p>
+  <p>The page shows tiles for Expected, Counted, Received and New, filters by category, area (an area includes the areas inside it), status and text, a table or map view, and <span class="ui">Export CSV</span>.</p>
+  <h3>Categories</h3>
+  <p><span class="ui">Inventory Categories</span> holds the tree. Add, rename, reorder and archive categories; <span class="ui">Merge…</span> moves one category's items and subcategories into another and archives it. Categories that crews proposed while counting are listed under <span class="ui">Proposed by field crews</span>, each with <span class="ui">Approve</span>, <span class="ui">Rename</span> and <span class="ui">Merge into…</span>.</p>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="c-exceptions"><span class="n">18</span>Exceptions, holds and outside shops</h2>
+  <p class="for"><span class="who office">Office</span></p>
+  <h3>The Work Inbox</h3>
+  <p>Deliveries flagged at receiving (damage, a failed inspection, wrong type or count) land in the <span class="ui">Work Inbox</span>. Show open, mine, overdue, unassigned or all; each row has an owner, a due date and a status.</p>
+  <ol class="steps">
+    <li>Press <span class="ui">Review</span> to open the next decision.</li>
+    <li>Choose an <span class="ui">Owner</span> (office staff on the project) and a <span class="ui">Due date</span>.</li>
+    <li>Choose the <span class="ui">Decision</span> and add notes, then <span class="ui">Save decision</span>:
+      <ul>
+        <li><strong>Hold — keep open</strong>: the stock is on hold.</li>
+        <li><strong>Returned to vendor — close</strong>: closes the inbox item; the stock stays marked as being returned.</li>
+        <li><strong>Released — close</strong>: the only decision that frees the stock.</li>
+      </ul>
+    </li>
+  </ol>
+  <p>Stock on hold or being returned can't be packed, loaded or issued, and crews can move it only to a hold area. Release it as soon as it is cleared.</p>
+  <h3>Outside Shops</h3>
+  <p>The <span class="ui">Outside Shops</span> page lists, for every place of kind Outside shop, the crates and loose items that loads delivered there and that are still there: the code or tag, the piece, <strong>There since</strong> and <strong>Brought by</strong> (a link to the load). Filter by shop or search. Use it to chase work at shops and to plan the next pick-ups. Shops never scan; their status changes when a load is confirmed delivered or picked up.</p>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="c-admin"><span class="n">19</span>Users, projects and access</h2>
+  <p class="for"><span class="who admin">Admin</span></p>
+  <h3>Users &amp; Access</h3>
+  <ol class="steps">
+    <li><strong>Invite:</strong> press <span class="ui">Invite User</span>, fill <span class="ui">Email</span>, <span class="ui">Full name</span>, <span class="ui">Role</span> (Field worker, Office staff, Administrator) and <span class="ui">Project access</span>, and <span class="ui">Save User</span>. The person gets the invitation email (chapter 3).</li>
+    <li><strong>Edit:</strong> <span class="ui">Edit</span> changes the role and projects. Untick <span class="ui">Active account</span> to deactivate someone; they lose access at once.</li>
+    <li><strong>Pending invitations:</strong> <span class="ui">Resend</span> sends a new code (only the newest works); <span class="ui">Cancel invite</span> also removes the person's project access.</li>
+  </ol>
+  <p>Filters cover role, status (active, inactive, invitation pending, expired, cancelled) and project. <span class="ui">History</span> opens that person's entries in Activity &amp; Audit. The last active administrator can't be removed.</p>
+  <h3>Projects</h3>
+  <p><span class="ui">New project</span> opens the form: name, description and status (<span class="ui">Active</span>, <span class="ui">Completed — read only</span>, <span class="ui">Archived — unavailable</span>), then <span class="ui">Save project</span>. A new project is assigned to the administrator who creates it; reload a working page to see it in the project selector. A project can't be completed or archived while any of its loads is open.</p>
+  <h3>Who can open what</h3>
+  <p>Every page needs an active account, an accepted invitation and at least one project that isn't archived. Without a project, people see “Access pending”. Administrators also have the Data Browser and the admin audit (appendix A7).</p>
+</section>
+
+<!-- ============================================================ Part IV -->
+<section class="part">
+  <div class="num">Part IV</div>
+  <h1>Rules and definitions</h1>
+  <p>The rules the platform builds in, the habits it depends on, and what the words in this guide mean. When the app says no, the first chapter here says what to do.</p>
+  <ul>
+    <li>What the system refuses</li>
+    <li>Rules for crews</li>
+    <li>Rules for the office</li>
+    <li>Definitions</li>
+  </ul>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="c-enforced"><span class="n">20</span>What the system refuses</h2>
+  <p class="lede">These rules are checked by the database on every step, whichever screen sends it. The app shows the reason word for word; Sync keeps a refused step until you fix or discard it.</p>
+  <table class="tight">
+    <thead><tr><th style="width:26%">Rule</th><th style="width:40%">What you see (examples)</th><th>What to do</th></tr></thead>
+    <tbody>
+      <tr><td>A tag is one item, unique in its project, whatever the capitals</td><td>“Tag … has already been received, so it doesn't need counting.”</td><td>Scan the next tag. To fix a wrong record, ask the office.</td></tr>
+      <tr><td>HU- codes are crate labels only</td><td>“HU- codes are crate labels; count the items inside the crate.”</td><td>Count or receive the items; give each its own tag.</td></tr>
+      <tr><td>Only counted or received items go in a crate</td><td>“… hasn't been counted or received yet. Count it first.”</td><td>Count it, then pack it.</td></tr>
+      <tr><td>A packed item stays in its crate</td><td>“… is packed in HU-…; take it out of the crate first.”</td><td>Take it out on the crate screen, or unpack the crate.</td></tr>
+      <tr><td>A crate travels whole, to one stop</td><td>“… a crate travels with the crate it's in.”</td><td>Load the outer crate; unpack first if pieces go to different stops.</td></tr>
+      <tr><td>Crates nest at most five deep</td><td>“Crates can be nested at most 5 levels deep.”</td><td>Use fewer layers.</td></tr>
+      <tr><td>A sealed crate has contents and an area</td><td>“Choose a location: pick the area where this crate is before sealing it.”</td><td>Choose the area, or save it open.</td></tr>
+      <tr><td>A piece is on one open load at a time</td><td>“… is planned on load L-0002. Choose where it comes off to move it to L-0003.”</td><td>Move it, or leave it on its load.</td></tr>
+      <tr><td>No licence, no departure</td><td>“Record the driver's licence … in Driver check-in before L-0003 leaves.”</td><td>Check the driver in. Only the office can let the truck leave without, with a reason.</td></tr>
+      <tr><td>A load's steps go in order</td><td>“An earlier step for L-0003 hasn't uploaded. Retry or discard it in Sync…”</td><td>Open Sync; retry or discard the stuck step.</td></tr>
+      <tr><td>Pieces not scanned off become missing</td><td>“… pieces due here haven't been scanned off and will be marked missing.”</td><td><span class="ui">Keep scanning</span> until everything due is off.</td></tr>
+      <tr><td>The office confirms shops and vendors</td><td>“… is an outside shop or vendor: scan off what you hand over, and the office confirms the stop.”</td><td>Scan off, then call the office.</td></tr>
+      <tr><td>A load closes only when nothing is missing</td><td>“Load L-… still has missing pieces (N); scan them, mark them found or write them off first.”</td><td>Resolve each missing piece.</td></tr>
+      <tr><td>Only a load that hasn't left can be cancelled</td><td>“Only a load that hasn't left can be cancelled.”</td><td>Change its stops instead.</td></tr>
+      <tr><td>Held stock stays put</td><td>“… is on hold; the office releases it before it can be issued.”</td><td>Move it only to a hold area; ask the office to decide.</td></tr>
+      <tr><td>Written-off pieces are out of stock</td><td>“… was written off on a load; an administrator can undo that.”</td><td>Tell the office where it turned up.</td></tr>
+      <tr><td>Finished projects are read-only</td><td>“This project is read-only.”</td><td>Switch to the right project.</td></tr>
+      <tr><td>Reasons are required</td><td>Leaving without a licence, keeping a licence, corrections: at least 5 characters. Nothing is deleted; records are corrected with a reason.</td><td>Write a reason someone will understand in a year.</td></tr>
+      <tr><td>Limits</td><td>Up to 3 companies and 20 stops a load; up to 4 licence photos; one rack per area.</td><td>Ask the office if a real case doesn't fit.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="c-crew-rules"><span class="n">21</span>Rules for crews</h2>
+  <ol class="rules">
+    <li><strong>Scan as it happens.</strong> On the truck, off the truck, into a crate, into an area: scan at that moment, not later from memory.</li>
+    <li><strong>One label, one thing.</strong> Never put a crate label on an item or reuse a tag. Tell the office before re-tagging a damaged tag.</li>
+    <li><strong>Record where it really is.</strong> Choose the area the item is actually in. Found it elsewhere? Use <span class="ui">Correct where it is</span>; don't count it again.</li>
+    <li><strong>Seal it where it stands.</strong> Seal a crate when it is closed up, where it stands, and move it in the app when you move it in the yard.</li>
+    <li><strong>A crate goes whole.</strong> Take items out only through the app. A crate goes to one stop; if its pieces go to different places, unpack first.</li>
+    <li><strong>Nothing on the truck without a scan.</strong> Scan every piece on. If one comes back off before the truck leaves, take it off in the app too.</li>
+    <li><strong>No licence, no departure.</strong> Check the driver in with the licence number and a photo of the front. If the driver won't, call the office; never wave the truck off.</li>
+    <li><strong>Finish a stop only when it is done.</strong> Scan everything off first. Anything not scanned becomes missing, and someone has to go and find it.</li>
+    <li><strong>At shops and vendors, the office confirms.</strong> Scan off what you hand over and tell the office; don't try to finish the stop.</li>
+    <li><strong>Hold means hold.</strong> Stock on hold or going back to the vendor stays in a hold area. Never pack, load or issue it.</li>
+    <li><strong>Clear Sync every day.</strong> Before the end of each shift, open Sync: retry what failed, fix or discard what was refused, and ask the office when unsure. Never sign out with a licence still waiting.</li>
+    <li><strong>Licences stay in the app.</strong> Never photograph a licence with the phone's own camera, write its number down or send it on.</li>
+    <li><strong>Your own account only.</strong> Sign in as yourself, never share a login, and sign out of a shared phone.</li>
+    <li><strong>Practise in Training Yard.</strong> Never practise in a real project: practice scans become real records.</li>
+  </ol>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="c-office-rules"><span class="n">22</span>Rules for the office</h2>
+  <ol class="rules">
+    <li><strong>Set up before the work starts.</strong> Places with map points, a site plan for each yard and site, areas named the way crews talk about them, every rack linked to an area, and crate labels printed.</li>
+    <li><strong>Plan the load before the truck arrives.</strong> Stops in order, every crate and loose piece planned to the stop where it comes off, and companies recorded.</li>
+    <li><strong>Leaving without the licence is the exception.</strong> Use it only when there is no other way, write a reason that will make sense in a year, and get the licence afterwards if you can.</li>
+    <li><strong>Confirm shop and vendor stops the same day.</strong> Your confirmation is the only record of what was handed over there.</li>
+    <li><strong>Resolve missing pieces quickly.</strong> Scan, mark found (with where) or write off (with why) within the week, while people still remember.</li>
+    <li><strong>Close loads when they are done.</strong> A delivered load with nothing missing should be closed; closing starts the licence's 365-day clock.</li>
+    <li><strong>Keep a licence only for a reason.</strong> For example to recover a tracker the driver kept. Release it when the reason is resolved.</li>
+    <li><strong>Every exception gets an owner and a date.</strong> Decide holds and returns promptly, and release stock as soon as it is cleared.</li>
+    <li><strong>Keep access tidy.</strong> Invite people with the right role and projects, deactivate leavers the day they leave, and review project access when a project ends.</li>
+    <li><strong>Change production only through a release.</strong> Never edit the live database by hand (appendix A8).</li>
+    <li><strong>Never print or export licence data.</strong> The manifest leaves it out on purpose.</li>
+  </ol>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="c-definitions"><span class="n">23</span>Definitions</h2>
+  <p class="lede">What the words in this guide and on the screens mean.</p>
+  <dl class="glossary">
+    <dt>Area</dt><dd>A named shape on a site plan, such as Laydown A › Bay 3. Areas nest and are never deleted, only made inactive.</dd>
+    <dt>Arrival radius</dt><dd>The distance around a place's map point that will count as “arrived” once trackers are connected.</dd>
+    <dt>Crate (handling unit)</dt><dd>Anything that holds pieces and moves as one: crate, skid, bundle, basket, container. Identified by its HU- label.</dd>
+    <dt>Count record</dt><dd>One tag in the initial count: expected (imported), counted, then received.</dd>
+    <dt>Exception</dt><dd>A problem flagged at receiving, decided by the office: hold, return to vendor or release.</dd>
+    <dt>Flag</dt><dd>A note on a delivered piece: wrong stop, extra (not on the plan) or found (had been missing).</dd>
+    <dt>High value</dt><dd>A crate marked so that everyone who scans it sees it; shown on the manifest.</dd>
+    <dt>Hold area</dt><dd>A rack marked as a hold area. Stock on hold can be moved only there.</dd>
+    <dt>HU- label</dt><dd>A crate label code, such as HU-7K3QX9; unique across every project.</dd>
+    <dt>Keep (a licence)</dt><dd>Office staff stop a licence being removed on its date, with a reason, until they release it.</dd>
+    <dt>Load</dt><dd>One trip by an outside carrier's truck, numbered L-0001 per project.</dd>
+    <dt>Manifest line</dt><dd>One crate or loose piece on a load, with the stop it comes off at.</dd>
+    <dt>Material</dt><dd>A received item, with quantity, rack and area.</dd>
+    <dt>Missing</dt><dd>A piece due at a finished stop that wasn't scanned off.</dd>
+    <dt>Over-the-air update</dt><dd>New app screens sent to phones without a store download.</dd>
+    <dt>Place</dt><dd>A yard, site, outside shop, vendor or other location, shared by every project.</dd>
+    <dt>Rack</dt><dd>A receiving location (zone, row, rack), linked to at most one area.</dd>
+    <dt>Refused</dt><dd>A step the database turned down, with the reason. It waits in Sync for a decision.</dd>
+    <dt>Site map</dt><dd>A plan of one yard or site, with its areas.</dd>
+    <dt>Step</dt><dd>One change sent to the database, applied exactly once (A4).</dd>
+    <dt>Stop</dt><dd>A place on a load's route, for drop-off, pick-up or both.</dd>
+    <dt>Sync</dt><dd>The screen, and the process, that uploads saved work and shows anything waiting or refused.</dd>
+    <dt>Tag</dt><dd>An item's code, unique within its project whatever the capitals.</dd>
+    <dt>Training Yard</dt><dd>The practice project. Practise only there.</dd>
+    <dt>Write-off</dt><dd>The office records that a missing piece is lost, with a reason. An administrator can undo it.</dd>
+  </dl>
+</section>
+
+<!-- ============================================================ Part V -->
+<section class="part">
+  <div class="num">Part V</div>
+  <h1>Technical appendix</h1>
+  <p>For administrators and whoever builds, releases and supports the platform: how it is put together, how data is shaped and protected, how a project is set up, and how changes are released.</p>
+  <ul>
+    <li>Architecture, data model and life cycles</li>
+    <li>How a change reaches the database</li>
+    <li>Security and privacy</li>
+    <li>New project set-up and administration</li>
+    <li>Releases, integrations and known limits</li>
+    <li>Revision history</li>
+  </ul>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="a-arch"><span class="n">A1</span>Architecture and where it runs</h2>
+  <p class="lede">One managed database holds every record and every rule. The field app and the office site are clients of it; neither has a server of its own.</p>
+  <table>
+    <thead><tr><th style="width:19%">Part</th><th style="width:43%">Where it runs</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Field app</td><td>iPhone and Android, built from the field app repository. Version 1.1.0, build 5.</td><td>Offline queue on the phone; new screens arrive as over-the-air updates on the production channel.</td></tr>
+      <tr><td>Office site</td><td>A managed web host, deployed from <code>main</code> of the office repository (MSR).</td><td>Plain HTML and JavaScript; the site build writes a <code>release.json</code> of asset hashes.</td></tr>
+      <tr><td>Database and sign-in</td><td>The managed database (project “InventoryApp_w_MSR”), with row-level security, and its sign-in service.</td><td>Shared by both clients. Every migration lives in the MSR repository.</td></tr>
+      <tr><td>Private storage</td><td>Buckets <code>inspection-photos</code>; <code>site-plans</code> (15 MB; PNG, JPEG, WEBP); <code>inventory-photos</code> (10 MB); <code>driver-licences</code> (10 MB; JPEG, PNG; at most 4 files a load).</td><td>Read only through short-lived signed links.</td></tr>
+      <tr><td>Admin function</td><td>A server function, <code>admin-users</code>, that checks each caller's sign-in token.</td><td>Invitations, users, projects and the admin audit.</td></tr>
+      <tr><td>Email</td><td>The sign-in service, sending through an email delivery provider.</td><td>Templates in the office repository.</td></tr>
+      <tr><td>Licence job</td><td>A scheduled job in the office repository, daily at 09:17 UTC.</td><td>Removes licences that are due and not kept.</td></tr>
+      <tr><td>Trackers</td><td>GPS trackers from an outside provider. The live sync still runs from the legacy repository.</td><td>See A9.</td></tr>
+    </tbody>
+  </table>
+  <p>Both clients sign in through the database's sign-in service and talk to the database directly with its public key; what each person may read or change is decided inside the database by row-level security and checked functions (A4, A5). The service-role key, which bypasses those rules, is used only by the admin function, the licence job and the purchase-order import (A9), and lives only in their secret stores.</p>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="a-data"><span class="n">A2</span>The data model</h2>
+  <figure>
+    <!-- svg:data -->
+    <figcaption><b>The main records.</b> Where things are (places, plans, areas, racks), what they are (tags, count records, materials, crates) and what moves them (loads, stops, manifest lines, drivers). Materials and crates sit in areas; crates hold items; both ride on loads as manifest lines. Stops are places.</figcaption>
+  </figure>
+  <table class="tight">
+    <thead><tr><th style="width:20%">Group</th><th>Tables and views</th></tr></thead>
+    <tbody>
+      <tr><td>People and projects</td><td><code>users</code> (role, active), <code>projects</code> (status), <code>user_projects</code> (who works where).</td></tr>
+      <tr><td>Where</td><td><code>places</code>; <code>site_maps</code>; <code>site_map_zones</code> (areas, nested, with an optional rack); <code>locations</code> (racks, including hold areas); view <code>location_areas</code>.</td></tr>
+      <tr><td>What</td><td><code>qr_codes</code> (every tag and label, unique per project ignoring capitals); <code>inventory_categories</code>; <code>inventory_records</code> (count records: expected, counted, received) and <code>inventory_photos</code>; <code>receiving_records</code> and <code>inspection_photos</code>; <code>materials</code> (in yard, issued, shipped, depleted, written off); <code>material_movements</code>, <code>material_issues</code>, <code>shipments_out</code>.</td></tr>
+      <tr><td>Crates</td><td><code>handling_units</code> (code, kind, status, place and area, parent crate); <code>handling_unit_contents</code>; views <code>handling_unit_items</code>, <code>handling_unit_overview</code>.</td></tr>
+      <tr><td>Loads</td><td><code>loads</code>, <code>load_companies</code> (up to 3), <code>load_stops</code> (up to 20), <code>load_lines</code> (the manifest), <code>load_write_offs</code>; views <code>load_overview</code>, <code>load_stop_overview</code>, <code>load_line_overview</code>.</td></tr>
+      <tr><td>Licences <span class="who office">Office</span></td><td><code>load_driver_licences</code>, <code>driver_licence_photos</code>, <code>load_licence_operations</code>, <code>driver_licence_holds</code> (from 023). Office staff only; see A5.</td></tr>
+      <tr><td>Changes and history</td><td><code>field_operations</code> (one row per step, with its result); <code>audit_log</code> (who did what, when, to what).</td></tr>
+      <tr><td>Position</td><td>View <code>item_positions</code>: the one answer to “where is it?” for every item and crate (A3).</td></tr>
+    </tbody>
+  </table>
+  <p><strong>Where an item is</strong>, in order of precedence: on a truck or missing from one (from its open manifest line); inside a crate, at wherever its outermost crate is; at its own place and area; or gone (issued, shipped, written off). The app's “Where” line, the office crate list and the activity subjects all read this view, so they always agree.</p>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="a-life"><span class="n">A3</span>Life cycles and statuses</h2>
+  <figure>
+    <!-- svg:lifecycle -->
+    <figcaption><b>A load and the pieces on it.</b> Scans move pieces on and off; finishing a stop turns anything not scanned off into missing; only the office closes or cancels a load, and only an administrator undoes a write-off.</figcaption>
+  </figure>
+  <table class="tight">
+    <thead><tr><th style="width:18%">Record</th><th style="width:44%">Statuses</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Crate</td><td>open › sealed › on a load › delivered › unpacked; or missing, written off</td><td>A crate on a load can't be packed, unpacked or moved. Cancelling a load puts its crates back as they were.</td></tr>
+      <tr><td>Stop</td><td>pending › arrived › done; or cancelled</td><td>Arrival is recorded by scan, by the office, or (later) by tracker.</td></tr>
+      <tr><td>Manifest line</td><td>planned › on board › delivered; not loaded, missing, written off, removed</td><td>Delivered lines may be flagged wrong stop, extra or found.</td></tr>
+      <tr><td>Material</td><td>in yard › issued, shipped, depleted, written off</td><td>On hold and return to vendor come from the receipt's exception decision.</td></tr>
+      <tr><td>Count record</td><td>expected › counted › received</td><td>Receiving a counted tag links the receipt to the count.</td></tr>
+      <tr><td>Load</td><td>planning › loading › in transit › delivered › closed; or cancelled</td><td>Closed and cancelled loads can't change, except that undoing a write-off reopens a closed load.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="a-ops"><span class="n">A4</span>How a change reaches the database</h2>
+  <p class="lede">Every change from the field app is a <strong>step</strong>: a call to <code>apply_field_operation(operation_id, project_id, action, payload)</code>. The office site uses the same function for logistics actions, so both follow the same rules.</p>
+  <ul>
+    <li><strong>Exactly once.</strong> Each step carries an ID made on the phone. The database locks that ID; if it has applied it before, it returns the saved result, so a retry after a dropped connection never applies twice. The same ID with a different request is refused.</li>
+    <li><strong>All or nothing.</strong> The action's checks, its changes and its audit entry run in one transaction. A refused step changes nothing.</li>
+    <li><strong>Actions.</strong> <code>receiving</code>, <code>count</code>, <code>transfer</code>, <code>issue</code>, <code>shipment</code>, <code>correct_material</code>, <code>exception</code>; and for crates and loads <code>pack</code>, <code>unpack</code>, <code>move</code>, <code>relocate</code>, <code>load_save</code>, <code>load_plan</code>, <code>load_on</code>, <code>load_depart</code>, <code>load_off</code>, <code>stop_complete</code>, <code>load_close</code>, <code>line_found</code>, <code>line_write_off</code>, <code>line_write_off_undo</code>.</li>
+    <li><strong>Batches.</strong> Load-out and unload send scans in batches. The pieces the database turns down come back as separate refused steps while the rest are saved.</li>
+    <li><strong>Times.</strong> Each scan carries the time it happened on the phone, so steps that upload late still record when the work was done. Comparisons with server times allow five minutes for phone clocks.</li>
+  </ul>
+  <h3>Refusals</h3>
+  <table class="tight">
+    <thead><tr><th style="width:14%">Code</th><th style="width:30%">Meaning</th><th>Examples</th></tr></thead>
+    <tbody>
+      <tr><td><code>22023</code></td><td>The step breaks a rule</td><td>The message names the rule: a crate that would be split, a load leaving without a licence, a tag that is already received.</td></tr>
+      <tr><td><code>42501</code></td><td>No access</td><td>An inactive account, a project the person isn't on, or an office-only action from a crew.</td></tr>
+      <tr><td><code>23505</code></td><td>Conflict</td><td>An operation ID reused for a different request, or a duplicate tag.</td></tr>
+    </tbody>
+  </table>
+  <p>The app shows these as “Refused: needs a decision” and never retries them by itself. Network errors and time-outs are retried.</p>
+  <h3>Separate calls</h3>
+  <ul>
+    <li><strong>Licences</strong> never pass through <code>field_operations</code> or the audit log in full: <code>record_driver_licence</code>, <code>attach_driver_licence_photo</code>, <code>remove_driver_licence_photo</code>, <code>remove_driver_licence</code>, and from 023 <code>keep_driver_licence</code>, <code>release_driver_licence_hold</code> and <code>driver_licences_due_soon</code>. <code>driver_licence_purge_queue</code> and <code>purge_driver_licence</code> are for the service role only.</li>
+    <li><strong>Reading</strong>: <code>lookup_tag</code> (what Scan should open), <code>list_project_activity</code> (the Activity tab), <code>load_licence_complete</code> and <code>load_licence_due_at</code> (licence state without the licence itself), and the views in A2.</li>
+  </ul>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="a-security"><span class="n">A5</span>Security and privacy</h2>
+  <h3>Access</h3>
+  <ul>
+    <li>Row-level security is on for every table. People read only the projects they are assigned to; places are readable by every active user.</li>
+    <li>Writes go through checked functions that test the role and project themselves (<code>is_office_user</code>, <code>has_project_access</code>, <code>can_work_project</code>). The screens hiding a button is a convenience, never the control.</li>
+    <li>History is never deleted: places retire, areas go inactive, loads close; the audit log can't be changed.</li>
+    <li>Completed projects are read-only and archived projects are hidden, in the database as well as on screen.</li>
+  </ul>
+  <h3>Driver licences</h3>
+  <ul>
+    <li>Licence tables and the <code>driver-licences</code> bucket are readable by office staff only. Crews can upload a licence but can never read one back, in the app or by any other route.</li>
+    <li>Office staff see photos through signed links that expire after five minutes. Licences are never printed; the manifest leaves them out.</li>
+    <li>The audit log keeps at most the last four characters, and only for numbers longer than six.</li>
+    <li>On the phone the number stays in memory only, and the photos are deleted after upload, after a discard and at sign-out.</li>
+    <li>Each licence is removed 365 days after its load closes unless office staff keep it with a reason (from 023; 90 days before). The daily job removes it with the service-role key; opening the Loads page does the same as a backup.</li>
+  </ul>
+  <h3>Accounts</h3>
+  <ul>
+    <li>Invitations and resets use email codes that last an hour and work once; only the newest is valid.</li>
+    <li>Deactivating someone takes effect at once. The last active administrator can't be removed.</li>
+    <li>The admin function accepts requests only from the production office site.</li>
+    <li>Secrets are never kept in the repositories. The service-role key exists only in the repository's secret store and the function's secret store; set it there yourself and never paste it into a chat, file or ticket.</li>
+  </ul>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="a-setup"><span class="n">A6</span>Setting up a new project</h2>
+  <ol class="steps">
+    <li><strong>Projects:</strong> press <span class="ui">New project</span>; leave the status Active.</li>
+    <li><strong>Users &amp; Access:</strong> invite people, or tick the new project on existing users.</li>
+    <li><strong>Places:</strong> add or confirm the yard or site (tied to the project, or shared), plus the outside shops and vendors it works with, each with a map point and arrival radius.</li>
+    <li><strong>Racks:</strong> in <span class="ui">Data Browser</span> › <span class="ui">Locations</span>, press <span class="ui">Add</span> for each rack (zone, row, rack, hold area, capacity). Include at least one hold-area rack.</li>
+    <li><strong>Site Maps:</strong> press <span class="ui">New map</span>, tie it to the yard or site, upload the plan, draw the areas (nested as crews name them), set each area's rack, and work through <span class="ui">Racks without an area</span> until it is empty.</li>
+    <li><strong>Counting</strong> (if there is an initial count): set up <span class="ui">Inventory Categories</span> and <span class="ui">Import expected tags</span>.</li>
+    <li><strong>Crates:</strong> <span class="ui">Print crate labels</span> for the first weeks of packing.</li>
+    <li><strong>Licence job:</strong> confirm the job's service-role secret is set and its last run passed before loads start carrying licences.</li>
+    <li><strong>Training:</strong> have crews practise in Training Yard (below) before they work in the new project.</li>
+  </ol>
+  <h3>Training Yard</h3>
+  <p>A separate practice project that testers choose in the project selector. The practice kit expects a “Training Yard” place and plan with the areas T1 Pipe Racks › Rack 2, Equipment Staging › Bay A to C and T-Hold; a rack “T2 - Row 1, Rack 1”; expected tags <code>&lt;prefix&gt;-CV-101</code>, <code>-LOP-201</code> and <code>-FL-702</code> for each tester; and crate labels reserved for each tester. No script creates it; set it up by hand with the steps above.</p>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="a-admin"><span class="n">A7</span>Administration functions</h2>
+  <table>
+    <thead><tr><th style="width:22%">Function</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td>Users &amp; Access</td><td>Invite, edit, deactivate; resend or cancel invitations; filter by role, status and project; open a person's history (chapter 19). Backed by the <code>admin-users</code> function.</td></tr>
+      <tr><td>Projects</td><td>Create, edit, complete (read-only) or archive (hidden). Completing or archiving is refused while loads are open.</td></tr>
+      <tr><td>Data Browser</td><td>Browse any table for the active project, 25 to 100 rows at a time, and export CSV. History tables are read-only and nothing can be deleted. Material records can be corrected with a reason of at least five characters. <span class="ui">Locations</span> is the only table with <span class="ui">Add</span>: it is where racks are made.</td></tr>
+      <tr><td>Activity &amp; Audit</td><td>Administrator changes (users and projects) with person, time and old and new values, 25 a page. Operational history (counts, crates, loads) is in Data Browser › <span class="ui">Audit Log</span>, and on the app's Activity tab.</td></tr>
+      <tr><td>Auth settings</td><td>Held by the sign-in service: email codes last 3,600 seconds; the redirect allowlist has <code>/login.html</code> and <code>/login.html?setup=invite</code>; templates and subjects as in <code>docs/INVITATION_RECOVERY.md</code>.</td></tr>
+      <tr><td>Function secrets</td><td>The database address, its public and service-role keys, <code>INVITATION_TTL_SECONDS</code> (default 3600) and <code>INVITATION_EMAIL_ENABLED</code>. With email switched off, invitations are disabled and the page says so.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="a-release"><span class="n">A8</span>Releasing changes</h2>
+  <p class="lede">Each part of the platform has its own release path. Database releases and app updates reach every user at once, so each one needs the owner's go-ahead.</p>
+  <table class="tight">
+    <thead><tr><th style="width:24%">What changed</th><th>How it is released</th></tr></thead>
+    <tbody>
+      <tr><td>Database</td><td>A new migration file in the MSR repository, applied to production with the guarded procedure below.</td></tr>
+      <tr><td>Office site</td><td>Merge the pull request to <code>main</code>; the web host deploys it and the smoke test checks it.</td></tr>
+      <tr><td>Admin function</td><td>Deployed from the office repository with the database host's command-line tool, token checks on.</td></tr>
+      <tr><td>App screens</td><td>An over-the-air update to the production channel.</td></tr>
+      <tr><td>App native parts</td><td>A new store build, only when native modules or the app version change.</td></tr>
+    </tbody>
+  </table>
+  <h3>Database migrations</h3>
+  <ol class="steps">
+    <li>Write the change as a new numbered migration file in the office repository. Never edit a migration that has run in production, and never change production by hand.</li>
+    <li>CI builds a fresh database from every migration and runs the database tests (<code>tests/database/run.sh</code>).</li>
+    <li>Rehearse on a copy at the previous version, then run the tests again.</li>
+    <li>Fingerprint production with the schema fingerprint check (read-only) and compare it with a fresh build at the previous version. They must match line for line; <code>--detail</code> finds any difference.</li>
+    <li>Back up, then apply in one transaction: check that production's latest migration is the one before this; record the migration with its full text; check the stored text's checksum; run it. Any error rolls all of it back.</li>
+    <li>Fingerprint again, compare with a fresh build at the new version, and record the release.</li>
+    <li>Release what depends on it: the office site, the admin function, the app update.</li>
+  </ol>
+  <h3>Office site</h3>
+  <p>The web host runs the site build, which copies the pages and scripts, checks that the required pages exist and writes <code>release.json</code> with the commit and SHA-256 hashes of the key assets. The <code>production-smoke</code> job then waits for that commit to go live, checks the asset hashes and confirms private paths return 404. To roll back, restore the last verified deploy on the web host.</p>
+  <h3>Field app</h3>
+  <p>App updates carry new screens to every phone on the same runtime (1.1.0). A phone downloads an update when the app opens and switches to it the next time the app is fully closed and reopened. The current production update is 56cc444c on build 5.</p>
+  <h3>Licence job</h3>
+  <p>A scheduled job in the office repository runs the licence removal script every day at 09:17 UTC, and can be run by hand. It needs the service-role key as a repository secret, which an administrator sets; the database address is optional. If a run fails, the Loads page's backup still removes due licences when office staff open it; fix the job the same week.</p>
+</section>
+
+<section class="chapter cont">
+  <h2 data-toc="a-integrations"><span class="n">A9</span>Integrations</h2>
+  <h3>GPS trackers</h3>
+  <p>The <span class="ui">GPS Tracking</span> page shows the GPS trackers, but its data updates only while the legacy hourly job in the old tracker repository writes to the shared database; the MSR repository's own tracker sync workflow is a manual placeholder that prints the hand-over steps. The cut-over is set out in <code>docs/INTEGRATION_OWNERSHIP.md</code>.</p>
+  <p><strong>Planned.</strong> Trackers will be attached to crates and high-value items, not trucks. A server job will record positions and use each place's arrival radius to mark crates as arrived at shops and stops, with a map on each load and a warning when a tracker in transit goes quiet. Before building it, confirm with the tracker provider that the tags will be seen at outside shops, since they report only near a gateway.</p>
+  <h3>Purchase orders and shipments</h3>
+  <p>The purchase-order import script checks an MSR workbook and, only with <code>--apply</code>, a <code>--project-id</code> and the service-role key, imports both sheets in one transaction. Without <code>--apply</code> it only validates. It never deletes rows.</p>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="a-limits"><span class="n">A10</span>Known limits in this edition</h2>
+  <p class="lede">Things that work differently from what you might expect, with the way round them. Each is a candidate for a later update.</p>
+  <h3>Field app</h3>
+  <ul>
+    <li>Receiving needs signal for the rack list, unless the rack came from the count, and an unfinished receipt can't be resumed: scanning another tag starts again.</li>
+    <li>Count has no high-value switch and no place picker.</li>
+    <li>Delivered loads aren't on the Loads tab; open them from an item's or crate's “Delivered to … on L-…” line.</li>
+    <li>Moving a crate, correcting a location, departing, finishing a stop and editing a load close the screen without a confirmation message; Sync shows the step.</li>
+    <li>A planned date or licence expiry can't be cleared once set.</li>
+    <li>The app can put a receipt on hold but not release it; release it on the office site.</li>
+  </ul>
+  <h3>Office site</h3>
+  <ul>
+    <li>Until migration 023 and its page are released, the Loads page says licences are removed after 90 days and has no warning panel.</li>
+    <li>On the website, a crew member's depart button can look available when only the licence number or only the photo is on file; the database still refuses, with the reason.</li>
+    <li>Activity &amp; Audit shows administrator changes only; operational history is in Data Browser › Audit Log.</li>
+    <li>Racks can be added only in Data Browser › Locations.</li>
+    <li><span class="ui">Print the last N labels again</span> is lost when the page reloads; reprint from the reserved range before leaving the page.</li>
+    <li>The arrival radius has no effect until trackers are connected.</li>
+    <li>On PO &amp; Installation, check that <span class="ui">Delete link</span> really removed a link before relying on it.</li>
+  </ul>
+</section>
+
+<section class="chapter">
+  <h2 data-toc="a-history"><span class="n">A11</span>Revision history</h2>
+  <table>
+    <thead><tr><th style="width:13%">Edition</th><th style="width:16%">Date</th><th style="width:36%">Software covered</th><th>Changes</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>31 Oct 2026</td><td>Field app 1.1.0 (build 5, update 56cc444c); office site release 465adc6; database to migration 022, with 023 described ahead of release</td><td>First edition.</td></tr>
+    </tbody>
+  </table>
+  <h3>Updating this guide</h3>
+  <p>The guide is built from <code>docs/booklet/</code> in the MSR repository: <code>booklet.html</code> (the text), <code>booklet.css</code> (the print style) and <code>diagrams/</code>. When the software changes, edit the text, add a row above, update the edition lines on the cover, and run the booklet build (the command is in <code>docs/booklet/README.md</code>).</p>
+  <p>It prints the guide to <code>docs/booklet/Invenio-Field-Platform-booklet.pdf</code> and numbers the contents. Keep the contents to one page.</p>
+</section>
+
+</body>
+</html>

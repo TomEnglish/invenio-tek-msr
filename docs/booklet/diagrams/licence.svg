@@ -1,0 +1,70 @@
+<svg viewBox="0 0 680 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A driver's licence over time: recorded at check-in, needed before the truck departs, the 365-day clock starts when the load closes, the office is warned 30 days before, and the daily job removes it at day 365 unless the office is keeping it; a kept licence stays until released" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif">
+  <defs>
+    <marker id="ta" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#122c4c"/></marker>
+    <marker id="tk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8a5d00"/></marker>
+  </defs>
+  <!-- axis with a break for the long middle -->
+  <g stroke="#122c4c" stroke-width="2" fill="none">
+    <line x1="20" y1="100" x2="326" y2="100"/>
+    <line x1="342" y1="100" x2="658" y2="100" marker-end="url(#ta)"/>
+    <line x1="320" y1="108" x2="328" y2="92" stroke-width="1.4"/>
+    <line x1="336" y1="108" x2="344" y2="92" stroke-width="1.4"/>
+  </g>
+  <text x="334" y="88" font-size="8.8" fill="#5b6676" text-anchor="middle">≈ 11 months</text>
+  <!-- points -->
+  <g stroke="#fff" stroke-width="2">
+    <circle cx="40" cy="100" r="6" fill="#157347"/>
+    <circle cx="120" cy="100" r="6" fill="#174fda"/>
+    <circle cx="220" cy="100" r="6" fill="#122c4c"/>
+    <circle cx="470" cy="100" r="6" fill="#c99a1c"/>
+    <circle cx="590" cy="100" r="6" fill="#b3141c"/>
+  </g>
+  <g stroke="#8a96a8" stroke-width="1">
+    <line x1="40" y1="78" x2="40" y2="92"/>
+    <line x1="120" y1="108" x2="120" y2="113"/>
+    <line x1="220" y1="78" x2="220" y2="92"/>
+    <line x1="470" y1="108" x2="470" y2="113"/>
+    <line x1="590" y1="78" x2="590" y2="92"/>
+  </g>
+  <g font-size="9.4" fill="#1c2533">
+    <text x="24" y="34" font-size="10.5" font-weight="700" fill="#0f5c38">Check-in</text>
+    <text x="24" y="47">the crew records the number</text>
+    <text x="24" y="59">and a photo; the phone keeps</text>
+    <text x="24" y="71">them only until they sync</text>
+
+    <text x="104" y="125" font-size="10.5" font-weight="700" fill="#1b3f9e">Departs</text>
+    <text x="104" y="138">needs number and photo on file,</text>
+    <text x="104" y="150">or the office records why not</text>
+
+    <text x="206" y="34" font-size="10.5" font-weight="700" fill="#122c4c">Load closed: day 0</text>
+    <text x="206" y="47">the clock starts (a load that</text>
+    <text x="206" y="59">never closes counts from its</text>
+    <text x="206" y="71">last activity)</text>
+
+    <text x="484" y="125" font-size="10.5" font-weight="700" fill="#8a5d00" text-anchor="end">Day 335: warning</text>
+    <text x="484" y="138" text-anchor="end">the office Loads page lists</text>
+    <text x="484" y="150" text-anchor="end">it as due for removal</text>
+
+    <text x="660" y="34" font-size="10.5" font-weight="700" fill="#b3141c" text-anchor="end">Day 365: removed</text>
+    <text x="660" y="47" text-anchor="end">the daily job deletes the</text>
+    <text x="660" y="59" text-anchor="end">number and photos, unless</text>
+    <text x="660" y="71" text-anchor="end">the office is keeping them</text>
+  </g>
+  <!-- keep -->
+  <path d="M540 100 C 540 130 540 150 540 174" fill="none" stroke="#8a5d00" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#tk)"/>
+  <text x="548" y="140" font-size="9.4" font-weight="700" fill="#8a5d00">Keep</text>
+  <rect x="330" y="178" width="334" height="64" rx="7" fill="#fff4d6" stroke="#c99a1c"/>
+  <g font-size="9.4" fill="#1c2533">
+    <text x="342" y="196" font-size="10.5" font-weight="700" fill="#6b4e12">Kept</text>
+    <text x="342" y="210">The office keeps a licence with a reason, for example to</text>
+    <text x="342" y="222">recover a tracker the driver kept. The job skips it until</text>
+    <text x="342" y="234">someone releases it; then it goes at the next daily run.</text>
+  </g>
+  <rect x="16" y="178" width="296" height="64" rx="7" fill="#f6f8fb" stroke="#d6dce6"/>
+  <g font-size="9.4" fill="#1c2533">
+    <text x="28" y="196" font-size="10.5" font-weight="700" fill="#122c4c">Who sees it</text>
+    <text x="28" y="210">Office staff only. Crews can add a licence</text>
+    <text x="28" y="222">but never read one back. The activity log keeps</text>
+    <text x="28" y="234">at most the last 4 characters; printouts, none.</text>
+  </g>
+</svg>

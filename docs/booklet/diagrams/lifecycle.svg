@@ -1,0 +1,77 @@
+<svg viewBox="0 0 680 312" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Life cycles. A load goes planning, loading when the first piece is scanned on, in transit when it departs under the licence rule, delivered when every stop is finished, and closed by the office once nothing is missing; the office can cancel it before it leaves. Each piece on it goes planned, on board when scanned on, delivered when scanned off or confirmed by the office; a planned piece the truck leaves without is not loaded; an on-board piece whose stop finishes without it is missing, then found or written off, and a write-off can be undone" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif">
+  <defs>
+    <marker id="la" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#122c4c"/></marker>
+  </defs>
+  <g font-size="10.5" font-weight="700" letter-spacing=".08em" fill="#1b3f9e">
+    <text x="8" y="16">THE LOAD</text>
+    <text x="8" y="164">EACH PIECE ON IT (A MANIFEST LINE)</text>
+  </g>
+  <!-- load states -->
+  <g font-size="10.5" font-weight="700" text-anchor="middle" fill="#122c4c">
+    <rect x="8" y="28" width="80" height="30" rx="15" fill="#e8eefc" stroke="#174fda"/><text x="48" y="47">Planning</text>
+    <rect x="154" y="28" width="80" height="30" rx="15" fill="#e8eefc" stroke="#174fda"/><text x="194" y="47">Loading</text>
+    <rect x="300" y="28" width="80" height="30" rx="15" fill="#e8eefc" stroke="#174fda"/><text x="340" y="47">In transit</text>
+    <rect x="446" y="28" width="80" height="30" rx="15" fill="#e3f3ea" stroke="#157347"/><text x="486" y="47">Delivered</text>
+    <rect x="592" y="28" width="80" height="30" rx="15" fill="#122c4c" stroke="#122c4c"/><text x="632" y="47" fill="#fff">Closed</text>
+    <rect x="81" y="96" width="80" height="30" rx="15" fill="#f2f4f7" stroke="#8a96a8"/><text x="121" y="115" fill="#3b4a60">Cancelled</text>
+  </g>
+  <g stroke="#122c4c" stroke-width="1.4" fill="none">
+    <line x1="88" y1="43" x2="152" y2="43" marker-end="url(#la)"/>
+    <line x1="234" y1="43" x2="298" y2="43" marker-end="url(#la)"/>
+    <line x1="380" y1="43" x2="444" y2="43" marker-end="url(#la)"/>
+    <line x1="526" y1="43" x2="590" y2="43" marker-end="url(#la)"/>
+    <path d="M48 58 C 48 80 60 104 79 108" stroke="#8a96a8" stroke-dasharray="4 3" marker-end="url(#la)"/>
+    <path d="M194 58 C 194 80 182 104 163 108" stroke="#8a96a8" stroke-dasharray="4 3" marker-end="url(#la)"/>
+  </g>
+  <g font-size="8.8" fill="#3b4a60" text-anchor="middle">
+    <text x="121" y="70">first piece</text><text x="121" y="81">scanned on</text>
+    <text x="267" y="70">departs</text><text x="267" y="81">(licence rule)</text>
+    <text x="413" y="70">every stop</text><text x="413" y="81">finished</text>
+    <text x="559" y="70">office closes;</text><text x="559" y="81">none missing</text>
+  </g>
+  <g font-size="8.8" fill="#3b4a60">
+    <text x="206" y="108">the office cancels before it leaves;</text>
+    <text x="206" y="119">crates on the truck go back as they were</text>
+  </g>
+  <line x1="8" y1="146" x2="672" y2="146" stroke="#d6dce6"/>
+  <!-- piece states -->
+  <g font-size="10.5" font-weight="700" text-anchor="middle" fill="#122c4c">
+    <rect x="8" y="180" width="80" height="30" rx="15" fill="#edf6f0" stroke="#157347"/><text x="48" y="199">Planned</text>
+    <rect x="154" y="180" width="80" height="30" rx="15" fill="#edf6f0" stroke="#157347"/><text x="194" y="199">On board</text>
+    <rect x="300" y="180" width="80" height="30" rx="15" fill="#e3f3ea" stroke="#157347"/><text x="340" y="199">Delivered</text>
+    <rect x="8" y="262" width="80" height="30" rx="15" fill="#f2f4f7" stroke="#8a96a8"/><text x="48" y="281" fill="#3b4a60">Not loaded</text>
+    <rect x="300" y="262" width="80" height="30" rx="15" fill="#fff4d6" stroke="#c99a1c"/><text x="340" y="281" fill="#6b4e12">Missing</text>
+    <rect x="446" y="262" width="80" height="30" rx="15" fill="#fcebec" stroke="#b3141c"/><text x="486" y="281" fill="#7d0e14">Written off</text>
+  </g>
+  <g stroke="#122c4c" stroke-width="1.4" fill="none">
+    <line x1="88" y1="195" x2="152" y2="195" marker-end="url(#la)"/>
+    <line x1="234" y1="195" x2="298" y2="195" marker-end="url(#la)"/>
+    <line x1="48" y1="210" x2="48" y2="260" marker-end="url(#la)"/>
+    <polyline points="194,210 194,277 298,277" marker-end="url(#la)"/>
+    <line x1="340" y1="262" x2="340" y2="212" marker-end="url(#la)"/>
+    <line x1="380" y1="271" x2="444" y2="271" marker-end="url(#la)"/>
+    <line x1="446" y1="284" x2="382" y2="284" marker-end="url(#la)" stroke-dasharray="4 3"/>
+    <line x1="380" y1="195" x2="444" y2="195" stroke="#8a96a8" stroke-dasharray="2 3"/>
+  </g>
+  <g font-size="8.8" fill="#3b4a60">
+    <text x="121" y="222" text-anchor="middle">scanned on</text>
+    <text x="267" y="222" text-anchor="middle">scanned off,</text>
+    <text x="267" y="233" text-anchor="middle">or office at shops</text>
+    <text x="54" y="236">truck left</text><text x="54" y="247">without it</text>
+    <text x="202" y="258">its stop finished</text><text x="202" y="269">without it</text>
+    <text x="346" y="234">found: scanned</text><text x="346" y="245">or marked found</text>
+    <text x="412" y="265" text-anchor="middle">write off</text>
+    <text x="412" y="304" text-anchor="middle">undo (admin)</text>
+  </g>
+  <rect x="446" y="172" width="226" height="48" rx="6" fill="#f6f8fb" stroke="#d6dce6"/>
+  <g font-size="9" fill="#1c2533">
+    <text x="456" y="188">A delivered piece can carry a flag:</text>
+    <text x="456" y="201"><tspan font-weight="700">wrong stop</tspan> · <tspan font-weight="700">extra</tspan> (it wasn't on the plan)</text>
+    <text x="456" y="214">· <tspan font-weight="700">found</tspan> (it had been missing)</text>
+  </g>
+  <g font-size="9" fill="#5b6676">
+    <text x="540" y="268">Removed: taken off the</text>
+    <text x="540" y="280">plan, moved to another</text>
+    <text x="540" y="292">load or issued in full</text>
+  </g>
+</svg>
