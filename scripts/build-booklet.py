@@ -5,11 +5,13 @@
 
 The booklet is docs/booklet/booklet.html with its stylesheet and the SVG
 diagrams in docs/booklet/diagrams, which the build inlines where the page
-says <!-- svg:name -->. It prints the page with headless Google Chrome, finds
+says <!-- svg:name -->, and the logos in docs/booklet/images, inlined where
+an img says src="images/name.png". It prints the page with headless Google Chrome, finds
 the page each chapter starts on with poppler's pdftotext, writes those numbers
 into the contents, and prints again. CHROME overrides Chrome's path.
 Without pdftotext the contents are printed without page numbers.
 """
+import base64
 import os
 import pathlib
 import re
@@ -29,6 +31,8 @@ def assemble(page_numbers):
     html = html.replace('<!-- css -->', '<style>\n' + (ROOT / 'booklet.css').read_text(encoding='utf-8') + '</style>')
     html = re.sub(r'<!--\s*svg:([a-z0-9-]+)\s*-->',
                   lambda m: (ROOT / 'diagrams' / f'{m.group(1)}.svg').read_text(encoding='utf-8'), html)
+    html = re.sub(r'src="images/([a-z0-9-]+)\.png"',
+                  lambda m: 'src="data:image/png;base64,' + base64.b64encode((ROOT / 'images' / f'{m.group(1)}.png').read_bytes()).decode() + '"', html)
     return re.sub(r'<span class="toc-page" data-for="([a-z0-9-]+)"></span>',
                   lambda m: f'<span class="toc-page" data-for="{m.group(1)}">{page_numbers.get(m.group(1), "")}</span>', html)
 

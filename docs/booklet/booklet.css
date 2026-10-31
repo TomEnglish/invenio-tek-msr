@@ -24,7 +24,7 @@
 @page {
   size: Letter;
   margin: 17mm 17mm 19mm 17mm;
-  @bottom-left { content: "Invenio Field Platform · Field guide · Edition 1"; font: 7.5pt var(--font); color: #7a8494; }
+  @bottom-left { content: "Kindred Industrial Services and Invenio Technologies · Invenio Field Platform field guide · Edition 1"; font: 7.5pt var(--font); color: #7a8494; }
   @bottom-right { content: counter(page); font: 600 8pt var(--font); color: #7a8494; }
 }
 @page cover { margin: 0; @bottom-left { content: none; } @bottom-right { content: none; } }
@@ -35,8 +35,14 @@ body { margin: 0; font: 9.6pt/1.5 var(--font); color: var(--text); background: #
 
 /* Cover and part openers */
 .cover { page: cover; height: 279.4mm; box-sizing: border-box; background: var(--navy); color: #fff;
-  padding: 30mm 22mm 22mm; display: flex; flex-direction: column; break-after: page; position: relative; overflow: hidden; }
+  padding: 22mm 22mm 22mm; display: flex; flex-direction: column; break-after: page; position: relative; overflow: hidden; }
 .cover::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 9mm; background: var(--accent); }
+.cover .partners { display: flex; align-items: center; gap: 8mm; }
+.cover .partners img { display: block; width: auto; }
+.cover .partners .kindred { height: 10.5mm; }
+.cover .partners .invenio { height: 12.5mm; }
+.cover .partners .sep { width: 1px; height: 14mm; background: #3b5f8f; }
+.cover .joint { margin: 4mm 0 18mm; font-size: 9.5pt; color: #a9c7f5; letter-spacing: .02em; }
 .cover .kicker { font-size: 10pt; letter-spacing: .14em; text-transform: uppercase; color: #a9c7f5; font-weight: 600; }
 .cover h1 { font-size: 36pt; line-height: 1.08; margin: 6mm 0 5mm; font-weight: 700; letter-spacing: -.01em; }
 .cover .sub { font-size: 14pt; line-height: 1.4; color: #d6e3f7; max-width: 150mm; }

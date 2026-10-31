@@ -9,6 +9,12 @@
 
 <!-- ============================================================ Cover -->
 <section class="cover">
+  <div class="partners">
+    <img class="kindred" src="images/kindred-industrial-services.png" alt="Kindred Industrial Services">
+    <span class="sep" aria-hidden="true"></span>
+    <img class="invenio" src="images/invenio-technologies-light.png" alt="Invenio Technologies">
+  </div>
+  <p class="joint">A joint project of Kindred Industrial Services and Invenio Technologies</p>
   <div class="kicker">Invenio Field Platform</div>
   <h1>Field guide</h1>
   <p class="sub">How to use the field app and the office site, the rules they set for work on the ground, and how the platform is built and run.</p>
@@ -45,7 +51,7 @@
 <!-- ============================================================ Contents -->
 <section class="toc">
   <h2>Contents</h2>
-  <p class="intro">Crews start with Parts I and II. Office staff read Parts I, III and IV. Administrators and whoever runs releases also need Part V. This edition will be updated as the software changes; the revision history is at the end.</p>
+  <p class="intro">Crews read Parts I, II and IV. Office staff read Parts I, III and IV. Administrators and whoever runs releases also need Part V. This edition will be updated as the software changes; the revision history is at the end.</p>
   <div class="toc-cols">
     <div>
       <div class="tpart">Part I · Getting started</div>
@@ -78,11 +84,12 @@
       </ol>
     </div>
     <div>
-      <div class="tpart">Part IV · Rules for the ground</div>
+      <div class="tpart">Part IV · Rules and definitions</div>
       <ol>
         <li class="e"><span class="t"><i>20</i>What the system refuses</span><span class="toc-page" data-for="c-enforced"></span></li>
         <li class="e"><span class="t"><i>21</i>Rules for crews</span><span class="toc-page" data-for="c-crew-rules"></span></li>
         <li class="e"><span class="t"><i>22</i>Rules for the office</span><span class="toc-page" data-for="c-office-rules"></span></li>
+        <li class="e"><span class="t"><i>23</i>Definitions</span><span class="toc-page" data-for="c-definitions"></span></li>
       </ol>
       <div class="tpart">Part V · Technical appendix</div>
       <ol>
@@ -96,8 +103,7 @@
         <li class="e"><span class="t"><i>A8</i>Releasing changes</span><span class="toc-page" data-for="a-release"></span></li>
         <li class="e"><span class="t"><i>A9</i>Integrations</span><span class="toc-page" data-for="a-integrations"></span></li>
         <li class="e"><span class="t"><i>A10</i>Known limits in this edition</span><span class="toc-page" data-for="a-limits"></span></li>
-        <li class="e"><span class="t"><i>A11</i>Glossary</span><span class="toc-page" data-for="a-glossary"></span></li>
-        <li class="e"><span class="t"><i>A12</i>Revision history</span><span class="toc-page" data-for="a-history"></span></li>
+        <li class="e"><span class="t"><i>A11</i>Revision history</span><span class="toc-page" data-for="a-history"></span></li>
       </ol>
     </div>
   </div>
@@ -571,12 +577,13 @@
 <!-- ============================================================ Part IV -->
 <section class="part">
   <div class="num">Part IV</div>
-  <h1>Rules for the ground</h1>
-  <p>The platform builds some rules in and refuses anything that breaks them. Others depend on people. Both are here, with what to do when the app says no.</p>
+  <h1>Rules and definitions</h1>
+  <p>The rules the platform builds in, the habits it depends on, and what the words in this guide mean. When the app says no, the first chapter here says what to do.</p>
   <ul>
     <li>What the system refuses</li>
     <li>Rules for crews</li>
     <li>Rules for the office</li>
+    <li>Definitions</li>
   </ul>
 </section>
 
@@ -646,6 +653,38 @@
   </ol>
 </section>
 
+<section class="chapter">
+  <h2 data-toc="c-definitions"><span class="n">23</span>Definitions</h2>
+  <p class="lede">What the words in this guide and on the screens mean.</p>
+  <dl class="glossary">
+    <dt>Area</dt><dd>A named shape on a site plan, such as Laydown A › Bay 3. Areas nest and are never deleted, only made inactive.</dd>
+    <dt>Arrival radius</dt><dd>The distance around a place's map point that will count as “arrived” once trackers are connected.</dd>
+    <dt>Crate (handling unit)</dt><dd>Anything that holds pieces and moves as one: crate, skid, bundle, basket, container. Identified by its HU- label.</dd>
+    <dt>Count record</dt><dd>One tag in the initial count: expected (imported), counted, then received.</dd>
+    <dt>Exception</dt><dd>A problem flagged at receiving, decided by the office: hold, return to vendor or release.</dd>
+    <dt>Flag</dt><dd>A note on a delivered piece: wrong stop, extra (not on the plan) or found (had been missing).</dd>
+    <dt>High value</dt><dd>A crate marked so that everyone who scans it sees it; shown on the manifest.</dd>
+    <dt>Hold area</dt><dd>A rack marked as a hold area. Stock on hold can be moved only there.</dd>
+    <dt>HU- label</dt><dd>A crate label code, such as HU-7K3QX9; unique across every project.</dd>
+    <dt>Keep (a licence)</dt><dd>Office staff stop a licence being removed on its date, with a reason, until they release it.</dd>
+    <dt>Load</dt><dd>One trip by an outside carrier's truck, numbered L-0001 per project.</dd>
+    <dt>Manifest line</dt><dd>One crate or loose piece on a load, with the stop it comes off at.</dd>
+    <dt>Material</dt><dd>A received item, with quantity, rack and area.</dd>
+    <dt>Missing</dt><dd>A piece due at a finished stop that wasn't scanned off.</dd>
+    <dt>Over-the-air update</dt><dd>New app screens sent to phones without a store download.</dd>
+    <dt>Place</dt><dd>A yard, site, outside shop, vendor or other location, shared by every project.</dd>
+    <dt>Rack</dt><dd>A receiving location (zone, row, rack), linked to at most one area.</dd>
+    <dt>Refused</dt><dd>A step the database turned down, with the reason. It waits in Sync for a decision.</dd>
+    <dt>Site map</dt><dd>A plan of one yard or site, with its areas.</dd>
+    <dt>Step</dt><dd>One change sent to the database, applied exactly once (A4).</dd>
+    <dt>Stop</dt><dd>A place on a load's route, for drop-off, pick-up or both.</dd>
+    <dt>Sync</dt><dd>The screen, and the process, that uploads saved work and shows anything waiting or refused.</dd>
+    <dt>Tag</dt><dd>An item's code, unique within its project whatever the capitals.</dd>
+    <dt>Training Yard</dt><dd>The practice project. Practise only there.</dd>
+    <dt>Write-off</dt><dd>The office records that a missing piece is lost, with a reason. An administrator can undo it.</dd>
+  </dl>
+</section>
+
 <!-- ============================================================ Part V -->
 <section class="part">
   <div class="num">Part V</div>
@@ -657,7 +696,7 @@
     <li>Security and privacy</li>
     <li>New project set-up and administration</li>
     <li>Releases, integrations and known limits</li>
-    <li>Glossary and revision history</li>
+    <li>Revision history</li>
   </ul>
 </section>
 
@@ -873,38 +912,7 @@
 </section>
 
 <section class="chapter">
-  <h2 data-toc="a-glossary"><span class="n">A11</span>Glossary</h2>
-  <dl class="glossary">
-    <dt>Area</dt><dd>A named shape on a site plan, such as Laydown A › Bay 3. Areas nest and are never deleted, only made inactive.</dd>
-    <dt>Arrival radius</dt><dd>The distance around a place's map point that will count as “arrived” once trackers are connected.</dd>
-    <dt>Crate (handling unit)</dt><dd>Anything that holds pieces and moves as one: crate, skid, bundle, basket, container. Identified by its HU- label.</dd>
-    <dt>Count record</dt><dd>One tag in the initial count: expected (imported), counted, then received.</dd>
-    <dt>Exception</dt><dd>A problem flagged at receiving, decided by the office: hold, return to vendor or release.</dd>
-    <dt>Flag</dt><dd>A note on a delivered piece: wrong stop, extra (not on the plan) or found (had been missing).</dd>
-    <dt>High value</dt><dd>A crate marked so that everyone who scans it sees it; shown on the manifest.</dd>
-    <dt>Hold area</dt><dd>A rack marked as a hold area. Stock on hold can be moved only there.</dd>
-    <dt>HU- label</dt><dd>A crate label code, such as HU-7K3QX9; unique across every project.</dd>
-    <dt>Keep (a licence)</dt><dd>Office staff stop a licence being removed on its date, with a reason, until they release it.</dd>
-    <dt>Load</dt><dd>One trip by an outside carrier's truck, numbered L-0001 per project.</dd>
-    <dt>Manifest line</dt><dd>One crate or loose piece on a load, with the stop it comes off at.</dd>
-    <dt>Material</dt><dd>A received item, with quantity, rack and area.</dd>
-    <dt>Missing</dt><dd>A piece due at a finished stop that wasn't scanned off.</dd>
-    <dt>Over-the-air update</dt><dd>New app screens sent to phones without a store download.</dd>
-    <dt>Place</dt><dd>A yard, site, outside shop, vendor or other location, shared by every project.</dd>
-    <dt>Rack</dt><dd>A receiving location (zone, row, rack), linked to at most one area.</dd>
-    <dt>Refused</dt><dd>A step the database turned down, with the reason. It waits in Sync for a decision.</dd>
-    <dt>Site map</dt><dd>A plan of one yard or site, with its areas.</dd>
-    <dt>Step</dt><dd>One change sent to the database, applied exactly once (A4).</dd>
-    <dt>Stop</dt><dd>A place on a load's route, for drop-off, pick-up or both.</dd>
-    <dt>Sync</dt><dd>The screen, and the process, that uploads saved work and shows anything waiting or refused.</dd>
-    <dt>Tag</dt><dd>An item's code, unique within its project whatever the capitals.</dd>
-    <dt>Training Yard</dt><dd>The practice project. Practise only there.</dd>
-    <dt>Write-off</dt><dd>The office records that a missing piece is lost, with a reason. An administrator can undo it.</dd>
-  </dl>
-</section>
-
-<section class="chapter">
-  <h2 data-toc="a-history"><span class="n">A12</span>Revision history</h2>
+  <h2 data-toc="a-history"><span class="n">A11</span>Revision history</h2>
   <table>
     <thead><tr><th style="width:13%">Edition</th><th style="width:16%">Date</th><th style="width:36%">Software covered</th><th>Changes</th></tr></thead>
     <tbody>
