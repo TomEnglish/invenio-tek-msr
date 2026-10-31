@@ -94,7 +94,7 @@ test('Loads never parses HTML, logs nothing, sends every change as an operation 
     assert.match(loads, /\.upload\(target\.path, file, \{ contentType: file\.type, upsert: false \}\)/);
     assert.match(loads, /createSignedUrl\(photo\.storage_path, 300\)/);
     // The only URL a page builds carries a load's ID, and the print-out is given everything but the licence.
-    assert.deepEqual([...(loads + shops).matchAll(/\?load=\$\{[^}]+\}/g)].map(match => match[0]), ['?load=${encodeURIComponent(piece.line.load_id)}']);
+    assert.deepEqual([...(loads + shops).matchAll(/\?load=\$\{[^}]+\}/g)].map(match => match[0]), ['?load=${encodeURIComponent(row.load_id)}', '?load=${encodeURIComponent(piece.line.load_id)}']);
     assert.match(loads, /writeManifest\(printWindow, \{ load: state\.load, companies: state\.companies, stops: state\.stops, lines: state\.lines \}\)/);
     const writer = loads.slice(loads.indexOf('function writeManifest'), loads.indexOf('// ---- Licence housekeeping'));
     assert.doesNotMatch(writer, /licen[cs]e/i, 'the print-out code never touches the licence');

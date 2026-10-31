@@ -38,6 +38,7 @@
     // Planned dates are calendar dates; show them without a time-zone shift.
     const dayText = value => value ? new Date(`${value}T12:00:00`).toLocaleDateString() : '';
     const timeText = value => value ? new Date(value).toLocaleString() : '';
+    const dateText = value => value ? new Date(value).toLocaleDateString() : '';
     const plural = (count, one, many = `${one}s`) => `${count.toLocaleString()} ${count === 1 ? one : many}`;
 
     async function fetchAll(table, columns, filter = query => query) {
@@ -136,7 +137,7 @@
 
     async function loadDetail(state) {
         const id = state.id;
-        const [companies, stops, lines, writeOffs, licence, photos, listed] = await Promise.all([
+        const [companies, stops, lines, writeOffs, licence, photos, listed, hold] = await Promise.all([
             fetchAll('load_companies', 'id,position,name,role,contact_name,phone', query => query.eq('load_id', id)),
             fetchAll('load_stop_overview', '*', query => query.eq('load_id', id)),
             fetchAll('load_line_overview', '*', query => query.eq('load_id', id)),
@@ -146,12 +147,15 @@
             officeRole ? fetchAll('driver_licence_photos', 'id,storage_path,created_at', query => query.eq('load_id', id).is('removed_at', null)) : [],
             // What is in the load's folder, to find a photo that uploaded but was never attached.
             officeRole ? supabaseClient.storage.from('driver-licences').list(id, { limit: 100 }) : { data: [] },
+            // Whether office staff are keeping the licence past its removal date (023).
+            officeRole ? projectSupabaseClient.from('driver_licence_holds').select('reason,held_at').eq('load_id', id).maybeSingle() : { data: null },
         ]);
         if (licence.error) throw licence.error;
+        if (hold.error) throw hold.error;
         // null when the folder couldn't be listed: nothing is then offered or flagged from it.
         const stored = listed.error ? null : (listed.data || []).filter(object => PHOTO_NAME.test(object.name)).map(object => `${id}/${object.name}`);
         Object.assign(state, { load: loads.find(load => load.id === id) || state.load, companies: companies.sort((a, b) => a.position - b.position),
-            stops: stops.sort((a, b) => a.seq - b.seq), lines, writeOffs, licence: licence.data, photos, stored,
+            stops: stops.sort((a, b) => a.seq - b.seq), lines, writeOffs, licence: licence.data, photos, stored, hold: hold.data,
             unattached: (stored || []).filter(path => !photos.some(photo => photo.storage_path === path)) });
     }
 
@@ -214,9 +218,9 @@
         if (focus) (body.querySelector(`[data-focus-key="${focus}"]`) || $('loadHeader').querySelector(`[data-focus-key="${focus}"]`) || title).focus();
     }
 
-    /** The open load and the board again, after any change. */
+    /** The open load, the board and the licence warning again, after any change. */
     async function refresh() {
-        await loadBoard();
+        await Promise.all([loadBoard(), officeRole && loadDueSoon()]);
         // A new load is read in full once its first save has created it.
         if (current && loads.some(load => load.id === current.id)) await loadDetail(current);
     }
@@ -236,7 +240,7 @@
             result = data;
         }], refresh);
         body.disabled = false;
-        const text = outcome.error ? `${failed}: ${loadsApi.errorMessage(outcome.error)}` : done(result);
+        const text = outcome.error ? `${failed}: ${loadsApi.errorMessage(outcome.error)}` : done(result, { reloaded: !outcome.reloadError });
         const stale = outcome.reloadError ? ` The page could not refresh (${loadsApi.errorMessage(outcome.reloadError)}). Reload it.` : '';
         message(text + stale);
         if (current !== state) return !outcome.error;
@@ -263,7 +267,7 @@
             if (!load.driver_name) notes.push("Add the driver's name before the truck leaves.");
             // 022 needs the licence number and a photo before the truck leaves, unless office staff let it leave without
             // them and say why. Only office staff can read the licence; for others the load says whether one is recorded.
-            const ready = officeRole ? loadsApi.licenceReady(current.licence, current.photos) : Boolean(load.licence_recorded_at);
+            const ready = officeRole ? loadsApi.licenceReady(current.licence, current.photos) : Boolean(load.licence_complete);
             if (!ready) {
                 licenceNote = el('p', office ? "No licence yet: record the driver's licence number and add a photo of it below, or let the truck leave without it and say why."
                     : "No licence yet: the driver's licence number and a photo of it are needed before the truck can leave.", 'small mb-2');
@@ -307,8 +311,13 @@
             // 022 closes a load only once nothing on it is missing.
             if (office && !missing) {
                 const close = button('Close load', 'btn btn-primary', () => {
-                    if (!confirm(`Close ${number}? Nothing on it can change after that. Its driver's licence is removed 90 days later.`)) return;
-                    void operate('load_close', { loadId: load.id }, { failed: `Could not close ${number}`, done: () => `${number} is closed.` });
+                    // The removal date counts from the close, so it is named once the load is closed.
+                    const licence = load.licence_recorded_at ? ` Office staff are warned ${loadsApi.DUE_SOON_DAYS} days before its driver's licence is removed.` : '';
+                    if (!confirm(`Close ${number}? Nothing on it can change after that.${licence}`)) return;
+                    void operate('load_close', { loadId: load.id }, { failed: `Could not close ${number}`, done: (result, { reloaded }) => {
+                        const due = reloaded && load.licence_recorded_at && loads.find(row => row.id === load.id)?.licence_due_at;
+                        return `${number} is closed.${due ? ` Its driver's licence is due for removal on ${dateText(due)}.` : ''}`;
+                    } });
                 });
                 close.dataset.focusKey = 'actions';
                 actions.append(close);
@@ -328,7 +337,7 @@
     const departedText = (number, result, without = false) => `${number} has left${without ? " without the driver's licence" : ''} with ${plural(result.on_board, 'piece')} on board${result.not_loaded ? `; ${plural(result.not_loaded, 'piece')} stayed behind` : ''}.`;
 
     /** An inline form asking why (022: 5 to 500 characters). What was typed survives a refusal and the redraw after it. */
-    function reasonForm({ id, heading, intro, label, placeholder = '', submit, draft, cancel, send }) {
+    function reasonForm({ id, heading, intro, label, placeholder = '', submit, draft, cancel, send, say = status }) {
         const form = el('form', '', 'reason-form');
         form.noValidate = true;
         if (heading) form.append(el('h4', heading, 'h6'));
@@ -343,7 +352,7 @@
         form.onsubmit = event => {
             event.preventDefault();
             const result = loadsApi.reasonText(reason.value);
-            if (result.error) { status(result.error); reason.focus(); return; }
+            if (result.error) { say(result.error); reason.focus(); return; }
             send(result.reason);
         };
         return form;
@@ -740,11 +749,14 @@
     // ---- Driver's licence (office only) -----------------------------------------------------
     function renderLicence(section) {
         const load = current.load, licence = current.licence, number = load.load_number;
-        section.append(el('h3', "Driver's licence", 'h6'), el('p', "Office staff only and never printed. A daily job removes it 90 days after the load closes, or after the load's last change if it never closes. Office staff can remove it sooner.", 'small text-muted'));
+        section.append(el('h3', "Driver's licence", 'h6'), el('p', `Office staff only and never printed. A daily job removes it on its removal date, unless office staff keep it; the Loads board warns them ${loadsApi.DUE_SOON_DAYS} days ahead. Office staff can also remove it sooner.`, 'small text-muted'));
         if (licence?.removed_at) section.append(el('p', `Removed ${timeText(licence.removed_at)}.`, 'small'));
-        // Changing it needs an active project (022's calls do); reading doesn't. Once the load is past its 90 days a
-        // licence can't be recorded again.
-        if (office && !loadsApi.licencePastRetention(load)) {
+        // 023: the removal date, and whether office staff are keeping it past that date and why.
+        const onFile = licence?.licence_number || current.photos.length || current.unattached.length;
+        if (onFile || current.hold) section.append(keepPart(load));
+        // Changing it needs an active project (022's calls do); reading doesn't. Once the load is past its removal date
+        // a licence can't be recorded again.
+        if (office && !loadsApi.licencePastDue(load)) {
             const form = el('form'), grid = el('div', '', 'load-grid');
             form.noValidate = true;
             const numberInput = field(grid, 'Licence number', el('input', '', 'form-control'), 'licenceNumber');
@@ -813,9 +825,8 @@
             input.onchange = () => { const file = input.files?.[0]; input.value = ''; if (file) void savePhoto(load, file, []); };
             section.append(label, input);
         } else section.append(el('p', `A load keeps at most ${loadsApi.MAX_LICENCE_PHOTOS} photos.`, 'small text-muted mt-2'));
-        // Office staff can remove a wrong licence at any time; before it is due, 022 asks why.
-        const onFile = licence?.licence_number || current.photos.length || current.unattached.length;
-        if (!onFile) return;
+        // Office staff can remove a wrong licence at any time; before it is due, 022 asks why. A kept one is released first.
+        if (!onFile || current.hold) return;
         if (current.removeLicence) {
             const state = current;
             section.append(reasonForm({ id: 'removeLicenceReason', heading: 'Remove the licence', label: 'Why it is removed now', submit: 'Remove the licence', draft: state.removeLicence,
@@ -838,6 +849,40 @@
             remove.dataset.focusKey = 'removeLicence';
             section.append(remove);
         }
+    }
+
+    /** The licence's removal date and its keep state, with Keep or Release for office staff. */
+    function keepPart(load) {
+        const part = el('div', '', 'licence-keep'), hold = current.hold, state = current, number = load.load_number, due = dateText(load.licence_due_at);
+        const past = loadsApi.licencePastDue(load);
+        if (hold) {
+            part.append(el('p', `Kept past its removal date (${due}): ${hold.reason}`, 'small mb-1'), el('p', `Kept since ${timeText(hold.held_at)}.`, 'small text-muted mb-2'));
+        } else part.append(el('p', past ? `Due for removal since ${due}.` : `Due for removal on ${due}.`, 'small mb-2'));
+        if (!office) return part;
+        if (hold) {
+            const release = button('Release', 'btn btn-sm btn-outline', () => {
+                if (!confirm(`Stop keeping ${number}'s driver's licence? ${past ? 'It is past its removal date, so the daily job removes it the next time it runs.' : `It will be removed on ${due}.`}`)) return;
+                void licenceWrite(async () => {
+                    const { error } = await supabaseClient.rpc('release_driver_licence_hold', { p_load_id: load.id });
+                    if (error) throw error;
+                }, { focus: 'keep', failed: `Could not release ${number}'s driver's licence`, done: () => `${number}'s driver's licence is no longer kept.` });
+            }, `Release ${number}'s driver's licence`);
+            release.dataset.focusKey = 'keep';
+            part.append(release);
+        } else if (state.keep) {
+            part.append(reasonForm({ id: 'keepReason', label: 'Why it is kept', submit: 'Keep the licence', draft: state.keep,
+                placeholder: 'For example: the driver still has our GPS tracker', intro: "It won't be removed until office staff release it.",
+                cancel: () => { state.keep = null; renderDrawer({ focus: 'keep' }); },
+                send: reason => void licenceWrite(async () => {
+                    const { error } = await supabaseClient.rpc('keep_driver_licence', { p_load_id: load.id, p_reason: reason });
+                    if (error) throw error;
+                }, { focus: 'keep', failed: `Could not keep ${number}'s driver's licence`, done: () => { state.keep = null; return `Keeping ${number}'s driver's licence past ${due}.`; } }) }));
+        } else {
+            const keep = button('Keep', 'btn btn-sm btn-outline', () => { current.keep = { reason: '' }; renderDrawer(); $('keepReason')?.focus(); }, `Keep ${number}'s driver's licence past its removal date`);
+            keep.dataset.focusKey = 'keep';
+            part.append(keep);
+        }
+        return part;
     }
 
     /** One licence change under the save lock, then the load again; like operate, for the licence's own functions. */
@@ -982,9 +1027,10 @@ section { break-inside: avoid-page; }
     }
 
     // ---- Licence housekeeping ---------------------------------------------------------------
-    // A daily job removes licences once their 90 days are up. This is its backup: when office staff open Loads, any
-    // licence on their projects that is due is removed here too, every file in its folder first, then the record. It
-    // runs in the background and never blocks the board.
+    // A daily job removes licences on their removal date (load_overview.licence_due_at, 023), except those office staff
+    // keep. This is its backup: when office staff open Loads, any licence on their projects that is due and not kept is
+    // removed here too, every file in its folder first, then the record. It runs in the background and never blocks
+    // the board.
     async function removeOldLicences() {
         const note = $('housekeeping');
         const { data, error } = await supabaseClient.rpc('driver_licences_due_for_removal');
@@ -994,6 +1040,7 @@ section { break-inside: avoid-page; }
         for (const row of data || []) {
             try {
                 // 022 lists every file in the load's folder, attached or not; remove_driver_licence refuses while any is left.
+                // 023 leaves kept licences out of the list.
                 if (row.storage_paths?.length) {
                     const { error: storageError } = await supabaseClient.storage.from('driver-licences').remove(row.storage_paths);
                     if (storageError) throw storageError;
@@ -1008,12 +1055,99 @@ section { break-inside: avoid-page; }
             }
         }
         const parts = [];
-        if (removed) parts.push(`Removed the driver's licence of ${plural(removed, 'load')} whose 90 days were up.`);
+        if (removed) parts.push(`Removed the driver's licence of ${plural(removed, 'load')} past ${removed === 1 ? 'its' : 'their'} removal date.`);
         if (failed.length) parts.push(`Could not remove the driver's licence of ${failed.join(', ')}.`);
         note.hidden = !parts.length;
         note.textContent = parts.join(' ');
         // Removal clears the load's "licence on file"; if the board can't be read again it keeps what it showed.
         if (removed) await loadBoard().catch(() => {});
+    }
+
+    // ---- Licence warning (office) -----------------------------------------------------------
+    // 023 never removes a licence without warning: those due in the next 30 days, and overdue ones being kept, are
+    // listed here for office staff, on every project they can see, so one can be kept (with a reason) or released.
+    let dueSoon = [], dueSoonError = null, warningOpen = false, warningKeep = null, warningMessage = '';
+    async function loadDueSoon() {
+        const { data, error } = await supabaseClient.rpc('driver_licences_due_soon', { p_days: loadsApi.DUE_SOON_DAYS });
+        dueSoon = error ? [] : data || []; dueSoonError = error;
+        renderWarning();
+    }
+
+    function renderWarning({ focus } = {}) {
+        const box = $('licenceWarning');
+        box.replaceChildren();
+        box.hidden = !dueSoon.length && !dueSoonError && !warningMessage;
+        if (box.hidden) return;
+        const title = el('h2', `Driver licences due for removal in the next ${loadsApi.DUE_SOON_DAYS} days`, 'h6 mb-1'); title.id = 'licenceWarningTitle';
+        box.append(title);
+        if (dueSoonError) box.append(el('p', `They could not be checked (${loadsApi.errorMessage(dueSoonError)}).`, 'small mb-0'));
+        else if (dueSoon.length) {
+            const going = dueSoon.filter(row => !row.kept), kept = dueSoon.length - going.length;
+            const summary = [going.length ? `${plural(going.length, 'licence')} will be removed, the first (${warningName(going[0])}) on ${dateText(going[0].due_at)}.` : 'None will be removed.',
+                kept ? `${plural(kept, 'is', 'are')} being kept.` : ''].filter(Boolean).join(' ');
+            const head = el('div', '', 'd-flex flex-wrap gap-2 align-items-center');
+            const toggle = button(warningOpen ? 'Hide the list' : `Show the ${plural(dueSoon.length, 'licence')}`, 'btn btn-sm btn-outline', () => { warningOpen = !warningOpen; renderWarning({ focus: 'toggle' }); });
+            Object.assign(toggle.dataset, { focusKey: 'toggle' }); toggle.setAttribute('aria-expanded', String(warningOpen)); toggle.setAttribute('aria-controls', 'licenceWarningList');
+            head.append(el('span', summary, 'small'), toggle);
+            box.append(head);
+            const list = el('ul', '', 'licence-warning-list'); list.id = 'licenceWarningList'; list.hidden = !warningOpen;
+            for (const row of dueSoon) list.append(warningRow(row));
+            box.append(list);
+        }
+        if (warningMessage) { const said = el('p', warningMessage, 'small mb-0 mt-2'); said.setAttribute('role', 'status'); box.append(said); }
+        if (focus) box.querySelector(`[data-focus-key="${focus}"]`)?.focus();
+    }
+
+    // A load in another project is named with its project.
+    const inThisProject = row => loads.some(load => load.id === row.load_id);
+    const warningName = row => inThisProject(row) ? row.load_number
+        : `${row.load_number} in ${InvenioProjectScope.availableProjects?.find(item => item.id === row.project_id)?.name || 'another project'}`;
+
+    function warningRow(row) {
+        const item = el('li', '', 'licence-warning-item'), what = el('div', '', 'd-flex flex-wrap gap-2 align-items-center');
+        // A load in the open project opens in the drawer.
+        if (inThisProject(row)) {
+            const link = el('a', row.load_number, 'mono'); link.href = `loads.html?load=${encodeURIComponent(row.load_id)}`;
+            link.onclick = event => { event.preventDefault(); void openLoad(row.load_id); };
+            what.append(link);
+        } else what.append(el('span', warningName(row), 'mono'));
+        const past = Date.parse(row.due_at) < Date.now();
+        what.append(el('span', `${past ? 'Due since' : 'Due'} ${dateText(row.due_at)}`, 'small'));
+        if (row.kept) what.append(el('span', 'Kept', 'chip chip-info'));
+        item.append(what);
+        const name = `the driver's licence of ${warningName(row)}`;
+        if (row.kept) {
+            item.append(el('p', `Kept: ${row.keep_reason}`, 'small mb-1'));
+            const release = button('Release', 'btn btn-sm btn-outline', () => {
+                if (!confirm(`Stop keeping ${name}? ${past ? 'It is past its removal date, so the daily job removes it the next time it runs.' : `It will be removed on ${dateText(row.due_at)}.`}`)) return;
+                void warningWrite(() => supabaseClient.rpc('release_driver_licence_hold', { p_load_id: row.load_id }), row,
+                    { done: `The driver's licence of ${warningName(row)} is no longer kept.`, failed: `Could not release ${name}` });
+            }, `Release ${name}`);
+            release.dataset.focusKey = `warn-${row.load_id}`;
+            item.append(release);
+        } else if (warningKeep?.loadId === row.load_id) {
+            item.append(reasonForm({ id: 'warningKeepReason', label: `Why ${name} is kept`, submit: 'Keep the licence', draft: warningKeep,
+                placeholder: 'For example: the driver still has our GPS tracker', say: text => { warningMessage = text; renderWarning(); $('warningKeepReason')?.focus(); },
+                cancel: () => { warningKeep = null; renderWarning({ focus: `warn-${row.load_id}` }); },
+                send: reason => void warningWrite(() => supabaseClient.rpc('keep_driver_licence', { p_load_id: row.load_id, p_reason: reason }), row,
+                    { done: `Keeping ${name} past ${dateText(row.due_at)}.`, failed: `Could not keep ${name}`, kept: true }) }));
+        } else {
+            const keep = button('Keep', 'btn btn-sm btn-outline', () => { warningKeep = { loadId: row.load_id, reason: '' }; warningMessage = ''; renderWarning(); $('warningKeepReason')?.focus(); },
+                `Keep ${name} past its removal date`);
+            keep.dataset.focusKey = `warn-${row.load_id}`;
+            item.append(keep);
+        }
+        return item;
+    }
+
+    /** A keep or release from the warning, under the save lock; the board, the warning and any open load are read again. */
+    async function warningWrite(call, row, { done, failed, kept = false }) {
+        if (lock.busy) { warningMessage = STILL_SAVING; renderWarning(); return; }
+        const outcome = await inv.writeThenReload(lock, [async () => { const { error } = await call(); if (error) throw error; }], refresh);
+        if (!outcome.error && kept) warningKeep = null;
+        warningMessage = (outcome.error ? `${failed}: ${loadsApi.errorMessage(outcome.error)}` : done)
+            + (outcome.reloadError ? ` The page could not refresh (${loadsApi.errorMessage(outcome.reloadError)}). Reload it.` : '');
+        renderWarning({ focus: `warn-${row.load_id}` });
     }
 
     // ---- Wiring -----------------------------------------------------------------------------
@@ -1029,7 +1163,8 @@ section { break-inside: avoid-page; }
     $('newLoad').onclick = openNew;
     try { await Promise.all([loadBoard(), loadPlaces()]); }
     catch (error) { message(`Could not load loads: ${loadsApi.errorMessage(error)}`); return; }
-    if (officeRole) void removeOldLicences();
+    // The warning is read after housekeeping, so it lists only what is still on file.
+    if (officeRole) void removeOldLicences().finally(loadDueSoon);
     // Outside Shops links to a load with ?load=<id>.
     const linked = new URLSearchParams(location.search).get('load');
     if (linked) void openLoad(linked);

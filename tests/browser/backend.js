@@ -94,10 +94,13 @@
                 load(1, 'L-0001', 'planning', { origin_place_id: place(4), planned_date: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10), truck_type: 'Flatbed', truck_number: 'TRK-118', driver_name: 'Dana Ruiz', driver_phone: '555-0170' }),
                 load(2, 'L-0002', 'in_transit', { planned_date: days(1).slice(0, 10), truck_type: 'Step deck', truck_number: 'TRK-204', trailer_number: 'TR-77', bol_number: 'BOL-5521', driver_name: 'Morgan Lee', driver_phone: '555-0181', departed_at: days(1), licence_recorded_at: days(1) }),
                 load(3, 'L-0003', 'delivered', { planned_date: days(13).slice(0, 10), driver_name: 'Sam Patel', departed_at: days(13), delivered_at: days(12) }),
-                load(4, 'L-0004', 'closed', { planned_date: days(130).slice(0, 10), driver_name: 'Riley Shah', departed_at: days(130), delivered_at: days(129), closed_at: days(120), licence_recorded_at: days(130) }),
+                load(4, 'L-0004', 'closed', { planned_date: days(430).slice(0, 10), driver_name: 'Riley Shah', departed_at: days(430), delivered_at: days(429), closed_at: days(400), licence_recorded_at: days(430) }),
                 load(5, 'L-0005', 'cancelled', { driver_name: '<img src=x onerror=alert(1)> Driver', closed_at: days(5) }),
                 // A crew started this one on the phone; the office reviews it.
                 load(6, 'L-0006', 'planning', { started_in_field: true, created_at: days(2), driver_name: 'Casey Ortiz' }),
+                // 023: one licence due for removal within 30 days, and one past its date that the office is keeping.
+                load(7, 'L-0007', 'closed', { driver_name: 'Jamie Fox', departed_at: days(360), delivered_at: days(355), closed_at: days(350), licence_recorded_at: days(360) }),
+                load(8, 'L-0008', 'closed', { driver_name: 'Ari Stone', departed_at: days(390), delivered_at: days(385), closed_at: days(380), licence_recorded_at: days(390) }),
             ],
             load_companies: [
                 { id: crypto.randomUUID(), project_id: project.id, load_id: loadId(1), position: 1, name: 'Fixture Freight Brokers', role: 'broker', contact_name: 'Ana Gomez', phone: '555-0190' },
@@ -116,11 +119,14 @@
             ],
             load_driver_licences: [
                 { load_id: loadId(2), project_id: project.id, licence_number: 'D1234-5678-90', licence_state: 'TX', licence_expiry: '2028-04-30', recorded_at: days(1), last_operation_id: null, removed_at: null },
-                { load_id: loadId(4), project_id: project.id, licence_number: 'R9876-5432', licence_state: 'LA', licence_expiry: '2027-01-31', recorded_at: days(130), last_operation_id: null, removed_at: null },
+                { load_id: loadId(4), project_id: project.id, licence_number: 'R9876-5432', licence_state: 'LA', licence_expiry: '2027-01-31', recorded_at: days(430), last_operation_id: null, removed_at: null },
+                { load_id: loadId(7), project_id: project.id, licence_number: 'J5550-7777', licence_state: 'TX', licence_expiry: null, recorded_at: days(360), removed_at: null },
+                { load_id: loadId(8), project_id: project.id, licence_number: 'A1234-0008', licence_state: 'OK', licence_expiry: null, recorded_at: days(390), removed_at: null },
             ],
+            driver_licence_holds: [{ load_id: loadId(8), project_id: project.id, reason: 'The driver still has our GPS tracker', held_at: days(20) }],
             driver_licence_photos: [
                 { id: crypto.randomUUID(), load_id: loadId(2), project_id: project.id, storage_path: `${loadId(2)}/front.jpg`, created_at: days(1), removed_at: null },
-                { id: crypto.randomUUID(), load_id: loadId(4), project_id: project.id, storage_path: `${loadId(4)}/front.jpg`, created_at: days(130), removed_at: null },
+                { id: crypto.randomUUID(), load_id: loadId(4), project_id: project.id, storage_path: `${loadId(4)}/front.jpg`, created_at: days(430), removed_at: null },
             ],
             licence_objects: [`${loadId(2)}/front.jpg`, `${loadId(4)}/front.jpg`],
         };
@@ -231,7 +237,8 @@
             if(name==='project_staff' && new URLSearchParams(location.search).get('fixture')==='staff-error') return {data:null,error:{message:'Fixture staff unavailable'}};
             if(name==='project_staff') return success([{id:me.id,full_name:me.full_name}]);
             if(name==='apply_field_operation' && payload.p_action!=='exception') return loadCall(() => loadsModel.apply(payload.p_action, payload.p_payload));
-            if(['record_driver_licence','attach_driver_licence_photo','driver_licences_due_for_removal','remove_driver_licence','remove_driver_licence_photo'].includes(name)) return loadCall(() => loadsModel.call(name, payload));
+            if(['record_driver_licence','attach_driver_licence_photo','driver_licences_due_for_removal','remove_driver_licence','remove_driver_licence_photo',
+                'driver_licences_due_soon','keep_driver_licence','release_driver_licence_hold'].includes(name)) return loadCall(() => loadsModel.call(name, payload));
             if(name==='apply_field_operation') {
                 if(payload.p_action==='exception') Object.assign(state.records[0],{exception_owner_id:payload.p_payload.ownerId,exception_due_date:payload.p_payload.dueDate,exception_notes:payload.p_payload.notes,exception_resolution:payload.p_payload.resolution,exception_resolved:payload.p_payload.resolution!=='hold'});
                 save();return success({id:state.records[0].id});

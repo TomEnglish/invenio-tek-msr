@@ -1,5 +1,5 @@
 /**
- * A small in-memory model of migration 022 for tests and the browser fixture: the load operations the office pages
+ * A small in-memory model of migrations 022 and 023 for tests and the browser fixture: the load operations the office pages
  * call (with write-offs), the licence functions, the driver-licences bucket and the load views. It follows 022's rules
  * and refusal messages for what the pages exercise; it is not a second implementation of everything (no load_on,
  * load_off or partial lists, which only the phones send). State is plain data, so the browser fixture can keep it in
@@ -14,7 +14,7 @@
     /** Empty load tables beside the caller's places, crates (handling_unit_overview rows) and items. */
     function emptyLoads() {
         return { loads: [], load_companies: [], load_stops: [], load_lines: [], load_write_offs: [], load_driver_licences: [], driver_licence_photos: [], licence_objects: [],
-            licence_operations: [] };
+            licence_operations: [], driver_licence_holds: [] };
     }
 
     // Like now() in separate transactions, this clock never repeats, so "the latest line" is never a tie.
@@ -24,7 +24,7 @@
     }
 
     function createModel(state, { projectId, office, admin = () => false, canWork = () => true, now = clock(), packedIn = () => null }) {
-        for (const key of ['load_write_offs', 'licence_operations']) state[key] ||= [];
+        for (const key of ['load_write_offs', 'licence_operations', 'driver_licence_holds']) state[key] ||= [];
         const text = (object, key, max, label) => {
             const value = object[key];
             if (value !== undefined && value !== null && !['string', 'number'].includes(typeof value)) refuse(`${label} must be text`);
@@ -381,14 +381,23 @@
         }
 
         // ---- Licences -------------------------------------------------------------------------
-        // 022's driver_licence_due_at: 90 days after the load closes or is cancelled, or after its last activity.
+        // 023's driver_licence_due_at: 365 days after the load closes or is cancelled, or after its last activity.
         const dueAt = theLoad => {
             const latest = theLoad.closed_at || [theLoad.updated_at, ...state.load_lines.filter(row => row.load_id === theLoad.id).map(row => row.updated_at),
                 ...state.driver_licence_photos.filter(row => row.load_id === theLoad.id).map(row => row.created_at)].filter(Boolean).sort().at(-1);
-            return Date.parse(latest) + 90 * DAY;
+            return Date.parse(latest) + 365 * DAY;
         };
         const isDue = theLoad => dueAt(theLoad) < Date.parse(now());
         const folder = loadId => state.licence_objects.filter(path => path.startsWith(`${loadId}/`)).sort();
+        const hold = loadId => state.driver_licence_holds.find(row => row.load_id === loadId);
+        // 023's driver_licence_on_record: a number, an attached photo or a file in the folder.
+        const onRecord = loadId => state.load_driver_licences.some(row => row.load_id === loadId && !row.removed_at)
+            || state.driver_licence_photos.some(row => row.load_id === loadId && !row.removed_at) || folder(loadId).length > 0;
+        const officeLoad = (loadId, what) => {
+            const theLoad = state.loads.find(row => row.id === loadId);
+            if (!theLoad || !office()) refuse(`Only office staff on the load's project can ${what}`, '42501');
+            return theLoad;
+        };
         const licenceLoad = loadId => {
             const theLoad = state.loads.find(row => row.id === loadId);
             if (!theLoad || !canWork()) refuse("That load isn't in your projects", '42501');
@@ -409,6 +418,7 @@
                 const theLoad = licenceLoad(loadId);
                 if (state.licence_operations.includes(operationId)) return { load_id: loadId, recorded: true };
                 if (['closed', 'cancelled'].includes(theLoad.status) && !office()) refuse(`Load ${theLoad.load_number} is closed; the office can still correct its licence`);
+                // 022's wording, which 023 leaves as it is.
                 if (isDue(theLoad)) refuse(`Load ${theLoad.load_number} is past its 90-day licence retention period`);
                 const number = String(licence.number || '').trim().replace(/\s+/g, ' ').toUpperCase();
                 if (!/^[A-Z0-9][A-Z0-9 -]{2,39}$/.test(number)) refuse('Enter the licence number: 3 to 40 letters, numbers, spaces or dashes');
@@ -441,16 +451,41 @@
                 photo.removed_at = now();
                 return null;
             },
-            // Like 022, every project the user can see, not only the open one, with every file in each folder.
+            // Like 022 and 023, every project the user can see, not only the open one, with every file in each folder; a
+            // kept licence is never listed.
             driver_licences_due_for_removal() {
                 if (!office()) return [];
-                return state.loads.filter(isDue).filter(theLoad => state.load_driver_licences.some(row => row.load_id === theLoad.id && !row.removed_at)
-                    || state.driver_licence_photos.some(row => row.load_id === theLoad.id && !row.removed_at) || folder(theLoad.id).length)
+                return state.loads.filter(theLoad => isDue(theLoad) && !hold(theLoad.id) && onRecord(theLoad.id))
                     .map(theLoad => ({ load_id: theLoad.id, load_number: theLoad.load_number, storage_paths: folder(theLoad.id) }));
+            },
+            // 023's warning: licences due in the next p_days (1 to 365, 30 unless asked), overdue kept ones included, earliest first.
+            driver_licences_due_soon({ p_days: days } = {}) {
+                if (!office()) return [];
+                const until = Date.parse(now()) + Math.min(Math.max(days ?? 30, 1), 365) * DAY;
+                return state.loads.filter(theLoad => dueAt(theLoad) < until && onRecord(theLoad.id)).sort((a, b) => dueAt(a) - dueAt(b)).map(theLoad => {
+                    const kept = hold(theLoad.id);
+                    return { load_id: theLoad.id, load_number: theLoad.load_number, project_id: theLoad.project_id, due_at: new Date(dueAt(theLoad)).toISOString(),
+                        kept: Boolean(kept), keep_reason: kept?.reason ?? null, kept_at: kept?.held_at ?? null };
+                });
+            },
+            keep_driver_licence({ p_load_id: loadId, p_reason: given }) {
+                const theLoad = officeLoad(loadId, 'keep its licence');
+                const reason = String(given ?? '').trim();
+                if (reason.length < 5 || reason.length > 500) refuse('Give a reason of 5 to 500 characters for keeping the licence');
+                const row = { load_id: loadId, project_id: theLoad.project_id, reason, held_at: now() };
+                const kept = hold(loadId);
+                if (kept) Object.assign(kept, row); else state.driver_licence_holds.push(row);
+                return { load_id: loadId, kept: true, due_at: new Date(dueAt(theLoad)).toISOString() };
+            },
+            release_driver_licence_hold({ p_load_id: loadId }) {
+                const theLoad = officeLoad(loadId, 'release its licence');
+                state.driver_licence_holds = state.driver_licence_holds.filter(row => row.load_id !== loadId);
+                return { load_id: loadId, kept: false, due_at: new Date(dueAt(theLoad)).toISOString() };
             },
             remove_driver_licence({ p_load_id: loadId, p_reason: given }) {
                 const theLoad = state.loads.find(row => row.id === loadId);
                 if (!theLoad || !office()) refuse("Only office staff on the load's project can remove its licence", '42501');
+                if (hold(loadId)) refuse(`This licence is being kept (${hold(loadId).reason}); release it first`);
                 const reason = String(given ?? '').trim();
                 if (reason.length > 500) refuse('Reason is too long (at most 500 characters)');
                 if (!isDue(theLoad) && reason.length < 5) refuse('Give a reason to remove the licence before it is due');
@@ -488,7 +523,8 @@
                 const lines = state.load_lines.filter(row => row.load_id === theLoad.id), stops = state.load_stops.filter(row => row.load_id === theLoad.id && row.status !== 'cancelled');
                 const next = stops.filter(row => ['pending', 'arrived'].includes(row.status)).sort((a, b) => a.seq - b.seq)[0];
                 const count = status => lines.filter(row => row.status === status).length;
-                return { ...theLoad, origin_name: placeName(theLoad.origin_place_id), origin_kind: state.places.find(row => row.id === theLoad.origin_place_id)?.kind ?? null, company_count: state.load_companies.filter(row => row.load_id === theLoad.id).length,
+                return { ...theLoad, licence_due_at: new Date(dueAt(theLoad)).toISOString(), licence_complete: licenceReady(theLoad.id),
+                    origin_name: placeName(theLoad.origin_place_id), origin_kind: state.places.find(row => row.id === theLoad.origin_place_id)?.kind ?? null, company_count: state.load_companies.filter(row => row.load_id === theLoad.id).length,
                     stop_count: stops.length, stops_done: stops.filter(row => row.status === 'done').length, next_stop: next ? placeName(next.place_id) : null,
                     planned_count: count('planned'), on_board_count: count('on_board'), delivered_count: count('delivered'), missing_count: count('missing'),
                     written_off_count: count('written_off'), flagged_count: lines.filter(row => row.flag).length };
@@ -523,10 +559,12 @@
                     load_number: line ? state.loads.find(row => row.id === line.load_id).load_number : null, load_line_status: line?.status ?? null };
             }),
             load_write_offs: () => state.load_write_offs,
+            driver_licence_holds: () => office() ? state.driver_licence_holds : [],
         };
 
         // Like the database's transaction: a refusal part-way through leaves nothing changed.
-        const TABLES = ['loads', 'load_companies', 'load_stops', 'load_lines', 'load_write_offs', 'load_driver_licences', 'driver_licence_photos', 'licence_objects', 'licence_operations'];
+        const TABLES = ['loads', 'load_companies', 'load_stops', 'load_lines', 'load_write_offs', 'load_driver_licences', 'driver_licence_photos', 'licence_objects', 'licence_operations',
+            'driver_licence_holds'];
         function atomically(run) {
             const before = JSON.parse(JSON.stringify({ tables: TABLES.map(key => state[key]), units: state.units, items: state.items }));
             try { return run(); } catch (error) {
