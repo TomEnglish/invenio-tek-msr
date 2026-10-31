@@ -57,6 +57,7 @@
         'load_line_overview',
         'load_driver_licences',
         'driver_licence_photos',
+        'driver_licence_holds',
     ]);
 
     let currentUserId = null;

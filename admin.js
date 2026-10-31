@@ -22,7 +22,7 @@ const TABLE_CONFIG = {
             { key: 'qty', label: 'Qty', editable: false, type: 'number' },
             { key: 'current_quantity', label: 'Current Qty', editable: false, type: 'number' },
             { key: 'weight', label: 'Weight', editable: true, type: 'number' },
-            { key: 'status', label: 'Status', editable: true, type: 'enum', options: ['in_yard', 'issued', 'shipped', 'depleted'] },
+            { key: 'status', label: 'Status', editable: false, type: 'enum', options: ['in_yard', 'issued', 'shipped', 'depleted', 'written_off'] },
             { key: 'created_at', label: 'Created', editable: false, type: 'datetime' },
         ],
         searchColumns: ['material_type', 'size', 'grade', 'spec'],
@@ -501,7 +501,7 @@ function formatCell(value, type) {
 
 function statusColor(status) {
     const colors = {
-        in_yard: '#16A34A', issued: '#D97706', shipped: '#2563EB', depleted: '#94A3B8',
+        in_yard: '#16A34A', issued: '#D97706', shipped: '#2563EB', depleted: '#94A3B8', written_off: '#475569',
         accepted: '#16A34A', partially_accepted: '#D97706', rejected: '#DC2626', pending: '#94A3B8',
         good: '#16A34A', damaged: '#DC2626', mixed: '#D97706',
         ordered: '#94A3B8', received: '#16A34A', installed: '#2563EB',

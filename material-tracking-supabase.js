@@ -591,6 +591,8 @@ async function updateLinkStatus(linkId, currentStatus) {
             .select();
 
         if (error) throw error;
+        // Row security turns an update away without an error: no row comes back.
+        if (!data?.length) throw new Error('only office staff can change links, and only while the project is active.');
 
         showSuccess('Link status updated successfully!');
         await loadMaterialLinks();
@@ -608,11 +610,15 @@ async function deleteLink(linkId) {
     }
 
     try {
-        const { error } = await projectSupabaseClient.from('material_links')
+        // The deleted row is asked for back: row security turns a delete away without an error, and then none comes back.
+        // Since migration 013 no policy lets anyone delete material links.
+        const { data, error } = await projectSupabaseClient.from('material_links')
             .delete()
-            .eq('id', linkId);
+            .eq('id', linkId)
+            .select('id');
 
         if (error) throw error;
+        if (!data?.length) throw new Error("material links can't be deleted.");
 
         showSuccess('Link deleted successfully!');
         await loadMaterialLinks();

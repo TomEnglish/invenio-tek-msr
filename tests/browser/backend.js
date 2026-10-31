@@ -94,10 +94,13 @@
                 load(1, 'L-0001', 'planning', { origin_place_id: place(4), planned_date: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10), truck_type: 'Flatbed', truck_number: 'TRK-118', driver_name: 'Dana Ruiz', driver_phone: '555-0170' }),
                 load(2, 'L-0002', 'in_transit', { planned_date: days(1).slice(0, 10), truck_type: 'Step deck', truck_number: 'TRK-204', trailer_number: 'TR-77', bol_number: 'BOL-5521', driver_name: 'Morgan Lee', driver_phone: '555-0181', departed_at: days(1), licence_recorded_at: days(1) }),
                 load(3, 'L-0003', 'delivered', { planned_date: days(13).slice(0, 10), driver_name: 'Sam Patel', departed_at: days(13), delivered_at: days(12) }),
-                load(4, 'L-0004', 'closed', { planned_date: days(130).slice(0, 10), driver_name: 'Riley Shah', departed_at: days(130), delivered_at: days(129), closed_at: days(120), licence_recorded_at: days(130) }),
+                load(4, 'L-0004', 'closed', { planned_date: days(430).slice(0, 10), driver_name: 'Riley Shah', departed_at: days(430), delivered_at: days(429), closed_at: days(400), licence_recorded_at: days(430) }),
                 load(5, 'L-0005', 'cancelled', { driver_name: '<img src=x onerror=alert(1)> Driver', closed_at: days(5) }),
                 // A crew started this one on the phone; the office reviews it.
                 load(6, 'L-0006', 'planning', { started_in_field: true, created_at: days(2), driver_name: 'Casey Ortiz' }),
+                // 023: one licence due for removal within 30 days, and one past its date that the office is keeping.
+                load(7, 'L-0007', 'closed', { driver_name: 'Jamie Fox', departed_at: days(360), delivered_at: days(355), closed_at: days(350), licence_recorded_at: days(360) }),
+                load(8, 'L-0008', 'closed', { driver_name: 'Ari Stone', departed_at: days(390), delivered_at: days(385), closed_at: days(380), licence_recorded_at: days(390) }),
             ],
             load_companies: [
                 { id: crypto.randomUUID(), project_id: project.id, load_id: loadId(1), position: 1, name: 'Fixture Freight Brokers', role: 'broker', contact_name: 'Ana Gomez', phone: '555-0190' },
@@ -116,11 +119,14 @@
             ],
             load_driver_licences: [
                 { load_id: loadId(2), project_id: project.id, licence_number: 'D1234-5678-90', licence_state: 'TX', licence_expiry: '2028-04-30', recorded_at: days(1), last_operation_id: null, removed_at: null },
-                { load_id: loadId(4), project_id: project.id, licence_number: 'R9876-5432', licence_state: 'LA', licence_expiry: '2027-01-31', recorded_at: days(130), last_operation_id: null, removed_at: null },
+                { load_id: loadId(4), project_id: project.id, licence_number: 'R9876-5432', licence_state: 'LA', licence_expiry: '2027-01-31', recorded_at: days(430), last_operation_id: null, removed_at: null },
+                { load_id: loadId(7), project_id: project.id, licence_number: 'J5550-7777', licence_state: 'TX', licence_expiry: null, recorded_at: days(360), removed_at: null },
+                { load_id: loadId(8), project_id: project.id, licence_number: 'A1234-0008', licence_state: 'OK', licence_expiry: null, recorded_at: days(390), removed_at: null },
             ],
+            driver_licence_holds: [{ load_id: loadId(8), project_id: project.id, reason: 'The driver still has our GPS tracker', held_at: days(20) }],
             driver_licence_photos: [
                 { id: crypto.randomUUID(), load_id: loadId(2), project_id: project.id, storage_path: `${loadId(2)}/front.jpg`, created_at: days(1), removed_at: null },
-                { id: crypto.randomUUID(), load_id: loadId(4), project_id: project.id, storage_path: `${loadId(4)}/front.jpg`, created_at: days(130), removed_at: null },
+                { id: crypto.randomUUID(), load_id: loadId(4), project_id: project.id, storage_path: `${loadId(4)}/front.jpg`, created_at: days(430), removed_at: null },
             ],
             licence_objects: [`${loadId(2)}/front.jpg`, `${loadId(4)}/front.jpg`],
         };
@@ -160,9 +166,15 @@
         ],
         inventory_records: Array.from({length:6},(_,i)=>({id:`inv-${i}`,project_id:project.id,qr_code:`QR-${i}`,inventory_item:`Valve ${i}`,subsystem:'Mech',unit:'EA',location:'Yard A',status:'In stock',created_at:'2026-09-08T12:00:00Z'})),
     };
+    // PO & Installation links, under 013's row security (see links() below).
+    const link = (id, extra) => ({ id, project_id:project.id, po_line_item:10, install_description:null, quantity:null, uom:'EA', material_status:'ordered', receipt_date:null, receipt_location:null,
+        installation_date:null, notes:null, linked_by:'User', created_at:'2026-10-20T12:00:00Z', updated_at:'2026-10-20T12:00:00Z', ...extra });
+    state.material_links ||= [link(1,{po_id:'PO-20001',po_description:'Six-inch isolation valve',install_tag:'MV-101',install_discipline:'Mechanical',quantity:2,material_status:'shipped'}),
+        link(2,{po_id:'PO-20001',po_line_item:20,po_description:'Cable tray supports',install_tag:'CT-204',install_discipline:'Electrical',quantity:12,created_at:'2026-10-22T12:00:00Z'})];
     class Query {
         constructor(table) { this.table=table; this.filters=[]; this.one=false; this.start=0; this.end=1000; this.write=null; }
-        select() { return this; } insert(values) { this.write={insert:[].concat(values)}; return this; } update(values) { this.write={update:values}; return this; } eq(k,v) { this.filters.push(r=>r[k]===v); return this; } is(k,v) {this.filters.push(r=>(r[k] ?? null)===v);return this;}
+        select() { if (this.write) this.returning=true; return this; } insert(values) { this.write={insert:[].concat(values)}; return this; } update(values) { this.write={update:values}; return this; } delete() { this.write={delete:true}; return this; }
+        eq(k,v) { this.filters.push(r=>r[k]===v); return this; } is(k,v) {this.filters.push(r=>(r[k] ?? null)===v);return this;}
         order(){return this;} range(a,b){this.start=a;this.end=b;return this;} limit(n){this.end=n-1;return this;}
         single(){this.one=true;return this;} maybeSingle(){return this.single();}
         lt(k,v){this.filters.push(r=>r[k]<v);return this;} in(k,v){this.filters.push(r=>v.includes(r[k]));return this;}
@@ -181,6 +193,7 @@
                 return Promise.resolve({data:this.one?rows[0]||null:rows,error:null}).then(resolve,reject);
             }
             if (state.inventory[this.table]) return Promise.resolve(this.inventory()).then(resolve,reject);
+            if (this.table==='material_links') return Promise.resolve(this.links()).then(resolve,reject);
             let rows = this.table==='users' ? [me,{id:'f1111111-1111-4111-8111-111111111111',full_name:'Jordan Field',role:'field_worker'}] : this.table==='projects' ? state.projects : this.table==='user_projects' ? (sessionStorage.getItem('fixtureNoProjects') ? [] : state.projects.map(p=>({user_id:me.id,project_id:p.id,projects:p}))) : this.table==='receiving_records'||this.table==='materials' ? state.records : this.table==='locations' ? racks : this.table==='location_areas' ? racks.map(rack=>{ const zone=state.inventory.site_map_zones.find(z=>z.location_id===rack.id&&z.is_active!==false);
                 return {location_id:rack.id,project_id:rack.project_id,rack_zone:rack.zone,rack_row:rack.row,rack:rack.rack,is_hold_area:rack.is_hold_area,zone_id:zone?.id||null,site_map_id:zone?.map_id||null,area:zone?.name||null}; }) : [];
             const mode = new URLSearchParams(location.search).get('fixture');
@@ -188,6 +201,26 @@
             if ((mode==='error' && this.table==='purchase_orders' || mode==='work-error' && this.table==='receiving_records') || (mode==='gps-error' && this.table==='samsara_trackers')) return Promise.resolve({data:null,error:{message:'Fixture source unavailable'}}).then(resolve,reject);
             rows=rows.filter(r=>this.filters.every(f=>f(r))).slice(this.start,this.end+1);
             return Promise.resolve({data:this.one?rows[0]||null:rows,error:null,count:rows.length}).then(resolve,reject);
+        }
+        // 013's policies on material_links: project members read, office staff add and change links while the project is
+        // active, and no one deletes. As in PostgREST, a change row security turns away matches no row and is no error.
+        links() {
+            const allowed = ['office_staff','admin'].includes(me.role) && state.projects.find(p=>p.id===project.id)?.status==='active';
+            if (this.write?.insert) {
+                if (!allowed) return {data:null,error:{code:'42501',message:'new row violates row-level security policy for table "material_links"'}};
+                const next = Math.max(0,...state.material_links.map(row=>row.id))+1;
+                const added = this.write.insert.map((values,index) => link(next+index,{created_at:new Date().toISOString(),...values}));
+                state.material_links.push(...added); save();
+                return {data:this.returning?added:null,error:null};
+            }
+            const rows = state.material_links.filter(r=>this.filters.every(f=>f(r)));
+            if (this.write?.delete) return {data:this.returning?[]:null,error:null};
+            if (this.write?.update) {
+                const changed = allowed ? rows : [];
+                changed.forEach(row => Object.assign(row, this.write.update)); save();
+                return {data:this.returning?changed.map(row=>({...row})):null,error:null};
+            }
+            return {data:rows.map(row=>({...row})),error:null,count:rows.length};
         }
         inventory() {
             const table = state.inventory[this.table];
@@ -231,7 +264,8 @@
             if(name==='project_staff' && new URLSearchParams(location.search).get('fixture')==='staff-error') return {data:null,error:{message:'Fixture staff unavailable'}};
             if(name==='project_staff') return success([{id:me.id,full_name:me.full_name}]);
             if(name==='apply_field_operation' && payload.p_action!=='exception') return loadCall(() => loadsModel.apply(payload.p_action, payload.p_payload));
-            if(['record_driver_licence','attach_driver_licence_photo','driver_licences_due_for_removal','remove_driver_licence','remove_driver_licence_photo'].includes(name)) return loadCall(() => loadsModel.call(name, payload));
+            if(['record_driver_licence','attach_driver_licence_photo','driver_licences_due_for_removal','remove_driver_licence','remove_driver_licence_photo',
+                'driver_licences_due_soon','keep_driver_licence','release_driver_licence_hold'].includes(name)) return loadCall(() => loadsModel.call(name, payload));
             if(name==='apply_field_operation') {
                 if(payload.p_action==='exception') Object.assign(state.records[0],{exception_owner_id:payload.p_payload.ownerId,exception_due_date:payload.p_payload.dueDate,exception_notes:payload.p_payload.notes,exception_resolution:payload.p_payload.resolution,exception_resolved:payload.p_payload.resolution!=='hold'});
                 save();return success({id:state.records[0].id});

@@ -1,10 +1,11 @@
 import { pathToFileURL } from 'node:url';
 
-// Removes driver licences that are due: 90 days after a load closes, or after
-// its last activity if it never closes (migration 022). For each due load it
-// deletes every file in the load's folder of the driver-licences bucket, then
-// clears the licence number. Runs daily with the service role key; it prints
-// load numbers and counts only, never file names or licence details.
+// Removes driver licences that are due: 365 days after a load closes, or after
+// its last activity if it never closes, unless the office is keeping one
+// (migrations 022 and 023). For each due load it deletes every file in the
+// load's folder of the driver-licences bucket, then clears the licence number.
+// Runs daily with the service role key; it prints load numbers and counts
+// only, never file names or licence details.
 export async function purgeDriverLicences({ url, key, fetchImpl = fetch, log = console.log }) {
     const base = new URL(url);
     if (base.protocol !== 'https:' && !(base.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(base.hostname))) throw new Error('Use the project\'s HTTPS address');
