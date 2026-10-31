@@ -33,11 +33,15 @@ SELECT set_config('request.jwt.claim.sub','f1111111-1111-4111-8111-111111111111'
 DO $$ DECLARE relation text; visible bigint;
 BEGIN
  FOREACH relation IN ARRAY ARRAY[
- 'projects','user_projects','locations','qr_codes','receiving_records','materials','inspection_photos','audit_log','shop_contacts',
+ 'projects','user_projects','locations','qr_codes','receiving_records','materials','inspection_photos','shop_contacts',
  'v_inventory_summary','v_aging_report','v_exception_summary','v_yard_overview','vw_po_summary','vw_shipment_summary','vw_recent_activity'] LOOP
   EXECUTE format('SELECT count(*) FROM public.%I',relation) INTO visible;
   PERFORM pg_temp.assert_true(visible>0,'Active assigned worker has a visible fixture in '||relation);
  END LOOP;
+ -- The audit log is for office staff; crews read activity through its safe list.
+ PERFORM pg_temp.assert_true((SELECT count(*)=0 FROM public.audit_log),'Field workers cannot read the audit log directly');
+ PERFORM pg_temp.assert_true((SELECT count(*)=1 FROM public.list_project_activity('b1111111-1111-4111-8111-111111111111')),
+  'Active assigned worker sees the project activity');
 END $$;
 SELECT pg_temp.assert_true((SELECT count(*)=1 FROM storage.objects WHERE bucket_id='inspection-photos'),
  'Active receipt owner can read the stored photo');
@@ -57,6 +61,8 @@ BEGIN
  END LOOP;
  PERFORM pg_temp.assert_true((SELECT count(*)=0 FROM public.users WHERE id<>'f1111111-1111-4111-8111-111111111111'),
   'Inactive worker cannot read colleagues through shared projects');
+ PERFORM pg_temp.assert_true((SELECT count(*)=0 FROM public.list_project_activity('b1111111-1111-4111-8111-111111111111')),
+  'Inactive worker sees no project activity');
  PERFORM pg_temp.assert_true((SELECT count(*)=0 FROM storage.objects WHERE bucket_id='inspection-photos'),
   'Inactive owner cannot read stored photos despite permissive legacy policy');
  UPDATE storage.objects SET name='e1111111-1111-4111-8111-111111111111/renamed.jpg' WHERE bucket_id='inspection-photos';

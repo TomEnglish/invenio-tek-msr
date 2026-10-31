@@ -285,8 +285,8 @@ assert sql("SELECT count(*) FROM public.handling_unit_contents WHERE tag='RACE-I
 # Two loads planned at the same moment can't both take the same crate.
 sql(f"""
 INSERT INTO public.places(id,kind,name) VALUES('9c111111-1111-4111-8111-111111111111','outside_shop','Race Shop');
-INSERT INTO public.loads(id,project_id,load_number) VALUES
- ('1e000000-0000-4000-8000-000000000001','{first_project}','L-0001'),('1e000000-0000-4000-8000-000000000002','{first_project}','L-0002');
+INSERT INTO public.loads(id,project_id,load_number,started_in_field) VALUES
+ ('1e000000-0000-4000-8000-000000000001','{first_project}','L-0001',true),('1e000000-0000-4000-8000-000000000002','{first_project}','L-0002',true);
 INSERT INTO public.load_stops(id,project_id,load_id,seq,place_id) VALUES
  ('5e000000-0000-4000-8000-000000000001','{first_project}','1e000000-0000-4000-8000-000000000001',1,'9c111111-1111-4111-8111-111111111111'),
  ('5e000000-0000-4000-8000-000000000002','{first_project}','1e000000-0000-4000-8000-000000000002',1,'9c111111-1111-4111-8111-111111111111');
@@ -307,4 +307,25 @@ overlap(
     '22023',
 )
 assert sql("SELECT count(*) FROM public.load_lines WHERE tag='HU-RACEC' AND status='planned'") == '1'
+
+
+# Two phones receiving one tag at once, typed in different capitals: one
+# receipt, and the other is told the tag is already received.
+def receive(operation, tag):
+    return f"""SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','f1111111-1111-4111-8111-111111111111',true);
+SELECT public.apply_field_operation('{operation}','{first_project}','receiving',
+ '{{"qrCodeValue":"{tag}","material":{{"material_type":"Valve","qty":1}},"decision":{{"status":"accepted"}},
+  "inspection":{{"condition":"good"}},"location":{{"location_id":"{rack}"}}}}');"""
+
+
+rack = sql(f"INSERT INTO public.locations(project_id,zone,row,rack) VALUES('{first_project}','R','1','1') RETURNING id")
+overlap(
+    'one tag cannot be received twice at once, whatever its capitals',
+    receive('23000000-0000-4000-8000-000000000001', 'RACE-TAG'),
+    receive('23000000-0000-4000-8000-000000000002', 'race-tag'),
+    '22023',
+)
+assert sql("SELECT count(*) FROM public.qr_codes WHERE lower(code_value)='race-tag'") == '1'
+assert sql("SELECT count(*) FROM public.materials m JOIN public.qr_codes q ON q.id=m.qr_code_id WHERE lower(q.code_value)='race-tag'") == '1'
 PY
