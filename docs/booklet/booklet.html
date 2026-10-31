@@ -41,7 +41,7 @@
   </div>
   <div class="edition">
     <span>Edition</span><b>1 · 31 October 2026</b>
-    <span>Field app</span><b>1.1.0 (build 5), over-the-air update 626de00e</b>
+    <span>Field app</span><b>1.1.0 (build 5), over-the-air update 56cc444c</b>
     <span>Office site</span><b>release 465adc6</b>
     <span>Database</span><b>migrations to 022 live; 023 (keeping licences 365 days) awaiting release</b>
     <span>Covers</span><b>initial count, receiving, stock, crates, loads and driver check-in</b>
@@ -189,11 +189,11 @@
 
 <section class="chapter">
   <h2 data-toc="c-sync"><span class="n">4</span>Working offline and Sync</h2>
-  <p class="lede">The app saves everything on the phone first and uploads it when it can. Crews keep working without signal; the phone catches up later, in order.</p>
-  <p>When there is no signal, a yellow bar reads “You are offline — changes will sync when reconnected”, or “You are offline — 3 pending”. Every tab has a <span class="ui">Sync &amp; recovery</span> link at the top, with a count when anything is waiting.</p>
+  <p class="lede">The app saves everything on the phone first and uploads it, in order, whenever it has signal.</p>
+  <p>When there is no signal, a yellow bar reads “You are offline — changes will sync when reconnected”, or “You are offline — 3 pending”. Every tab has a <span class="ui">Sync &amp; recovery</span> link at the top, with a count when anything is waiting. When the database refuses a step, the banner says so, for example “1 queued action refused: open Sync to decide”.</p>
   <h3>What works without signal</h3>
   <ul>
-    <li><strong>Works offline:</strong> scanning crate labels (from the phone's copy), counting (with the data saved the last time Count was opened online), packing crates, starting and editing loads, driver check-in, loading out, departing, unloading and finishing stops, moving and issuing stock.</li>
+    <li><strong>Works offline:</strong> scanning crate labels, counting (with the data saved the last time Count was opened online), packing crates, every step of a load, and moving and issuing stock.</li>
     <li><strong>Needs signal:</strong> a fresh sign-in; the rack list in Receiving, unless a rack was carried over from the count; the material page's “Where”; Activity.</li>
   </ul>
   <h3>The Sync &amp; recovery screen</h3>
@@ -203,13 +203,13 @@
     <tbody>
       <tr><td>Saved on device</td><td>Waiting for signal. Nothing to do.</td></tr>
       <tr><td>Upload interrupted</td><td>The connection dropped mid-upload. It retries by itself, or tap <span class="ui">Upload now</span>.</td></tr>
-      <tr><td>Needs attention</td><td>Five tries failed. Tap <span class="ui">Retry upload</span> when the signal is good; ask the office if it keeps failing.</td></tr>
-      <tr><td>Refused: needs a decision</td><td>The database said no and gave a reason. It is never retried by itself. Fix it (<span class="ui">Fix in Count</span>, <span class="ui">Move it to this load</span>), or discard it.</td></tr>
+      <tr><td>Needs attention</td><td>Five tries failed. Tap <span class="ui">Retry upload</span> when the signal is good, or discard it; ask the office if it keeps failing.</td></tr>
+      <tr><td>Refused: needs a decision</td><td>The database said no and gave a reason. It is never retried by itself. Fix it (<span class="ui">Fix in Count</span>, <span class="ui">Move it to this load</span>), or discard it. A refused driver licence can only be discarded and recorded again in Driver check-in.</td></tr>
     </tbody>
   </table>
-  <p>Discarding asks “Discard this …? It will not be uploaded, and this can't be undone.” <span class="ui">Support details</span> shows the submission ID, tries and last error to pass to the office.</p>
+  <p>A discard can't be undone. <span class="ui">Support details</span> shows the submission ID, tries and last error to pass to the office.</p>
   <h3>Loads upload in order</h3>
-  <p>A load's steps upload strictly in the order they were made. One refused or stuck step holds back the later steps of that load, and <span class="ui">Depart</span> and <span class="ui">Finish stop</span> stay blocked, with a <span class="ui">View Sync</span> link, until it is retried or discarded. Steps that are only waiting for signal don't block, so a truck can be loaded and sent off with no signal at all. Tap <span class="ui">Done</span> on a load-out or unload screen before switching project: switching within about five seconds of the last scan can drop that batch.</p>
+  <p>A load's steps upload strictly in the order they were made. One refused or stuck step holds back the later steps of that load, and <span class="ui">Depart</span> and <span class="ui">Finish stop</span> stay blocked, with a <span class="ui">View Sync</span> link, until it is retried or discarded. Steps that are only waiting for signal don't block, so a truck can be loaded and sent off with no signal at all. Tap <span class="ui">Done</span> on a load-out or unload screen before switching project, or the last few scans can be lost.</p>
   <h3>The driver's licence on the phone</h3>
   <p>The licence number, issuing state and expiry are kept only in the app's memory until they upload: if the app closes first, they must be typed again. The photos are temporary files, deleted after upload, after a discard, and at sign-out. Sync never shows the licence number or the driver's phone number.</p>
   <div class="never"><span class="callout-title">Before you sign out</span>Signing out deletes every driver licence and licence photo that hasn't uploaded. Other saved work stays on the phone for that account and project and uploads at the next sign-in. Check Sync first.</div>
@@ -276,7 +276,7 @@
   <p class="for"><span class="who crew">Crew</span><span class="who office">Office</span></p>
   <p class="lede">The initial count records what is already in a yard or on a site, tag by tag: what it is, its category, where it is on the site plan, and a photo. The office can import the list of tags it expects first (chapter 17), so the count shows what is still to find.</p>
   <h3>Count home</h3>
-  <p>The top line shows when the data was last updated, for example “Updated Oct 30 14:05 · saved for offline use”. Tiles show <span class="ui">Expected</span>, <span class="ui">Counted</span>, <span class="ui">Received</span> and “N of M tags found”. <span class="ui">Not found yet</span> lists expected tags still to find, with a search box; tapping one counts it without scanning. <span class="ui">Recent counts</span> shows each count's state.</p>
+  <p>The top line shows when the data was last updated, for example “Updated Oct 30 14:05 · saved for offline use”. Tiles show <span class="ui">Expected</span>, <span class="ui">Counted</span>, <span class="ui">Received</span> and “N of M tags found”, which adds “· 1 needs attention in Sync” when a count was refused or stopped retrying. A refused count isn't counted as found, and its tag goes back to <span class="ui">Not found yet</span>. <span class="ui">Not found yet</span> lists expected tags still to find, with a search box; tapping one counts it without scanning. <span class="ui">Recent counts</span> shows each count's state.</p>
   <h3>Counting a tag</h3>
   <ol class="steps">
     <li><strong>Scan</strong> the item's tag. The QR value is the tag number. The banner says whether it is an <em>expected item</em>, a <em>new tag</em> (added to the list) or <em>already counted</em> (saving updates that count).</li>
@@ -298,7 +298,7 @@
 <section class="chapter">
   <h2 data-toc="c-inventory"><span class="n">8</span>Stock: moving, issuing, correcting</h2>
   <p class="for"><span class="who crew">Crew</span><span class="who office">Office</span></p>
-  <p class="lede">Received material lives on the <span class="ui">Inventory</span> tab (office: <span class="ui">Materials</span>). Each item opens on its material page, which says what it is, how much is left and where it is.</p>
+  <p class="lede">Received material lives on the <span class="ui">Inventory</span> tab (office: <span class="ui">Materials</span>). Each item opens on its material page, which says what it is, how much is left and where it is. Search finds an item by its type, its grade or part of its QR code.</p>
   <p>The page shows <span class="ui">Quantity</span>, <span class="ui">Size</span>, <span class="ui">Grade</span>, <span class="ui">Weight</span>, <span class="ui">Spec</span>, <span class="ui">QR Code</span>, <span class="ui">Rack</span>, <span class="ui">Where</span> and <span class="ui">Received</span>. “Where” reads, for example, “On load L-0003”, “Missing from load L-0003”, “In crate HU-ABC123 (inside HU-XYZ789) at Yard · Rack 2” or “Place · Area”; crate and load lines open those screens.</p>
   <h3>Actions</h3>
   <table>
@@ -373,7 +373,7 @@
   <h3>Unloading at a stop</h3>
   <ol class="steps">
     <li>Tap <span class="ui">Unload at a stop</span> and choose the stop, for example “1. Gulf Machine · Drop-off · 3 due”.</li>
-    <li>Scan each piece as it comes off. At our own yards and sites, choose the <span class="ui">Area</span> where the pieces go. The app answers “… off.”, or flags it: wrong stop, an extra piece that wasn't on the list, or a missing piece now found.</li>
+    <li>Scan each piece as it comes off. At our own yards and sites, choose the <span class="ui">Area</span> where the pieces go, from that place's site plans. The app answers “… off.”, or flags it: wrong stop, an extra piece that wasn't on the list, or a missing piece now found.</li>
     <li>Tap <span class="ui">Finish stop…</span>. The app lists any pieces due here that haven't been scanned off: they will be marked <strong>missing</strong>. Tap <span class="ui">Finish stop</span>, or <span class="ui">Keep scanning</span>.</li>
   </ol>
   <p>At outside shops and vendors, crews scan off what they hand over but don't finish the stop: “… is an outside shop or vendor: scan off what you hand over, and the office confirms the stop.” A piece scanned off after its stop was finished is still recorded; a missing one is then found.</p>
@@ -871,7 +871,7 @@
   <h3>Office site</h3>
   <p>The web host runs the site build, which copies the pages and scripts, checks that the required pages exist and writes <code>release.json</code> with the commit and SHA-256 hashes of the key assets. The <code>production-smoke</code> job then waits for that commit to go live, checks the asset hashes and confirms private paths return 404. To roll back, restore the last verified deploy on the web host.</p>
   <h3>Field app</h3>
-  <p>App updates carry new screens to every phone on the same runtime (1.1.0). A phone downloads an update when the app opens and switches to it the next time the app is fully closed and reopened. The current production update is 626de00e on build 5.</p>
+  <p>App updates carry new screens to every phone on the same runtime (1.1.0). A phone downloads an update when the app opens and switches to it the next time the app is fully closed and reopened. The current production update is 56cc444c on build 5.</p>
   <h3>Licence job</h3>
   <p>A scheduled job in the office repository runs the licence removal script every day at 09:17 UTC, and can be run by hand. It needs the service-role key as a repository secret, which an administrator sets; the database address is optional. If a run fails, the Loads page's backup still removes due licences when office staff open it; fix the job the same week.</p>
 </section>
@@ -891,13 +891,11 @@
   <h3>Field app</h3>
   <ul>
     <li>Receiving needs signal for the rack list, unless the rack came from the count, and an unfinished receipt can't be resumed: scanning another tag starts again.</li>
-    <li>Count has no high-value switch and no place picker. A refused count still shows as “Waiting to sync” on Count home; check Sync.</li>
-    <li>The unload screen lists areas from every site plan. Choose one at the stop's own place.</li>
+    <li>Count has no high-value switch and no place picker.</li>
     <li>Delivered loads aren't on the Loads tab; open them from an item's or crate's “Delivered to … on L-…” line.</li>
     <li>Moving a crate, correcting a location, departing, finishing a stop and editing a load close the screen without a confirmation message; Sync shows the step.</li>
     <li>A planned date or licence expiry can't be cleared once set.</li>
     <li>The app can put a receipt on hold but not release it; release it on the office site.</li>
-    <li>Inventory search matches material type and grade, not the QR code; scan the tag instead.</li>
   </ul>
   <h3>Office site</h3>
   <ul>
@@ -916,7 +914,7 @@
   <table>
     <thead><tr><th style="width:13%">Edition</th><th style="width:16%">Date</th><th style="width:36%">Software covered</th><th>Changes</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td>31 Oct 2026</td><td>Field app 1.1.0 (build 5, update 626de00e); office site release 465adc6; database to migration 022, with 023 described ahead of release</td><td>First edition.</td></tr>
+      <tr><td>1</td><td>31 Oct 2026</td><td>Field app 1.1.0 (build 5, update 56cc444c); office site release 465adc6; database to migration 022, with 023 described ahead of release</td><td>First edition.</td></tr>
     </tbody>
   </table>
   <h3>Updating this guide</h3>
