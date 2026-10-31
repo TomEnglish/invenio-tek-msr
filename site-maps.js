@@ -23,9 +23,12 @@
     const MAX_UPLOAD_BYTES = 15 * 1024 * 1024, MAX_SOURCE_BYTES = 60 * 1024 * 1024;
     const PALETTE = ['#174fda', '#0891b2', '#059669', '#d97706', '#dc2626', '#7c3aed'];
 
-    let maps = [], current = null, zones = [], locations = [], view = null, zoneLayers = new Map(), editor = null, showRequest = 0;
+    let maps = [], current = null, zones = [], locations = [], racksError = null, places = [], placesError = null, view = null, zoneLayers = new Map(), editor = null, showRequest = 0;
     const lock = { busy: false };
     const STILL_SAVING = 'Still saving the last change. Try again in a moment.';
+    const RACK_TAKEN = 'That rack is already linked to another area.';
+    // 23505 is either the sibling-name index or 022's one-area-per-rack index; the constraint name tells them apart.
+    const rackTaken = error => error?.code === '23505' && /site_map_zones_rack|\(location_id\)/.test(`${error.message} ${error.details || ''}`);
     const dialog = $('mapDialog');
     dialog.addEventListener('cancel', event => { if (lock.busy) event.preventDefault(); });
 
@@ -39,18 +42,51 @@
         if (error) throw error;
         return data;
     }
+    // The project's racks, each with the active area it is linked to (022's location_areas, project-scoped). A failure
+    // leaves no racks to choose and says so to the office.
     async function loadLocations() {
         const rows = [];
         for (let from = 0; ; from += 1000) {
-            const { data, error } = await projectSupabaseClient.from('locations').select('id,zone,row,rack').order('id').range(from, from + 999);
-            if (error) { locations = []; return; }
+            const { data, error } = await projectSupabaseClient.from('location_areas').select('location_id,rack_zone,rack_row,rack,is_hold_area,zone_id,site_map_id,area')
+                .order('location_id').range(from, from + 999);
+            if (error) { locations = []; racksError = error; renderRacks(); return; }
             rows.push(...data);
             if (data.length < 1000) break;
         }
         const collator = new Intl.Collator(undefined, { numeric: true });
-        locations = rows.sort((a, b) => collator.compare(a.zone, b.zone) || collator.compare(a.row, b.row) || collator.compare(a.rack, b.rack));
+        locations = rows.map(row => ({ id: row.location_id, zone: row.rack_zone, row: row.rack_row, rack: row.rack, is_hold_area: row.is_hold_area, zone_id: row.zone_id, site_map_id: row.site_map_id, area: row.area }))
+            .sort((a, b) => collator.compare(a.zone, b.zone) || collator.compare(a.row, b.row) || collator.compare(a.rack, b.rack));
+        racksError = null; renderRacks();
+        if (editor?.rackSelect) fillRackChoices(editor.rackSelect);
     }
     const locationLabel = id => { const l = locations.find(item => item.id === id); return l ? `${l.zone} · Row ${l.row}, Rack ${l.rack}` : id ? 'Linked location' : ''; };
+    // Places are shared by every project, so read unscoped: the yards and sites this project can draw.
+    async function loadPlaces() {
+        const { data, error } = await supabaseClient.from('places').select('id,name,kind,project_id,is_active')
+            .in('kind', ['yard', 'site']).or(`project_id.is.null,project_id.eq.${projectId}`).order('name');
+        places = data || []; placesError = error;
+    }
+    const placeLabel = id => { const place = places.find(item => item.id === id); return place ? `${place.name}${place.is_active === false ? ' (retired)' : ''}` : 'Unavailable'; };
+
+    // Racks no active area is linked to yet, so the office can work through them.
+    function renderRacks() {
+        const panel = $('rackStatus'); panel.replaceChildren();
+        panel.hidden = !office || (!racksError && !locations.length);
+        if (panel.hidden) return;
+        const title = el('h3', 'Racks without an area', 'h6'); title.id = 'rackStatusTitle'; panel.append(title);
+        if (racksError) {
+            const missing = ['42P01', 'PGRST205'].includes(racksError.code);
+            panel.append(el('p', missing ? 'Rack links need migration 022 in this database.' : `Racks could not be loaded: ${inv.errorMessage(racksError)}`, 'small text-danger mb-0'));
+            return;
+        }
+        const free = locations.filter(item => !item.zone_id);
+        if (!free.length) { panel.append(el('p', `All ${locations.length} ${locations.length === 1 ? 'rack is' : 'racks are'} linked to an area.`, 'small text-muted mb-0')); return; }
+        panel.append(el('p', `${free.length} of ${locations.length} ${locations.length === 1 ? 'rack is' : 'racks are'} not linked to an area yet. Edit an area to choose its rack.`, 'small text-muted'));
+        const list = el('ul', '', 'small mb-0');
+        for (const item of free.slice(0, 20)) list.append(el('li', `${locationLabel(item.id)}${item.is_hold_area ? ' (hold area)' : ''}`));
+        if (free.length > 20) list.append(el('li', `and ${free.length - 20} more`, 'text-muted'));
+        panel.append(list);
+    }
 
     function renderMapSelect() {
         const select = $('mapSelect'); select.replaceChildren();
@@ -98,6 +134,8 @@
     function renderMeta() {
         $('mapMeta').textContent = [current.image_width ? `${current.image_width} × ${current.image_height} px` : 'No image',
             `${zones.length} ${zones.length === 1 ? 'area' : 'areas'}`, current.is_active ? 'Active' : 'Inactive: hidden from field crews'].join(' · ');
+        $('mapPlace').textContent = !current.place_id ? 'Not tied to a place yet: its areas can be used at any yard or site.'
+            : placesError ? `Place could not be loaded (${inv.errorMessage(placesError)}).` : `Place: ${placeLabel(current.place_id)}`;
     }
 
     function renderMapActions() {
@@ -105,7 +143,7 @@
         if (!office) return;
         actions.append(
             button(current.storage_path ? 'Replace image' : 'Upload image', 'btn btn-sm btn-outline', () => openMapForm('image')),
-            button('Rename', 'btn btn-sm btn-outline', () => openMapForm('rename')),
+            button('Name and place', 'btn btn-sm btn-outline', () => openMapForm('details')),
             button(current.is_active ? 'Make inactive' : 'Make active', 'btn btn-sm btn-ghost', toggleActive));
     }
 
@@ -223,14 +261,15 @@
 
     // There is no multi-row transaction here, so writes go one at a time. Whatever happens the list is reloaded
     // before anything else can be clicked, and the next reorder renumbers the whole sibling group.
-    async function saveZoneChanges(changes, success, conflict) {
+    // racks: the change can link or free a rack (making an area active or inactive), so its list is reloaded too.
+    async function saveZoneChanges(changes, success, conflict, racks = false) {
         if (editor) { message('Finish or cancel the area you are drawing first.'); return; }
         if (stillSaving()) return;
         const mapId = current.id;
-        const result = await inv.writeThenReload(lock, changes.map(({ id, values }) => () => updateZone(id, values)), () => reloadZones(mapId));
+        const result = await inv.writeThenReload(lock, changes.map(({ id, values }) => () => updateZone(id, values)), () => Promise.all([reloadZones(mapId), racks && loadLocations()]));
         if (!result) { message(STILL_SAVING); return; }
         const stale = result.reloadError ? ` The area list could not refresh (${inv.errorMessage(result.reloadError)}). Reload the page.` : '';
-        message(result.error ? `Could not save: ${inv.errorMessage(result.error, conflict)}${stale}` : `${success}${stale}`);
+        message(result.error ? `Could not save: ${inv.errorMessage(result.error, rackTaken(result.error) ? RACK_TAKEN : conflict)}${stale}` : `${success}${stale}`);
     }
 
     function moveZone(zone, siblings, offset) {
@@ -245,12 +284,12 @@
             const hiddenBy = inv.inactiveAncestor(tree.byId, zone.parent_id);
             void saveZoneChanges([{ id: zone.id, values: { is_active: true } }],
                 hiddenBy ? `${zone.name} is active, but stays hidden from field crews until ${hiddenBy.name} is active.` : `${zone.name} is active.`,
-                `Another active area at this level is already named ${zone.name}. Rename one of them first.`);
+                `Another active area at this level is already named ${zone.name}. Rename one of them first.`, true);
             return;
         }
         const inside = inv.descendantIds(tree.byId, zone.id).size - 1;
         if (!confirm(`Make ${zone.name} inactive? Field crews will no longer see it${inside ? ` or the ${inside} ${inside === 1 ? 'area' : 'areas'} inside it` : ''}. Items already counted there keep their location.`)) return;
-        void saveZoneChanges([{ id: zone.id, values: { is_active: false } }], `${zone.name} is inactive.`);
+        void saveZoneChanges([{ id: zone.id, values: { is_active: false } }], `${zone.name} is inactive.`, undefined, true);
     }
 
     // ---- Zone drawing and editing -------------------------------------------------------------
@@ -361,6 +400,20 @@
         }
     }
 
+    /** Fill the rack choices, keeping the one chosen. A rack another active area has is shown with it and can't be chosen. */
+    function fillRackChoices(select) {
+        const wanted = select.options.length ? select.value : editor.zone?.location_id || '';
+        const linkedTo = item => `${item.area || 'another area'}${item.site_map_id && item.site_map_id !== current.id ? ` on ${maps.find(map => map.id === item.site_map_id)?.name || 'another plan'}` : ''}`;
+        select.replaceChildren(new Option('No rack', ''), ...locations.map(item => {
+            const elsewhere = Boolean(item.zone_id) && item.zone_id !== editor.zone?.id;
+            const option = new Option(`${locationLabel(item.id)}${item.is_hold_area ? ' (hold area)' : ''}${elsewhere ? `: linked to ${linkedTo(item)}` : ''}`, item.id);
+            option.disabled = elsewhere && item.id !== wanted;
+            return option;
+        }));
+        if (wanted && !locations.some(item => item.id === wanted)) select.append(new Option('Linked rack (unavailable)', wanted));
+        select.value = wanted;
+    }
+
     function openZoneForm() {
         const zone = editor.zone, panel = $('zoneEditor');
         panel.replaceChildren(); $('zoneList').hidden = true; panel.hidden = false;
@@ -376,10 +429,9 @@
         Object.assign(editor, { parentSelect: parent, parentNote }); fillParentChoices(parent);
         parent.onchange = () => { editor.parentId = parent.value || null; parentNote.textContent = ''; markDirty(); updateOutsideWarning(); };
         form.append(parentNote, el('p', '', 'small zone-warning zone-outline-warning'));
-        const location = field(form, 'Rack location (optional)', el('select', '', 'form-select'), 'zoneLocation');
-        location.append(new Option('Not linked', ''), ...locations.map(item => new Option(locationLabel(item.id), item.id)));
-        if (zone?.location_id && !locations.some(item => item.id === zone.location_id)) location.append(new Option('Linked location (unavailable)', zone.location_id));
-        location.value = zone?.location_id || '';
+        const location = field(form, 'Rack', el('select', '', 'form-select'), 'zoneLocation');
+        editor.rackSelect = location; fillRackChoices(location);
+        form.append(el('p', 'A rack is linked to one area: items received or moved to the rack go to that area. To move a rack to this area, choose No rack on its current area first.', 'small text-muted'));
         form.append(el('p', 'Drag a point to move it, click a small midpoint to add one, or right-click a point to remove it. Areas cannot be deleted; make one inactive to hide it from field crews.', 'small text-muted'));
         const actions = el('div', '', 'd-flex gap-2');
         const save = el('button', 'Save area', 'btn btn-primary'); save.type = 'submit';
@@ -408,11 +460,12 @@
                 if (error) throw error;
             }], error => {
                 if (!error) { closeEditor(); if (values.parent_id) collapsed.delete(values.parent_id); }
-                return reloadZones(mapId);
+                return Promise.all([reloadZones(mapId), loadLocations()]);
             });
             const stale = result.reloadError ? ` The area list could not refresh (${inv.errorMessage(result.reloadError)}). Reload the page.` : '';
             if (result.error) {
-                status.textContent = `Could not save: ${inv.errorMessage(result.error, `Another active area ${values.parent_id ? `inside ${zoneById(values.parent_id)?.name || 'this area'}` : 'at the top level'} is already named ${values.name}.`)}${stale}`;
+                status.textContent = `Could not save: ${inv.errorMessage(result.error, rackTaken(result.error) ? RACK_TAKEN
+                    : `Another active area ${values.parent_id ? `inside ${zoneById(values.parent_id)?.name || 'this area'}` : 'at the top level'} is already named ${values.name}.`)}${stale}`;
                 save.disabled = false;
                 return;
             }
@@ -468,22 +521,31 @@
         const map = mode === 'new' ? null : current;
         const content = $('mapDialogContent'); content.replaceChildren();
         const header = el('div', '', 'work-page-header');
-        const heading = el('h2', mode === 'new' ? 'New site map' : mode === 'rename' ? `Rename ${map.name}` : `${map.storage_path ? 'Replace' : 'Upload'} the plan for ${map.name}`);
+        const heading = el('h2', mode === 'new' ? 'New site map' : mode === 'details' ? `Name and place of ${map.name}` : `${map.storage_path ? 'Replace' : 'Upload'} the plan for ${map.name}`);
         heading.id = 'mapDialogTitle';
         header.append(heading, button('Close', 'btn btn-outline-secondary', () => { if (!lock.busy) dialog.close(); }));
         const form = el('form');
-        let name, file;
+        let name, file, place;
         if (mode !== 'image') {
             name = field(form, 'Map name', el('input', '', 'form-control'), 'mapName');
             name.required = true; name.maxLength = 120; name.autocomplete = 'off'; name.value = map?.name || '';
+            // The yard or site the plan draws (022). Retired places stay listed only for the plan already on one.
+            place = field(form, 'Place', el('select', '', 'form-select'), 'mapPlaceChoice');
+            place.append(new Option('Not tied to a place yet', ''), ...places.filter(item => item.is_active !== false || item.id === map?.place_id).map(item => new Option(placeLabel(item.id), item.id)));
+            if (map?.place_id && !places.some(item => item.id === map.place_id)) place.append(new Option('Current place (unavailable)', map.place_id));
+            // A new plan starts on the project's own yard or site when it has just one, as 022 tied existing plans.
+            const own = places.filter(item => item.project_id === projectId && item.is_active !== false);
+            place.value = map ? map.place_id || '' : own.length === 1 ? own[0].id : '';
+            form.append(el('p', placesError ? `Places could not be loaded (${inv.errorMessage(placesError)}). Reload the page to choose one.`
+                : 'The yard or site this plan draws: its areas are used there. A plan not tied to a place can be used at any yard or site.', 'small text-muted'));
         }
-        if (mode !== 'rename') {
+        if (mode !== 'details') {
             file = field(form, 'Plan image', el('input', '', 'form-control'), 'mapFile');
             file.type = 'file'; file.accept = 'image/png,image/jpeg,image/webp'; file.required = true;
             form.append(el('p', 'PNG, JPG or WEBP. Large plans are resized in your browser to 4000 px on the long side before upload.', 'small text-muted'));
             if (map?.storage_path) form.append(el('p', 'Zones are stored relative to the image. Use a plan with the same framing so they stay in place.', 'small text-muted'));
         }
-        const save = el('button', mode === 'new' ? 'Create map' : mode === 'rename' ? 'Save name' : 'Upload', 'btn btn-primary'); save.type = 'submit';
+        const save = el('button', mode === 'new' ? 'Create map' : mode === 'details' ? 'Save' : 'Upload', 'btn btn-primary'); save.type = 'submit';
         const status = el('p', '', 'small mt-2'); status.setAttribute('role', 'status');
         form.append(save, status);
         form.onsubmit = async event => {
@@ -504,12 +566,14 @@
                     }
                 }
                 status.textContent = 'Saving…';
+                const placeId = place?.value || null;
                 if (mode === 'new') {
-                    const { data, error } = await projectSupabaseClient.from('site_maps').insert({ name: newName, is_active: true }).select('*').single();
+                    const { data, error } = await projectSupabaseClient.from('site_maps').insert({ name: newName, is_active: true, place_id: placeId }).select('*').single();
                     if (error) throw error;
                     target = data;
-                } else if (mode === 'rename') {
-                    const { error } = await projectSupabaseClient.from('site_maps').update({ name: newName }).eq('id', map.id);
+                } else if (mode === 'details') {
+                    // The place is sent only when it changed, so renaming never re-checks a place chosen earlier.
+                    const { error } = await projectSupabaseClient.from('site_maps').update({ name: newName, ...(placeId !== (map.place_id || null) ? { place_id: placeId } : {}) }).eq('id', map.id);
                     if (error) throw error;
                 }
                 if (prepared) { status.textContent = 'Uploading image…'; await uploadPlan(target, prepared); }
@@ -522,7 +586,7 @@
             try { await loadMaps(); renderMapSelect(); await showMap(target.id); }
             catch (error) { message(`Saved, but the page could not refresh (${inv.errorMessage(error)}). Reload the page.`); return; }
             message(reason ? `Created ${target.name}, but the image was not saved. ${reason} Choose Upload image to try again.`
-                : mode === 'rename' ? `Renamed to ${newName}.` : `Saved ${target.name}${prepared?.scaled ? `, resized to ${prepared.width} × ${prepared.height} px` : ''}.`);
+                : mode === 'details' ? `Saved ${newName}.` : `Saved ${target.name}${prepared?.scaled ? `, resized to ${prepared.width} × ${prepared.height} px` : ''}.`);
         };
         content.append(header, form);
         dialog.showModal();
@@ -574,7 +638,7 @@
     window.addEventListener('beforeunload', event => { if (editor?.dirty || lock.busy) { event.preventDefault(); event.returnValue = ''; } });
     if (!office) message(InvenioProjectScope.activeProject.status === 'active' ? 'Office staff manage site maps. You can view plans and zones.' : 'This project is read-only.');
     try {
-        await Promise.all([loadMaps(), loadLocations()]);
+        await Promise.all([loadMaps(), loadLocations(), loadPlaces()]);
         renderMapSelect();
         if (maps.length) await showMap(new URLSearchParams(location.search).get('map'));
     } catch (error) { message(`Could not load site maps: ${inv.errorMessage(error)}`); }

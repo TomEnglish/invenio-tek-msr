@@ -89,6 +89,8 @@ const TABLE_CONFIG = {
             { key: 'created_at', label: 'Created', editable: false, type: 'datetime' },
         ],
         searchColumns: ['code_value'],
+        // Item codes only: HU- codes are crate labels (022), listed on the Crates page.
+        filter: query => query.neq('entity_type', 'handling_unit'),
     },
     material_movements: {
         label: 'Material Movements',
@@ -398,6 +400,7 @@ async function loadData() {
     try {
         // Build query
         let query = projectSupabaseClient.from(tableName).select('*', { count: 'exact' });
+        if (config.filter) query = config.filter(query);
 
         // Sort
         const sortCol = state.sortColumn || config.orderBy;

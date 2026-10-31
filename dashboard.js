@@ -36,10 +36,12 @@ document.addEventListener('DOMContentLoaded', async function () {
 function setupRealtimeSubscriptions() {
     const channel = supabaseClient.channel('dashboard-realtime');
 
-    // Tables the mobile app writes to
+    // Tables the mobile app writes to. audit_log is readable by office staff only (022), so realtime would never
+    // deliver its changes to anyone else; they refresh on the other tables.
+    const office = ['office_staff', 'admin'].includes(window.InvenioCurrentProfile?.role);
     const watchTables = [
         'receiving_records', 'materials', 'material_movements',
-        'material_issues', 'shipments_out', 'audit_log',
+        'material_issues', 'shipments_out', ...(office ? ['audit_log'] : []),
         // MSR tables that Python sync scripts update
         'purchase_orders', 'shipments', 'dashboard_metrics',
         'samsara_trackers', 'delivery_dates', 'installation_datasets'
