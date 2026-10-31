@@ -53,7 +53,7 @@ function world() {
                 driver_name: 'Dana Ruiz', driver_phone: '555-0170', licence_recorded_at: ago(2) }),
             load(32, 'L-0002', 'in_transit', { driver_name: 'Morgan Lee', departed_at: ago(1), licence_recorded_at: ago(1) }),
             load(33, 'L-0003', 'delivered', { driver_name: 'Sam Patel', departed_at: ago(13), delivered_at: ago(12) }),
-            load(34, 'L-0004', 'closed', { driver_name: 'Riley Shah', closed_at: ago(100), licence_recorded_at: ago(130) }),
+            load(34, 'L-0004', 'closed', { driver_name: 'Riley Shah', closed_at: ago(400), licence_recorded_at: ago(430) }),
             load(35, 'L-0005', 'cancelled', { closed_at: ago(5) }),
         ],
         load_companies: [{ id: id(61), project_id: P, load_id: id(31), position: 1, name: 'Fixture Freight', role: 'broker', contact_name: 'Ana Gomez', phone: '555-0190' }],
@@ -64,10 +64,10 @@ function world() {
             line(56, 33, 'HU-EEEE55', 15, 45, 'delivered', { on_at: ago(13), off_at: ago(12), delivered_stop_id: id(45), delivered_place_id: id(2), delivered_source: 'scan' }),
             line(57, 33, 'T-104', 25, 45, 'missing', { on_at: ago(13) })],
         load_driver_licences: [{ load_id: id(32), project_id: P, licence_number: LICENCE, licence_state: 'TX', licence_expiry: '2028-04-30', recorded_at: ago(1), removed_at: null },
-            { load_id: id(34), project_id: P, licence_number: 'R9876-5432', licence_state: 'LA', licence_expiry: null, recorded_at: ago(130), removed_at: null },
+            { load_id: id(34), project_id: P, licence_number: 'R9876-5432', licence_state: 'LA', licence_expiry: null, recorded_at: ago(430), removed_at: null },
             { load_id: id(31), project_id: P, licence_number: 'K555-0001-77', licence_state: 'TX', licence_expiry: null, recorded_at: ago(2), removed_at: null }],
         driver_licence_photos: [{ id: id(71), load_id: id(32), project_id: P, storage_path: `${id(32)}/front.jpg`, created_at: ago(1), removed_at: null },
-            { id: id(72), load_id: id(34), project_id: P, storage_path: `${id(34)}/front.jpg`, created_at: ago(130), removed_at: null },
+            { id: id(72), load_id: id(34), project_id: P, storage_path: `${id(34)}/front.jpg`, created_at: ago(430), removed_at: null },
             { id: id(73), load_id: id(31), project_id: P, storage_path: `${id(31)}/front.jpg`, created_at: ago(2), removed_at: null }],
         licence_objects: [`${id(32)}/front.jpg`, `${id(34)}/front.jpg`, `${id(31)}/front.jpg`],
     };
@@ -139,7 +139,8 @@ async function openPage({ role = 'admin', projectStatus = 'active', search = '',
             return printWindow;
         },
         InvenioAuthReady: Promise.resolve(true), InvenioInventory: inventory, InvenioLoads: loadsHelpers, InvenioCurrentProfile: { role },
-        InvenioProjectScope: { getActiveProjectId: () => P, activeProject: { id: P, name: 'North Yard project', status: projectStatus } },
+        InvenioProjectScope: { getActiveProjectId: () => P, activeProject: { id: P, name: 'North Yard project', status: projectStatus },
+            availableProjects: [{ id: P, name: 'North Yard project' }, { id: 'p2', name: 'South Yard project' }] },
         supabaseClient: server.client, projectSupabaseClient: createProjectScopedClient(server.client, () => P),
     };
     context.window = context;
@@ -341,8 +342,11 @@ test('per stop: Mark delivered confirms without scanning; Finish stop warns that
     assert.deepEqual(plain(page.server.ops()[1].p_payload), { loadId: id(32), stopId: id(44) });
     assert.equal(page.status(), 'Finished stop 2 at Coastal Terminal. Every stop of L-0002 is finished.');
     await page.press('Close load');
-    assert.equal(page.confirms[2], "Close L-0002? Nothing on it can change after that. Its driver's licence is removed 90 days later.");
+    assert.equal(page.confirms[2], "Close L-0002? Nothing on it can change after that. Office staff are warned 30 days before its driver's licence is removed.");
     assert.equal(page.server.load('L-0002').status, 'closed');
+    // The date counts from the close, so the page names it from the load read back (023's licence_due_at).
+    const due = new Date(Date.parse(page.server.load('L-0002').closed_at) + 365 * 86400000).toLocaleDateString();
+    assert.equal(page.status(), `L-0002 is closed. Its driver's licence is due for removal on ${due}.`);
 
     const other = await openPage();
     await other.open('L-0002');
@@ -532,7 +536,7 @@ test('the printed manifest has the load, driver, truck, companies, one section p
     for (const secret of [LICENCE, '5678', 'TX 2028', '2028-04-30']) assert.ok(!second.body.textContent.includes(secret) && !second.title.includes(secret), `no ${secret}`);
 });
 
-test("opening Loads removes licences 90 days after a load closed, in every project: the folder first, then the number; failures don't stop the rest", async () => {
+test("opening Loads removes licences past their removal date, in every project: the folder first, then the number; failures don't stop the rest", async () => {
     const state = world();
     state.loads.push({ ...state.loads[3], id: id(36), load_number: 'L-0006' }, { ...state.loads[3], id: id(37), project_id: 'p2', load_number: 'L-0001' });
     state.load_driver_licences.push({ ...state.load_driver_licences[1], load_id: id(36) }, { ...state.load_driver_licences[1], load_id: id(37), project_id: 'p2' });
@@ -543,7 +547,7 @@ test("opening Loads removes licences 90 days after a load closed, in every proje
     assert.deepEqual(steps, ['driver_licences_due_for_removal', `remove ${id(34)}/front.jpg,${id(34)}/never-attached.jpg`, 'remove_driver_licence', 'remove_driver_licence', 'remove_driver_licence'],
         "022 lists every file in the folder, the unattached photo too, or it would refuse to remove the licence");
     assert.equal(page.server.log.filter(request => request.storage === 'list').length, 0, "022's list is used as it is");
-    assert.equal(page.$('housekeeping').textContent, "Removed the driver's licence of 3 loads whose 90 days were up.");
+    assert.equal(page.$('housekeeping').textContent, "Removed the driver's licence of 3 loads past their removal date.");
     assert.ok(page.server.state.load_driver_licences.every(row => [id(31), id(32)].includes(row.load_id) || row.licence_number === null));
     assert.equal(page.card('L-0002').textContent.includes('Licence on file'), true);
     page.$('showFinished').click();
@@ -555,7 +559,7 @@ test("opening Loads removes licences 90 days after a load closed, in every proje
     failing.licence_objects.push(`${id(37)}/front.jpg`);
     const second = await openPage({ state: failing, fail: request => request.storage === 'remove' && request.paths[0].startsWith(id(37)) && { message: 'Storage is unavailable' } });
     assert.equal(second.$('housekeeping').textContent,
-        "Removed the driver's licence of 1 load whose 90 days were up. Could not remove the driver's licence of L-0001 in another project (Storage is unavailable).");
+        "Removed the driver's licence of 1 load past its removal date. Could not remove the driver's licence of L-0001 in another project (Storage is unavailable).");
     assert.deepEqual(plain(second.columns())['Planning (1)'], ['L-0001'], 'the board is there regardless');
 
     const third = await openPage({ fail: request => request.rpc === 'driver_licences_due_for_removal' && { code: 'PGRST301', message: 'JWT expired' } });
@@ -700,7 +704,7 @@ test('confirming without scanning is offered only where nobody scans: a truck le
 test('the licence section says when a daily job removes it, and each photo has a caption', async () => {
     const page = await openPage();
     await page.open('L-0002');
-    assert.ok(page.section('licence').textContent.includes("A daily job removes it 90 days after the load closes, or after the load's last change if it never closes. Office staff can remove it sooner."));
+    assert.ok(page.section('licence').textContent.includes("A daily job removes it on its removal date, unless office staff keep it; the Loads board warns them 30 days ahead. Office staff can also remove it sooner."));
     const [figure] = page.section('licence').querySelectorAll('figure');
     assert.ok(figure.querySelector('figcaption').textContent.startsWith('Photo 1 · added '));
 });
@@ -958,4 +962,110 @@ test('office staff delete a wrong photo, or remove the whole licence early with 
     early.set('licenceNumber', 'x12');
     await early.submit('licence');
     assert.equal(early.status(), 'Saved the licence.', '022 repeats no part of a short number');
+});
+
+/**
+ * Licences due within 30 days: L-0004 (closed 350 days ago), another project's load (closed 360 days ago) and L-0006,
+ * kept past its date (closed 380 days ago).
+ */
+function dueSoonWorld() {
+    const state = world();
+    Object.assign(state.loads[3], { closed_at: ago(350) });
+    const copy = (n, number, extra) => {
+        state.loads.push({ ...state.loads[3], id: id(n), load_number: number, ...extra });
+        state.load_driver_licences.push({ ...state.load_driver_licences[1], load_id: id(n), project_id: extra.project_id || P });
+    };
+    copy(36, 'L-0006', { closed_at: ago(380) });
+    copy(37, 'L-0001', { project_id: 'p2', closed_at: ago(360) });
+    state.driver_licence_holds.push({ load_id: id(36), project_id: P, reason: 'The driver still has our GPS tracker', held_at: ago(20) });
+    return state;
+}
+const dayOf = (daysAgo, after = 365) => new Date(Date.parse(ago(daysAgo)) + after * 86400000).toLocaleDateString();
+
+test('office staff see licences due for removal in the next 30 days, after housekeeping, and keep or release them there', async () => {
+    const page = await openPage({ state: dueSoonWorld() });
+    const order = page.server.log.filter(request => request.rpc).map(request => request.rpc);
+    assert.deepEqual(order.slice(0, 2), ['driver_licences_due_for_removal', 'driver_licences_due_soon'], 'the warning is read once housekeeping is done');
+    assert.deepEqual(plain(page.server.calls('driver_licences_due_soon')[0].args), { p_days: 30 });
+    assert.equal(page.server.calls('remove_driver_licence').length, 0, 'the kept, overdue licence is left alone');
+    const box = page.$('licenceWarning');
+    assert.equal(box.hidden, false);
+    assert.equal(box.querySelector('h2').textContent, 'Driver licences due for removal in the next 30 days');
+    assert.ok(box.textContent.includes(`2 licences will be removed, the first (L-0001 in South Yard project) on ${dayOf(360)}. 1 is being kept.`));
+    const toggle = page.find('Show the 3 licences', box);
+    assert.deepEqual([toggle.getAttribute('aria-expanded'), page.$('licenceWarningList').hidden], ['false', true]);
+    toggle.click();
+    assert.deepEqual([page.find('Hide the list', box).getAttribute('aria-expanded'), page.$('licenceWarningList').hidden], ['true', false]);
+    const items = () => page.$('licenceWarningList').childNodes.map(item => item.textContent);
+    assert.deepEqual(items(), [`L-0006Due since ${dayOf(380)}KeptKept: The driver still has our GPS trackerRelease`, `L-0001 in South Yard projectDue ${dayOf(360)}Keep`,
+        `L-0004Due ${dayOf(350)}Keep`], 'earliest first, overdue kept ones included');
+    const link = page.$('licenceWarningList').querySelector('a');
+    assert.deepEqual([link.textContent, link.href], ['L-0006', `loads.html?load=${encodeURIComponent(id(36))}`]);
+
+    await page.press("Keep the driver's licence of L-0004 past its removal date", box);
+    assertFocus(page, page.$('warningKeepReason'));
+    page.$('warningKeepReason').value = 'Hold'; page.$('warningKeepReason').dispatch('input');
+    await box.querySelector('.reason-form').onsubmit({ preventDefault() {} }); await settle();
+    assert.ok(box.textContent.includes('Give a reason of at least 5 characters.'));
+    assert.equal(page.server.calls('keep_driver_licence').length, 0);
+    page.$('warningKeepReason').value = 'Driver kept tracker T-88'; page.$('warningKeepReason').dispatch('input');
+    await box.querySelector('.reason-form').onsubmit({ preventDefault() {} }); await settle();
+    assert.deepEqual(plain(page.server.calls('keep_driver_licence').map(call => call.args)), [{ p_load_id: id(34), p_reason: 'Driver kept tracker T-88' }]);
+    assert.ok(box.textContent.includes(`Keeping the driver's licence of L-0004 past ${dayOf(350)}.`));
+    assert.ok(items()[2].includes('Kept: Driver kept tracker T-88'));
+    assertFocus(page, page.find("Release the driver's licence of L-0004", box));
+
+    await page.press("Release the driver's licence of L-0006", box);
+    assert.equal(page.confirms.at(-1), "Stop keeping the driver's licence of L-0006? It is past its removal date, so the daily job removes it the next time it runs.");
+    assert.deepEqual(plain(page.server.calls('release_driver_licence_hold').map(call => call.args)), [{ p_load_id: id(36) }]);
+    assert.ok(box.textContent.includes("The driver's licence of L-0006 is no longer kept."));
+
+    link.onclick({ preventDefault() {} }); await settle();
+    assert.equal(page.drawer.open, true, 'the link opens the load here');
+});
+
+test('crews never see or ask for the licence warning; a failed check says so', async () => {
+    const crew = await openPage({ role: 'field_worker', state: dueSoonWorld() });
+    assert.equal(crew.$('licenceWarning').childNodes.length, 0);
+    assert.equal(crew.server.calls('driver_licences_due_soon').length, 0);
+    const failing = await openPage({ fail: request => request.rpc === 'driver_licences_due_soon' && { code: 'PGRST301', message: 'JWT expired' } });
+    assert.equal(failing.$('licenceWarning').hidden, false);
+    assert.ok(failing.$('licenceWarning').textContent.includes('They could not be checked (JWT expired).'));
+    const quiet = await openPage();
+    assert.equal(quiet.$('licenceWarning').hidden, true, 'nothing due, nothing shown');
+});
+
+test("a load's licence section gives its removal date, and office staff keep it with a reason or release it", async () => {
+    const page = await openPage();
+    await page.open('L-0002');
+    const due = new Date(page.server.model.views.load_overview().find(row => row.id === id(32)).licence_due_at).toLocaleDateString();
+    assert.ok(page.section('licence').textContent.includes(`Due for removal on ${due}.`));
+    await page.press("Keep L-0002's driver's licence past its removal date");
+    assertFocus(page, page.input('keepReason'));
+    page.set('keepReason', 'Tracker recovery in progress');
+    await submitForm(page, 'licence', '.reason-form');
+    assert.deepEqual(plain(page.server.calls('keep_driver_licence').map(call => call.args)), [{ p_load_id: id(32), p_reason: 'Tracker recovery in progress' }]);
+    assert.equal(page.status(), `Keeping L-0002's driver's licence past ${due}.`);
+    assert.ok(page.section('licence').textContent.includes(`Kept past its removal date (${due}): Tracker recovery in progress`));
+    assert.equal(page.find('Remove the licence'), undefined, 'a kept licence is released before it can be removed');
+    assertFocus(page, page.find("Release L-0002's driver's licence"));
+    await page.press("Release L-0002's driver's licence");
+    assert.equal(page.confirms.at(-1), `Stop keeping L-0002's driver's licence? It will be removed on ${due}.`);
+    assert.equal(page.status(), "L-0002's driver's licence is no longer kept.");
+    assert.ok(page.find('Remove the licence'));
+
+    // Past its date and kept: shown as text, not offered for recording again.
+    const kept = await openPage({ state: dueSoonWorld() });
+    kept.$('showFinished').click();
+    await kept.open('L-0006');
+    assert.ok(kept.section('licence').textContent.includes(`Kept past its removal date (${dayOf(380)}): The driver still has our GPS tracker`));
+    assert.equal(kept.input('licenceNumber'), null);
+    assert.ok(kept.section('licence').textContent.includes('Licence numberR9876-5432'));
+    // Crews read whether the licence is complete from load_overview, not when something was last recorded.
+    const state = noLicence();
+    state.loads[0].licence_recorded_at = ago(0);
+    state.driver_licence_photos.push({ id: id(74), load_id: id(31), project_id: P, storage_path: `${id(31)}/front.jpg`, created_at: ago(0), removed_at: null });
+    const crew = await openPage({ role: 'field_worker', state });
+    await crew.open('L-0001');
+    assert.equal(crew.find("Depart with what's on board").disabled, true, 'a photo without the number is not enough');
 });

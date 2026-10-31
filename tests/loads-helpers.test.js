@@ -107,7 +107,7 @@ test('only outside shops and vendors are places nobody scans', () => {
     assert.deepEqual(['outside_shop', 'vendor', 'yard', 'site', 'other', undefined].map(loads.unscannedPlace), [true, true, false, false, false, false]);
 });
 
-test('only changed details are sent; a licence is ready for departure with a number and a photo, and can be recorded until 90 days after closing', () => {
+test("only changed details are sent; a licence is ready for departure with a number and a photo, and can be recorded until its removal date", () => {
     assert.deepEqual(loads.changedKeys({ originPlaceId: 'p1', notes: 'New', driverName: 'Dana' }, { originPlaceId: 'p1', notes: '', driverName: 'Dana' }), { notes: 'New' });
     assert.deepEqual(loads.changedKeys({ notes: '' }, { notes: 'Old' }), { notes: '' }, 'clearing a field is a change');
     assert.equal(loads.licenceReady({ licence_number: 'D123' }, [{ id: 'f' }]), true);
@@ -115,9 +115,11 @@ test('only changed details are sent; a licence is ready for departure with a num
     assert.equal(loads.licenceReady({ licence_number: null, removed_at: 'x' }, [{ id: 'f' }]), false, 'a removed number is no number');
     assert.equal(loads.licenceReady(null, [{ id: 'f' }]), false);
     const now = Date.parse('2026-10-31T12:00:00Z'), day = 86400000;
-    assert.equal(loads.licencePastRetention({ closed_at: null }, now), false);
-    assert.equal(loads.licencePastRetention({ closed_at: new Date(now - 89 * day).toISOString() }, now), false);
-    assert.equal(loads.licencePastRetention({ closed_at: new Date(now - 91 * day).toISOString() }, now), true);
+    // 023 gives each load's date in load_overview.licence_due_at; the page never counts the days itself.
+    assert.equal(loads.licencePastDue({ licence_due_at: null }, now), false);
+    assert.equal(loads.licencePastDue({ licence_due_at: new Date(now + day).toISOString() }, now), false);
+    assert.equal(loads.licencePastDue({ licence_due_at: new Date(now - day).toISOString(), closed_at: new Date(now - 2 * day).toISOString() }, now), true);
+    assert.equal(loads.DUE_SOON_DAYS, 30);
 });
 
 test("reasons are 022's 5 to 500 characters, trimmed", () => {
