@@ -1,7 +1,8 @@
 // Runs material-tracking-supabase.js (PO & Installation) through the real project-scoped client against a fake Supabase
-// that applies material_links' row security as migration 013 left it: project members read, office staff insert and
-// update while the project is active, and no one deletes. Like PostgREST, a write that row security turns away is not
-// an error: it changes no row and sends none back, so the page has to notice that itself.
+// that applies material_links' row security as migrations 013 and 024 leave it: project members read, office staff insert
+// and update while the project is active, and no one deletes directly. Like PostgREST, a write that row security turns away
+// is not an error: it changes no row and sends none back, so the page has to notice that itself. Administrators edit a
+// link's details and delete links through 024's functions, which the fake answers as the database would.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -15,11 +16,10 @@ const link = (id, extra = {}) => ({ id, project_id: P, po_id: `PO-2000${id}`, po
     install_discipline: 'Mechanical', install_description: 'Valve', quantity: 2, uom: 'EA', material_status: 'ordered', receipt_date: null, receipt_location: null,
     installation_date: null, notes: null, linked_by: 'User', created_at: '2026-10-01T12:00:00Z', updated_at: '2026-10-01T12:00:00Z', ...extra });
 
-/** The page as `role` sees it. `deletes` stands in for a delete policy the database doesn't have: who it would let delete. */
-async function openPage({ role = 'office_staff', projectStatus = 'active', deletes = () => false, answer = 'shipped' } = {}) {
+/** The page as `role` sees it. `answer` is what the prompt gets back; `refuse` makes 024's functions turn a call down. */
+async function openPage({ role = 'office_staff', projectStatus = 'active', answer = 'shipped', refuse = null } = {}) {
     const office = ['office_staff', 'admin'].includes(role), working = projectStatus === 'active';
-    const allowed = { update: office && working, delete: deletes({ office, working }) };
-    const server = { links: [link(7), link(8, { material_status: 'shipped' })], log: [] };
+    const server = { links: [link(7), link(8, { material_status: 'shipped' })], log: [], rpcs: [] };
     class Query {
         constructor(table) { this.request = { table, action: 'select', filters: [] }; server.log.push(this.request); }
         select(columns) { if (this.request.action === 'select') this.request.columns = columns; else this.request.returning = columns ?? '*'; return this; }
@@ -32,16 +32,30 @@ async function openPage({ role = 'office_staff', projectStatus = 'active', delet
     function respond(request) {
         const matched = server.links.filter(row => request.filters.every(([key, value]) => row[key] === value));
         if (request.action === 'select') return { data: structuredClone(matched), error: null };
-        const changed = allowed[request.action] ? matched : [];
-        if (request.action === 'update') changed.forEach(row => Object.assign(row, request.values));
-        else server.links = server.links.filter(row => !changed.includes(row));
+        const changed = request.action === 'update' && office && working ? matched : [];
+        changed.forEach(row => Object.assign(row, request.values));
         return { data: request.returning ? structuredClone(changed) : null, error: null };
     }
+    // 024's functions: administrators on an active project only, as the database checks.
+    async function rpc(name, params) {
+        server.rpcs.push([name, structuredClone(params)]);
+        if (refuse) return { data: null, error: refuse };
+        if (!(role === 'admin' && working)) return { data: null, error: { code: '42501', message: `Only an administrator can ${name === 'admin_delete_material_link' ? 'delete' : 'edit'} a link` } };
+        if (name === 'admin_delete_material_link') {
+            server.links = server.links.filter(row => row.id !== params.p_link_id);
+            return { data: { link_id: params.p_link_id, status_history_removed: 0, trackers_unlinked: 0 }, error: null };
+        }
+        const row = server.links.find(item => item.id === params.p_link_id);
+        Object.assign(row, params.p_changes);
+        return { data: structuredClone(row), error: null };
+    }
     const { document } = fakeDocument();
-    const alerts = [], confirms = [];
+    const alerts = [];
     const context = {
         document, console: { log() {}, error() {} }, structuredClone, InvenioAuthReady: Promise.resolve(true),
-        confirm: text => { confirms.push(text); return true; }, alert: text => { alerts.push(text); }, prompt: () => answer,
+        InvenioCurrentProfile: { role }, InvenioProjectScope: { activeProject: { id: P, status: projectStatus } },
+        confirm: () => true, alert: text => { alerts.push(text); }, prompt: () => answer,
+        supabaseClient: { rpc },
         projectSupabaseClient: createProjectScopedClient({ from: table => new Query(table) }, () => P),
     };
     context.window = context;
@@ -49,30 +63,101 @@ async function openPage({ role = 'office_staff', projectStatus = 'active', delet
     vm.runInContext(source, context);
     const run = async code => { await vm.runInContext(code, context); await settle(); };
     await run('loadMaterialLinks()');
-    return { server, alerts, confirms, run, listed: () => [...vm.runInContext('state.materialLinks.map(link => link.id)', context)],
+    const field = id => document.getElementById(id);
+    return { server, alerts, run, field, table: () => field('linksTableBody').innerHTML,
+        listed: () => [...vm.runInContext('state.materialLinks.map(link => link.id)', context)],
         writes: () => server.log.filter(request => request.action !== 'select'), row: id => server.links.find(row => row.id === id) };
 }
 
-test("Delete says the link wasn't deleted when row security deletes nothing, as it does for everyone since 013", async () => {
-    for (const role of ['office_staff', 'admin']) {
-        const page = await openPage({ role });
-        assert.deepEqual(page.listed(), [7, 8]);
-        await page.run('deleteLink(7)');
-        assert.deepEqual(page.confirms, ['Are you sure you want to delete link #7? This action cannot be undone.']);
-        const [remove] = page.writes();
-        assert.deepEqual([remove.action, [...remove.filters].sort()], ['delete', [['id', 7], ['project_id', P]]], 'the link, in the open project');
-        assert.deepEqual(page.alerts, ["✗ Failed to delete link: material links can't be deleted."], role);
-        assert.deepEqual(page.listed(), [7, 8]);
-        assert.ok(page.row(7), 'still stored');
+test('only an administrator on an active project gets Edit and Delete', async () => {
+    for (const [options, admin] of [[{ role: 'office_staff' }, false], [{ role: 'field_worker' }, false], [{ role: 'admin' }, true], [{ role: 'admin', projectStatus: 'completed' }, false]]) {
+        const page = await openPage(options);
+        assert.match(page.table(), /updateLinkStatus\(7, 'ordered'\)/, JSON.stringify(options));
+        assert.equal(/editLink\(7\)/.test(page.table()), admin, `Edit: ${JSON.stringify(options)}`);
+        assert.equal(/deleteLink\(7\)/.test(page.table()), admin, `Delete: ${JSON.stringify(options)}`);
     }
 });
 
-test('Delete reports success only when the database sends the deleted row back', async () => {
-    const page = await openPage({ deletes: ({ office, working }) => office && working });
+test('Delete asks why, sends the reason to the audited function, and drops the link', async () => {
+    const page = await openPage({ role: 'admin', answer: '  Linked to the wrong PO  ' });
     await page.run('deleteLink(7)');
-    assert.deepEqual(page.alerts, ['✓ Link deleted successfully!']);
+    assert.deepEqual(page.server.rpcs, [['admin_delete_material_link', { p_link_id: 7, p_reason: 'Linked to the wrong PO' }]]);
+    assert.deepEqual(page.writes(), [], 'nothing deletes the row directly');
+    assert.deepEqual(page.alerts, ['✓ Link #7 deleted.']);
     assert.deepEqual(page.listed(), [8]);
-    assert.equal(page.row(7), undefined);
+});
+
+test('Delete sends nothing when cancelled or without a reason of 5 characters', async () => {
+    const cancelled = await openPage({ role: 'admin', answer: null });
+    await cancelled.run('deleteLink(7)');
+    assert.deepEqual([cancelled.server.rpcs, cancelled.alerts], [[], []]);
+    const short = await openPage({ role: 'admin', answer: 'oops' });
+    await short.run('deleteLink(7)');
+    assert.deepEqual(short.server.rpcs, []);
+    assert.deepEqual(short.alerts, ['✗ Link not deleted: give a reason of 5 to 500 characters.']);
+    assert.deepEqual(short.listed(), [7, 8]);
+});
+
+test('a delete the database refuses says why and keeps the link', async () => {
+    const page = await openPage({ role: 'office_staff', answer: 'Made in error' });
+    await page.run('deleteLink(7)');
+    assert.deepEqual(page.alerts, ['✗ Failed to delete link: Only an administrator can delete a link']);
+    assert.deepEqual(page.listed(), [7, 8]);
+    assert.ok(page.row(7), 'still stored');
+});
+
+test('Edit sends only what changed, with the reason, and closes once saved', async () => {
+    const page = await openPage({ role: 'admin' });
+    await page.run('editLink(7)');
+    const dialog = page.field('linkEditDialog');
+    assert.equal(dialog.open, true);
+    assert.equal(page.field('linkEdit-install_tag').value, 'V-107');
+    assert.equal(page.field('linkEdit-install_discipline').value, 'Mechanical');
+    page.field('linkEdit-install_tag').value = ' V-107A ';
+    page.field('linkEdit-quantity').value = '3';
+    page.field('linkEdit-po_description').value = '';
+    page.field('linkEditReason').value = 'Tag was mistyped on the drawing';
+    await page.run('saveLinkEdit(7)');
+    assert.deepEqual(page.server.rpcs, [['admin_update_material_link',
+        { p_link_id: 7, p_changes: { po_description: null, install_tag: 'V-107A', quantity: 3 }, p_reason: 'Tag was mistyped on the drawing' }]]);
+    assert.equal(dialog.open, false);
+    assert.deepEqual(page.alerts, ['✓ Link #7 updated.']);
+    assert.equal(page.row(7).install_tag, 'V-107A');
+    assert.deepEqual(page.writes(), [], 'details are never written to the table directly');
+});
+
+test('Edit checks the form before sending anything', async () => {
+    const page = await openPage({ role: 'admin' });
+    await page.run('editLink(7)');
+    const message = () => page.field('linkEditMessage').textContent;
+    const save = async () => { await page.run('saveLinkEdit(7)'); return message(); };
+    assert.equal(await save(), 'Nothing has changed.');
+    page.field('linkEdit-po_id').value = '  ';
+    assert.equal(await save(), 'A link needs a PO number.');
+    page.field('linkEdit-po_id').value = 'PO-20007';
+    page.field('linkEdit-po_line_item').value = '1.5';
+    assert.equal(await save(), 'The PO line must be a whole number, 0 or more.');
+    page.field('linkEdit-po_line_item').value = '10';
+    page.field('linkEdit-quantity').value = '-2';
+    assert.equal(await save(), 'The quantity must be a number, 0 or more.');
+    page.field('linkEdit-quantity').value = '4';
+    page.field('linkEditReason').value = 'typo';
+    assert.equal(await save(), 'Give a reason of 5 to 500 characters.');
+    assert.deepEqual(page.server.rpcs, []);
+    assert.equal(page.field('linkEditDialog').open, true);
+});
+
+test('an edit the database turns down stays open and says why', async () => {
+    const page = await openPage({ role: 'admin', refuse: { code: '22023', message: 'The discipline is Civil, Electrical, Instrumentation, Mechanical or Steel' } });
+    await page.run('editLink(7)');
+    page.field('linkEdit-install_tag').value = 'V-200';
+    page.field('linkEditReason').value = 'Renumbered on the drawing';
+    await page.run('saveLinkEdit(7)');
+    assert.equal(page.field('linkEditMessage').textContent, 'Not saved: The discipline is Civil, Electrical, Instrumentation, Mechanical or Steel');
+    assert.equal(page.field('linkEditMessage').hidden, false);
+    assert.equal(page.field('linkEditDialog').open, true);
+    assert.equal(page.field('linkEditSave').disabled, false);
+    assert.deepEqual(page.alerts, []);
 });
 
 test("a status change row security turns away says so, for a field worker or a project that isn't active", async () => {
@@ -80,7 +165,7 @@ test("a status change row security turns away says so, for a field worker or a p
         const page = await openPage(options);
         await page.run("updateLinkStatus(7, 'ordered')");
         assert.deepEqual(page.writes().map(request => [request.action, request.values.material_status]), [['update', 'shipped']]);
-        assert.deepEqual(page.alerts, ['✗ Failed to update status: only office staff can change links, and only while the project is active.'], JSON.stringify(options));
+        assert.deepEqual(page.alerts, ['✗ Failed to update status: only office staff can change links, and only while the project is active.'], JSON.stringify(options))
         assert.equal(page.row(7).material_status, 'ordered');
     }
     const office = await openPage();

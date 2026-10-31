@@ -369,28 +369,38 @@ function renderMaterialLinks(links) {
         return;
     }
 
+    const admin = linkAdmin();
     tbody.innerHTML = links.map(link => `
         <tr>
             <td>${link.id}</td>
-            <td>${link.po_id}</td>
+            <td>${escapeMaterialText(link.po_id)}</td>
             <td>${escapeMaterialText(truncate(link.po_description || 'N/A', 40))}</td>
-            <td>${link.install_tag || 'N/A'}</td>
-            <td>${link.install_discipline || 'N/A'}</td>
-            <td>${link.quantity || 'N/A'} ${link.uom || ''}</td>
+            <td>${escapeMaterialText(link.install_tag || 'N/A')}</td>
+            <td>${escapeMaterialText(link.install_discipline || 'N/A')}</td>
+            <td>${link.quantity || 'N/A'} ${escapeMaterialText(link.uom || '')}</td>
             <td><span class="status-badge status-${link.material_status}">${capitalizeFirst(link.material_status)}</span></td>
             <td>${formatDate(link.created_at)}</td>
             <td>
                 <div class="action-buttons">
                     <button class="btn-action btn-update" onclick="updateLinkStatus(${link.id}, '${link.material_status}')">
                         <i class="fas fa-edit"></i> Update
+                    </button>${admin ? `
+                    <button class="btn-action btn-update" onclick="editLink(${link.id})">
+                        <i class="fas fa-pen"></i> Edit
                     </button>
                     <button class="btn-action btn-delete" onclick="deleteLink(${link.id})">
                         <i class="fas fa-trash"></i> Delete
-                    </button>
+                    </button>` : ''}
                 </div>
             </td>
         </tr>
     `).join('');
+}
+
+// 024: administrators edit a link's PO and installation details and delete links, each with a reason, through audited
+// functions; office staff change a link's status. The database decides; this only chooses the buttons.
+function linkAdmin() {
+    return window.InvenioCurrentProfile?.role === 'admin' && window.InvenioProjectScope?.activeProject?.status === 'active';
 }
 
 // ============================================================================
@@ -605,27 +615,147 @@ async function updateLinkStatus(linkId, currentStatus) {
 
 async function deleteLink(linkId) {
     if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
-    if (!confirm(`Are you sure you want to delete link #${linkId}? This action cannot be undone.`)) {
+    const answer = prompt(`Why delete link #${linkId}? Its status history goes with it and any tracker on it is unlinked. Your reason is recorded (5 to 500 characters).`);
+    if (answer === null) return;
+    const reason = answer.trim();
+    if (reason.length < 5 || reason.length > 500) {
+        showError('Link not deleted: give a reason of 5 to 500 characters.');
         return;
     }
 
     try {
-        // The deleted row is asked for back: row security turns a delete away without an error, and then none comes back.
-        // Since migration 013 no policy lets anyone delete material links.
-        const { data, error } = await projectSupabaseClient.from('material_links')
-            .delete()
-            .eq('id', linkId)
-            .select('id');
-
+        // 024: only administrators delete, through a function that records the link, its status history and its trackers.
+        const { error } = await supabaseClient.rpc('admin_delete_material_link', { p_link_id: linkId, p_reason: reason });
         if (error) throw error;
-        if (!data?.length) throw new Error("material links can't be deleted.");
 
-        showSuccess('Link deleted successfully!');
+        showSuccess(`Link #${linkId} deleted.`);
         await loadMaterialLinks();
 
     } catch (error) {
         console.error('Error deleting link:', error);
         showError(`Failed to delete link: ${error.message}`);
+    }
+}
+
+// The details an administrator edits, in the form's order: [column, label, input type].
+const LINK_DETAILS = [
+    ['po_id', 'PO number', 'text'], ['po_line_item', 'PO line', 'number'], ['po_description', 'PO description', 'text'],
+    ['install_tag', 'Install tag', 'text'], ['install_discipline', 'Discipline', 'select'], ['install_description', 'Install description', 'text'],
+    ['quantity', 'Quantity', 'number'], ['uom', 'Unit', 'text'],
+];
+const LINK_DISCIPLINES = ['Civil', 'Electrical', 'Instrumentation', 'Mechanical', 'Steel'];
+
+/** Opens the edit form for an administrator, filled with the link's details. */
+function editLink(linkId) {
+    const link = state.materialLinks.find(item => item.id === linkId);
+    const dialog = document.getElementById('linkEditDialog');
+    if (!link || !dialog) return;
+    const make = (tag, className, text) => {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text) node.textContent = text;
+        return node;
+    };
+    const form = make('form', 'link-edit');
+    const title = make('h2', 'h5', `Edit link #${link.id}`);
+    title.id = 'linkEditTitle';
+    form.append(title, make('p', 'small text-muted', 'Administrators only. The old and new values and your reason are recorded. Change the status with Update.'));
+    for (const [key, label, type] of LINK_DETAILS) {
+        const field = make('label', 'form-label d-block mb-2', label);
+        const input = make(type === 'select' ? 'select' : 'input', type === 'select' ? 'form-select' : 'form-control');
+        input.id = `linkEdit-${key}`;
+        if (type === 'select') {
+            for (const value of ['', ...LINK_DISCIPLINES]) {
+                const option = make('option', '', value || 'None');
+                option.value = value;
+                input.append(option);
+            }
+        } else {
+            input.type = type;
+            if (type === 'number') input.step = key === 'quantity' ? '0.01' : '1';
+        }
+        input.value = link[key] == null ? '' : String(link[key]);
+        field.append(input);
+        form.append(field);
+    }
+    const reasonField = make('label', 'form-label d-block mb-2', 'Why (5 to 500 characters)');
+    const reason = make('textarea', 'form-control');
+    reason.id = 'linkEditReason';
+    reason.rows = 2;
+    reason.maxLength = 500;
+    reasonField.append(reason);
+    const message = make('p', 'text-danger small mb-2');
+    message.id = 'linkEditMessage';
+    message.setAttribute('role', 'alert');
+    message.hidden = true;
+    const save = make('button', 'btn btn-primary', 'Save changes');
+    save.type = 'submit';
+    save.id = 'linkEditSave';
+    const cancel = make('button', 'btn btn-outline-secondary', 'Cancel');
+    cancel.type = 'button';
+    cancel.addEventListener('click', () => dialog.close());
+    const actions = make('div', 'd-flex gap-2');
+    actions.append(save, cancel);
+    form.append(reasonField, message, actions);
+    form.addEventListener('submit', event => {
+        event.preventDefault();
+        void saveLinkEdit(linkId);
+    });
+    dialog.replaceChildren(form);
+    if (!dialog.open) dialog.showModal();
+    document.getElementById('linkEdit-po_id').focus();
+}
+
+/** Sends the changed details and the reason. If they're turned down, the form stays open and says why. */
+async function saveLinkEdit(linkId) {
+    const link = state.materialLinks.find(item => item.id === linkId);
+    const message = document.getElementById('linkEditMessage');
+    const say = text => {
+        message.textContent = text;
+        message.hidden = !text;
+    };
+    if (!link) return;
+    const changes = {};
+    for (const [key, , type] of LINK_DETAILS) {
+        const text = String(document.getElementById(`linkEdit-${key}`).value ?? '').trim();
+        let value = text === '' ? null : text;
+        if (value !== null && type === 'number') {
+            value = Number(text);
+            if (!Number.isFinite(value) || value < 0 || (key === 'po_line_item' && !Number.isInteger(value))) {
+                say(key === 'po_line_item' ? 'The PO line must be a whole number, 0 or more.' : 'The quantity must be a number, 0 or more.');
+                return;
+            }
+        }
+        const before = link[key] == null ? null : type === 'number' ? Number(link[key]) : String(link[key]);
+        if (value !== before) changes[key] = value;
+    }
+    if (!Object.keys(changes).length) {
+        say('Nothing has changed.');
+        return;
+    }
+    if (changes.po_id === null) {
+        say('A link needs a PO number.');
+        return;
+    }
+    const reason = String(document.getElementById('linkEditReason').value ?? '').trim();
+    if (reason.length < 5 || reason.length > 500) {
+        say('Give a reason of 5 to 500 characters.');
+        return;
+    }
+    say('');
+    const save = document.getElementById('linkEditSave');
+    save.disabled = true;
+    try {
+        const { error } = await supabaseClient.rpc('admin_update_material_link', { p_link_id: linkId, p_changes: changes, p_reason: reason });
+        if (error) throw error;
+        document.getElementById('linkEditDialog').close();
+        showSuccess(`Link #${linkId} updated.`);
+        await loadMaterialLinks();
+    } catch (error) {
+        console.error('Error editing link:', error);
+        say(`Not saved: ${error.message}`);
+    } finally {
+        save.disabled = false;
     }
 }
 
