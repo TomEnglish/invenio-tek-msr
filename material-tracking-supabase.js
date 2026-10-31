@@ -637,19 +637,31 @@ async function deleteLink(linkId) {
     }
 }
 
-// The details an administrator edits, in the form's order: [column, label, input type].
+// The details an administrator edits, in the form's order: [column, label, input type]. Descriptions are text areas,
+// so their line breaks survive.
 const LINK_DETAILS = [
-    ['po_id', 'PO number', 'text'], ['po_line_item', 'PO line', 'number'], ['po_description', 'PO description', 'text'],
-    ['install_tag', 'Install tag', 'text'], ['install_discipline', 'Discipline', 'select'], ['install_description', 'Install description', 'text'],
+    ['po_id', 'PO number', 'text'], ['po_line_item', 'PO line', 'number'], ['po_description', 'PO description', 'textarea'],
+    ['install_tag', 'Install tag', 'text'], ['install_discipline', 'Discipline', 'select'], ['install_description', 'Install description', 'textarea'],
     ['quantity', 'Quantity', 'number'], ['uom', 'Unit', 'text'],
 ];
 const LINK_DISCIPLINES = ['Civil', 'Electrical', 'Instrumentation', 'Mechanical', 'Steel'];
+// The link as the open form was filled from it. Saving compares with this, not with the list, which live updates
+// can change while the form is open.
+let linkEditing = null;
+
+/** A detail as the database keeps it: text without whitespace at either end, a number, or nothing. */
+function linkDetail(value, type) {
+    const text = value == null ? '' : String(value).trim();
+    if (text === '') return null;
+    return type === 'number' ? Number(text) : text;
+}
 
 /** Opens the edit form for an administrator, filled with the link's details. */
 function editLink(linkId) {
     const link = state.materialLinks.find(item => item.id === linkId);
     const dialog = document.getElementById('linkEditDialog');
     if (!link || !dialog) return;
+    linkEditing = { linkId, original: { ...link } };
     const make = (tag, className, text) => {
         const node = document.createElement(tag);
         if (className) node.className = className;
@@ -662,7 +674,7 @@ function editLink(linkId) {
     form.append(title, make('p', 'small text-muted', 'Administrators only. The old and new values and your reason are recorded. Change the status with Update.'));
     for (const [key, label, type] of LINK_DETAILS) {
         const field = make('label', 'form-label d-block mb-2', label);
-        const input = make(type === 'select' ? 'select' : 'input', type === 'select' ? 'form-select' : 'form-control');
+        const input = make(type === 'select' || type === 'textarea' ? type : 'input', type === 'select' ? 'form-select' : 'form-control');
         input.id = `linkEdit-${key}`;
         if (type === 'select') {
             for (const value of ['', ...LINK_DISCIPLINES]) {
@@ -670,6 +682,8 @@ function editLink(linkId) {
                 option.value = value;
                 input.append(option);
             }
+        } else if (type === 'textarea') {
+            input.rows = 2;
         } else {
             input.type = type;
             if (type === 'number') input.step = key === 'quantity' ? '0.01' : '1';
@@ -706,28 +720,34 @@ function editLink(linkId) {
     document.getElementById('linkEdit-po_id').focus();
 }
 
-/** Sends the changed details and the reason. If they're turned down, the form stays open and says why. */
+/**
+ * Sends the details changed since the form opened, with what they were then and the reason. If the change is turned
+ * down, including because someone changed one of those details meanwhile, the form stays open and says why.
+ */
 async function saveLinkEdit(linkId) {
-    const link = state.materialLinks.find(item => item.id === linkId);
     const message = document.getElementById('linkEditMessage');
     const say = text => {
         message.textContent = text;
         message.hidden = !text;
     };
-    if (!link) return;
-    const changes = {};
+    if (linkEditing?.linkId !== linkId) return;
+    if (!state.materialLinks.some(item => item.id === linkId)) {
+        say(`Link #${linkId} has been deleted.`);
+        return;
+    }
+    const original = linkEditing.original;
+    const changes = {}, expected = {};
     for (const [key, , type] of LINK_DETAILS) {
-        const text = String(document.getElementById(`linkEdit-${key}`).value ?? '').trim();
-        let value = text === '' ? null : text;
-        if (value !== null && type === 'number') {
-            value = Number(text);
-            if (!Number.isFinite(value) || value < 0 || (key === 'po_line_item' && !Number.isInteger(value))) {
-                say(key === 'po_line_item' ? 'The PO line must be a whole number, 0 or more.' : 'The quantity must be a number, 0 or more.');
-                return;
-            }
+        const value = linkDetail(document.getElementById(`linkEdit-${key}`).value, type === 'number' ? 'number' : 'text');
+        if (value !== null && type === 'number'
+            && (!Number.isFinite(value) || value < 0 || (key === 'po_line_item' && !Number.isInteger(value)))) {
+            say(key === 'po_line_item' ? 'The PO line must be a whole number, 0 or more.' : 'The quantity must be a number, 0 or more.');
+            return;
         }
-        const before = link[key] == null ? null : type === 'number' ? Number(link[key]) : String(link[key]);
-        if (value !== before) changes[key] = value;
+        if (value !== linkDetail(original[key], type === 'number' ? 'number' : 'text')) {
+            changes[key] = value;
+            expected[key] = original[key] ?? null;
+        }
     }
     if (!Object.keys(changes).length) {
         say('Nothing has changed.');
@@ -746,8 +766,10 @@ async function saveLinkEdit(linkId) {
     const save = document.getElementById('linkEditSave');
     save.disabled = true;
     try {
-        const { error } = await supabaseClient.rpc('admin_update_material_link', { p_link_id: linkId, p_changes: changes, p_reason: reason });
+        const { error } = await supabaseClient.rpc('admin_update_material_link',
+            { p_link_id: linkId, p_changes: changes, p_reason: reason, p_expected: expected });
         if (error) throw error;
+        linkEditing = null;
         document.getElementById('linkEditDialog').close();
         showSuccess(`Link #${linkId} updated.`);
         await loadMaterialLinks();

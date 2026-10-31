@@ -11,6 +11,8 @@ INSERT INTO public.material_links(id,po_id,po_line_item,po_description,install_t
  (902,'PO-1002',20,'Cable tray','CT-7','Electrical',40,'FT','b1111111-1111-4111-8111-111111111111'),
  (903,'PO-1003',30,'Other project','X-1','Civil',1,'EA','b2222222-2222-4222-8222-222222222222'),
  (904,'PO-1004',40,'Finished job','Y-1','Steel',1,'EA','b3333333-3333-4333-8333-333333333333');
+INSERT INTO public.material_links(id,po_id,po_description,install_tag,project_id)
+ VALUES (905,'PO-1005',repeat('Long description. ',150),'L-1','b1111111-1111-4111-8111-111111111111');
 INSERT INTO public.material_status_history(link_id,old_status,new_status,changed_by,project_id)
  VALUES (902,'ordered','shipped','Office','b1111111-1111-4111-8111-111111111111');
 INSERT INTO public.samsara_trackers(id,name,linked_material_id,project_id)
@@ -30,6 +32,12 @@ DO $$ DECLARE n int; BEGIN
 END $$;
 SELECT pg_temp.expect_error($q$UPDATE public.material_links SET install_tag='V-999' WHERE id=901$q$,'42501','office staff can''t change an install tag directly');
 SELECT pg_temp.expect_error($q$UPDATE public.material_links SET project_id='b2222222-2222-4222-8222-222222222222' WHERE id=901$q$,'42501','a link stays in its project');
+SELECT pg_temp.expect_error($q$UPDATE public.material_links SET id=88888 WHERE id=901$q$,'42501','a link keeps its number, so no one can swap links');
+DO $$ DECLARE n bigint; BEGIN
+ INSERT INTO public.material_links(id,po_id,project_id) VALUES (902,'PO-REUSE','b1111111-1111-4111-8111-111111111111') RETURNING id INTO n;
+ PERFORM pg_temp.assert_true(n NOT IN (901,902,903,904,905),'a new link gets the next number, not the one it asked for');
+ DELETE FROM public.material_links WHERE id=n;
+END $$;
 SELECT pg_temp.expect_error($q$SELECT public.admin_update_material_link(901,'{"install_tag":"V-999"}','Tag was mistyped')$q$,'42501','office staff can''t edit a link');
 SELECT pg_temp.expect_error($q$SELECT public.admin_delete_material_link(901,'Made in error')$q$,'42501','office staff can''t delete a link');
 
@@ -49,13 +57,24 @@ SELECT pg_temp.expect_error($q$SELECT public.admin_update_material_link(901,'{"i
 SELECT pg_temp.expect_error($q$SELECT public.admin_update_material_link(901,'{"po_line_item":"ten"}','Line number fix')$q$,'22023','the PO line is a whole number');
 SELECT pg_temp.expect_error($q$SELECT public.admin_update_material_link(901,'{"quantity":-1}','Quantity fix')$q$,'22023','a quantity isn''t negative');
 SELECT pg_temp.expect_error($q$SELECT public.admin_update_material_link(901,'{"install_tag":{"tag":"V-1"}}','Nested value')$q$,'22023','a detail is text, a number or empty');
+SELECT pg_temp.expect_error($q$SELECT public.admin_update_material_link(901,'{"po_id":"\t\n"}','Clear the PO with tabs')$q$,'22023','a PO number of tabs and line breaks is no PO number');
+SELECT pg_temp.expect_error($q$SELECT public.admin_update_material_link(901,'{"install_tag":"V-9"}',E'\t\t\t\t\t')$q$,'22023','a reason of tabs is no reason');
+SELECT pg_temp.expect_error($q$SELECT public.admin_delete_material_link(901,repeat(chr(160),6))$q$,'22023','a reason of no-break spaces is no reason');
+SELECT pg_temp.expect_error($q$SELECT public.admin_update_material_link(901,'{"quantity":"NaN"}','Quantity fix')$q$,'22023','NaN is not a quantity');
+SELECT pg_temp.expect_error($q$SELECT public.admin_update_material_link(905,jsonb_build_object('po_description',repeat('x',2001)),'Too much text')$q$,'22023','a changed detail is at most 2000 characters');
+SELECT pg_temp.expect_error($q$SELECT public.admin_update_material_link(901,'{"install_tag":"V-9"}','Fix the tag','{"install_tag":"V-OLD"}')$q$,'40001','a detail someone else changed since the form opened isn''t overwritten');
+DO $$ DECLARE r public.material_links; BEGIN
+ r:=public.admin_update_material_link(905,'{"install_tag":"L-2"}','Retagged on site');
+ PERFORM pg_temp.assert_true(r.install_tag='L-2' AND length(r.po_description)>2000,'details left as they were aren''t checked');
+END $$;
 SELECT pg_temp.expect_error($q$SELECT public.admin_update_material_link(901,'{"install_tag":"V-101"}','Same tag again')$q$,'22023','an edit that changes nothing is refused');
 SELECT pg_temp.expect_error($q$SELECT public.admin_update_material_link(903,'{"install_tag":"X-2"}','Other project link')$q$,'42501','not on a project the administrator isn''t on');
 SELECT pg_temp.expect_error($q$SELECT public.admin_update_material_link(904,'{"install_tag":"Y-2"}','Finished project link')$q$,'42501','not on a completed project');
 SELECT pg_temp.expect_error($q$SELECT public.admin_delete_material_link(904,'Finished project link')$q$,'42501','no deleting on a completed project');
 SELECT pg_temp.expect_error($q$SELECT public.admin_delete_material_link(901,'typo')$q$,'22023','a delete needs a reason too');
 DO $$ DECLARE r public.material_links; BEGIN
- r:=public.admin_update_material_link(901,'{"install_tag":" V-101A ","quantity":"3","po_description":""}','Tag was mistyped on the drawing');
+ r:=public.admin_update_material_link(901,'{"install_tag":"\t V-101A \n","quantity":"3","po_description":""}',' Tag was mistyped on the drawing ',
+  '{"install_tag":"V-101","quantity":2,"po_description":"Six-inch valve"}');
  PERFORM pg_temp.assert_true(r.install_tag='V-101A' AND r.quantity=3 AND r.po_description IS NULL AND r.po_id='PO-1001'
   AND r.install_discipline='Mechanical' AND r.notes='On the truck','an edit changes only what it names, trimmed, and empty text clears');
 END $$;
@@ -69,7 +88,7 @@ RESET ROLE;
 
 -- What was recorded, and what the delete took with it.
 DO $$ DECLARE e jsonb; d jsonb; BEGIN
- SELECT details INTO e FROM public.audit_log WHERE action='material_link_edited';
+ SELECT details INTO e FROM public.audit_log WHERE action='material_link_edited' AND (details->>'link_id')::bigint=901;
  PERFORM pg_temp.assert_true((e->>'link_id')::bigint=901 AND e->>'reason'='Tag was mistyped on the drawing'
   AND e->'before'->>'install_tag'='V-101' AND e->'after'->>'install_tag'='V-101A'
   AND (e->'before'->>'quantity')::numeric=2 AND (e->'after'->>'quantity')::numeric=3
@@ -80,7 +99,7 @@ DO $$ DECLARE e jsonb; d jsonb; BEGIN
   AND jsonb_array_length(d->'status_history')=1 AND d->'status_history'->0->>'new_status'='shipped'
   AND d->'trackers_unlinked'='["trk-902"]'::jsonb AND d->>'reason'='Linked to the wrong PO','the delete''s record keeps the link, its history and its trackers');
  PERFORM pg_temp.assert_true((SELECT count(*) FROM public.audit_log WHERE action IN ('material_link_edited','material_link_deleted')
-  AND user_id='a1111111-1111-4111-8111-111111111111' AND project_id='b1111111-1111-4111-8111-111111111111')=2,'both are recorded against the administrator and project');
+  AND user_id='a1111111-1111-4111-8111-111111111111' AND project_id='b1111111-1111-4111-8111-111111111111')=3,'both are recorded against the administrator and project');
  PERFORM pg_temp.assert_true(NOT EXISTS(SELECT 1 FROM public.material_status_history WHERE link_id=902),'the status history went with the link');
  PERFORM pg_temp.assert_true(EXISTS(SELECT 1 FROM public.samsara_trackers WHERE id='trk-902' AND linked_material_id IS NULL),'the tracker is unlinked, not deleted');
 END $$;

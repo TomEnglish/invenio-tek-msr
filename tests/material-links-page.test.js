@@ -17,9 +17,10 @@ const link = (id, extra = {}) => ({ id, project_id: P, po_id: `PO-2000${id}`, po
     installation_date: null, notes: null, linked_by: 'User', created_at: '2026-10-01T12:00:00Z', updated_at: '2026-10-01T12:00:00Z', ...extra });
 
 /** The page as `role` sees it. `answer` is what the prompt gets back; `refuse` makes 024's functions turn a call down. */
-async function openPage({ role = 'office_staff', projectStatus = 'active', answer = 'shipped', refuse = null } = {}) {
+async function openPage({ role = 'office_staff', projectStatus = 'active', answer = 'shipped', refuse = null,
+    links = [link(7), link(8, { material_status: 'shipped' })] } = {}) {
     const office = ['office_staff', 'admin'].includes(role), working = projectStatus === 'active';
-    const server = { links: [link(7), link(8, { material_status: 'shipped' })], log: [], rpcs: [] };
+    const server = { links: structuredClone(links), log: [], rpcs: [] };
     class Query {
         constructor(table) { this.request = { table, action: 'select', filters: [] }; server.log.push(this.request); }
         select(columns) { if (this.request.action === 'select') this.request.columns = columns; else this.request.returning = columns ?? '*'; return this; }
@@ -46,6 +47,9 @@ async function openPage({ role = 'office_staff', projectStatus = 'active', answe
             return { data: { link_id: params.p_link_id, status_history_removed: 0, trackers_unlinked: 0 }, error: null };
         }
         const row = server.links.find(item => item.id === params.p_link_id);
+        // As 024 does with p_expected: a detail someone changed since the form opened isn't overwritten.
+        const moved = Object.keys(params.p_changes).filter(key => key in (params.p_expected ?? {}) && row[key] !== params.p_expected[key]);
+        if (moved.length) return { data: null, error: { code: '40001', message: `Link #${row.id} has changed since the form opened (${moved.join(', ').replace(/_/g, ' ')}); open it again` } };
         Object.assign(row, params.p_changes);
         return { data: structuredClone(row), error: null };
     }
@@ -65,6 +69,9 @@ async function openPage({ role = 'office_staff', projectStatus = 'active', answe
     await run('loadMaterialLinks()');
     const field = id => document.getElementById(id);
     return { server, alerts, run, field, table: () => field('linksTableBody').innerHTML,
+        // A live update from the database, as the realtime subscription applies it to the list.
+        live: (id, values) => { vm.runInContext(`Object.assign(state.materialLinks.find(item => item.id === ${id}), ${JSON.stringify(values)})`, context); Object.assign(server.links.find(row => row.id === id), values); },
+        drop: id => { vm.runInContext(`state.materialLinks = state.materialLinks.filter(item => item.id !== ${id})`, context); server.links = server.links.filter(row => row.id !== id); },
         listed: () => [...vm.runInContext('state.materialLinks.map(link => link.id)', context)],
         writes: () => server.log.filter(request => request.action !== 'select'), row: id => server.links.find(row => row.id === id) };
 }
@@ -118,12 +125,56 @@ test('Edit sends only what changed, with the reason, and closes once saved', asy
     page.field('linkEdit-po_description').value = '';
     page.field('linkEditReason').value = 'Tag was mistyped on the drawing';
     await page.run('saveLinkEdit(7)');
-    assert.deepEqual(page.server.rpcs, [['admin_update_material_link',
-        { p_link_id: 7, p_changes: { po_description: null, install_tag: 'V-107A', quantity: 3 }, p_reason: 'Tag was mistyped on the drawing' }]]);
+    assert.deepEqual(page.server.rpcs, [['admin_update_material_link', { p_link_id: 7, p_changes: { po_description: null, install_tag: 'V-107A', quantity: 3 },
+        p_reason: 'Tag was mistyped on the drawing', p_expected: { po_description: 'Six-inch isolation valve', install_tag: 'V-107', quantity: 2 } }]]);
     assert.equal(dialog.open, false);
     assert.deepEqual(page.alerts, ['✓ Link #7 updated.']);
     assert.equal(page.row(7).install_tag, 'V-107A');
     assert.deepEqual(page.writes(), [], 'details are never written to the table directly');
+});
+
+test("details nobody touched aren't sent, even when they have stray spaces, and line breaks survive", async () => {
+    const page = await openPage({ role: 'admin', links: [link(7, { uom: 'EA ', install_description: ' Valve', po_description: 'First line\nSecond line' })] });
+    await page.run('editLink(7)');
+    assert.equal(page.field('linkEdit-install_description').tagName, 'TEXTAREA');
+    page.field('linkEdit-quantity').value = '3';
+    page.field('linkEdit-install_description').value = 'Gate valve\nflanged both ends';
+    page.field('linkEditReason').value = 'Counted again on site';
+    await page.run('saveLinkEdit(7)');
+    assert.deepEqual(page.server.rpcs[0][1].p_changes, { install_description: 'Gate valve\nflanged both ends', quantity: 3 });
+    assert.deepEqual(page.server.rpcs[0][1].p_expected, { install_description: ' Valve', quantity: 2 });
+});
+
+test('a live update while the form is open is neither undone nor overwritten', async () => {
+    const page = await openPage({ role: 'admin' });
+    await page.run('editLink(7)');
+    page.live(7, { install_tag: 'V-FIXED-ELSEWHERE' });
+    page.field('linkEdit-quantity').value = '3';
+    page.field('linkEditReason').value = 'Counted again on site';
+    await page.run('saveLinkEdit(7)');
+    assert.deepEqual(page.server.rpcs[0][1].p_changes, { quantity: 3 }, 'the other change is not sent back');
+    assert.equal(page.row(7).install_tag, 'V-FIXED-ELSEWHERE');
+    const clash = await openPage({ role: 'admin' });
+    await clash.run('editLink(7)');
+    clash.live(7, { quantity: 5 });
+    clash.field('linkEdit-quantity').value = '3';
+    clash.field('linkEditReason').value = 'Counted again on site';
+    await clash.run('saveLinkEdit(7)');
+    assert.equal(clash.field('linkEditMessage').textContent, 'Not saved: Link #7 has changed since the form opened (quantity); open it again');
+    assert.equal(clash.field('linkEditDialog').open, true);
+    assert.equal(clash.row(7).quantity, 5);
+});
+
+test('a link deleted while the form is open says so instead of doing nothing', async () => {
+    const page = await openPage({ role: 'admin' });
+    await page.run('editLink(7)');
+    page.drop(7);
+    page.field('linkEdit-quantity').value = '3';
+    page.field('linkEditReason').value = 'Counted again on site';
+    await page.run('saveLinkEdit(7)');
+    assert.equal(page.field('linkEditMessage').textContent, 'Link #7 has been deleted.');
+    assert.equal(page.field('linkEditMessage').hidden, false);
+    assert.deepEqual(page.server.rpcs, []);
 });
 
 test('Edit checks the form before sending anything', async () => {

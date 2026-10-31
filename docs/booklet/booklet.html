@@ -792,7 +792,7 @@
   <ul>
     <li>Row-level security is on for every table. People read only the projects they are assigned to; places are readable by every active user.</li>
     <li>Writes go through checked functions that test the role and project themselves (<code>is_office_user</code>, <code>has_project_access</code>, <code>can_work_project</code>). The screens hiding a button is a convenience, never the control.</li>
-    <li>History is never deleted: places retire, areas go inactive, loads close; the audit log can't be changed.</li>
+    <li>History is never deleted: places retire, areas go inactive, loads close; the audit log can't be changed. The one exception is an administrator deleting a PO &amp; Installation link, which takes its status history with it after the audit log has recorded both.</li>
     <li>Completed projects are read-only and archived projects are hidden, in the database as well as on screen.</li>
   </ul>
   <h3>Driver licences</h3>
@@ -837,7 +837,7 @@
       <tr><td>Users &amp; Access</td><td>Invite, edit, deactivate; resend or cancel invitations; filter by role, status and project; open a person's history (chapter 19). Backed by the <code>admin-users</code> function.</td></tr>
       <tr><td>Projects</td><td>Create, edit, complete (read-only) or archive (hidden). Completing or archiving is refused while loads are open.</td></tr>
       <tr><td>Data Browser</td><td>Browse any table for the active project, 25 to 100 rows at a time, and export CSV. History tables are read-only and nothing can be deleted. Material records can be corrected with a reason of at least five characters. <span class="ui">Locations</span> is the only table with <span class="ui">Add</span>: it is where racks are made.</td></tr>
-      <tr><td>PO &amp; Installation links</td><td><span class="ui">Edit</span> changes a link's PO and installation details; <span class="ui">Delete</span> removes a link. Each asks why (5 to 500 characters) and records the old values with the reason. Deleting also removes the link's status history and unhooks any tracker, and the record keeps both. Office staff still change a link's status with <span class="ui">Update</span>.</td></tr>
+      <tr><td>PO &amp; Installation links</td><td><span class="ui">Edit</span> changes a link's PO and installation details; <span class="ui">Delete</span> removes a link. Each asks why (5 to 500 characters). An edit records the old and new values with the reason, and isn't saved if someone changed the same detail since the form opened. A delete records the link, its status history and any tracker on it, then removes the link and its history and unhooks the tracker. Office staff still change a link's status with <span class="ui">Update</span>.</td></tr>
       <tr><td>Activity &amp; Audit</td><td>Administrator changes (users and projects) with person, time and old and new values, 25 a page. Operational history (counts, crates, loads) is in Data Browser › <span class="ui">Audit Log</span>, and on the app's Activity tab.</td></tr>
       <tr><td>Auth settings</td><td>Held by the sign-in service: email codes last 3,600 seconds; the redirect allowlist has <code>/login.html</code> and <code>/login.html?setup=invite</code>; templates and subjects as in <code>docs/INVITATION_RECOVERY.md</code>.</td></tr>
       <tr><td>Function secrets</td><td>The database address, its public and service-role keys, <code>INVITATION_TTL_SECONDS</code> (default 3600) and <code>INVITATION_EMAIL_ENABLED</code>. With email switched off, invitations are disabled and the page says so.</td></tr>
