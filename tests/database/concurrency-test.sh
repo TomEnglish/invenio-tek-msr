@@ -280,4 +280,31 @@ overlap(
     '22023',
 )
 assert sql("SELECT count(*) FROM public.handling_unit_contents WHERE tag='RACE-ITEM' AND removed_at IS NULL") == '1'
+
+
+# Two loads planned at the same moment can't both take the same crate.
+sql(f"""
+INSERT INTO public.places(id,kind,name) VALUES('9c111111-1111-4111-8111-111111111111','outside_shop','Race Shop');
+INSERT INTO public.loads(id,project_id,load_number) VALUES
+ ('1e000000-0000-4000-8000-000000000001','{first_project}','L-0001'),('1e000000-0000-4000-8000-000000000002','{first_project}','L-0002');
+INSERT INTO public.load_stops(id,project_id,load_id,seq,place_id) VALUES
+ ('5e000000-0000-4000-8000-000000000001','{first_project}','1e000000-0000-4000-8000-000000000001',1,'9c111111-1111-4111-8111-111111111111'),
+ ('5e000000-0000-4000-8000-000000000002','{first_project}','1e000000-0000-4000-8000-000000000002',1,'9c111111-1111-4111-8111-111111111111');
+""")
+
+
+def plan(operation, load, stop):
+    return f"""SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','f1111111-1111-4111-8111-111111111111',true);
+SELECT public.apply_field_operation('{operation}','{first_project}','load_plan',
+ '{{"loadId":"{load}","add":[{{"code":"HU-RACEC","dropoffStopId":"{stop}"}}]}}');"""
+
+
+overlap(
+    'two loads cannot take the same crate at once',
+    plan('22000000-0000-4000-8000-000000000001', '1e000000-0000-4000-8000-000000000001', '5e000000-0000-4000-8000-000000000001'),
+    plan('22000000-0000-4000-8000-000000000002', '1e000000-0000-4000-8000-000000000002', '5e000000-0000-4000-8000-000000000002'),
+    '22023',
+)
+assert sql("SELECT count(*) FROM public.load_lines WHERE tag='HU-RACEC' AND status='planned'") == '1'
 PY
