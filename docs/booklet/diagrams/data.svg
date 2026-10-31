@@ -1,0 +1,111 @@
+<svg viewBox="0 0 680 506" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Data architecture: a place has site plans with nested areas, and racks link to areas; a tag identifies a count record that is received as a material; materials and crates sit in areas and crates hold items; a load visits stops at places and carries pieces as manifest lines; each load has a driver, companies and an office-only licence; item_positions gives one answer for where anything is" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif">
+  <defs>
+    <marker id="da" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3b4a60"/></marker>
+  </defs>
+  <g font-size="10.5" font-weight="700" letter-spacing=".08em">
+    <text x="10" y="16" fill="#5d2a8c">WHERE</text>
+    <text x="242" y="16" fill="#0f5c38">WHAT</text>
+    <text x="474" y="16" fill="#1b3f9e">MOVING</text>
+  </g>
+  <g font-size="9.6" fill="#1c2533">
+    <!-- WHERE -->
+    <rect x="8" y="28" width="196" height="60" rx="7" fill="#f4eff6" stroke="#7a3fb0"/>
+    <text x="18" y="46" font-size="11.5" font-weight="700" fill="#122c4c">Place</text>
+    <text x="18" y="62">yard · site · shop · vendor</text>
+    <text x="18" y="76">map point and arrival radius</text>
+    <rect x="8" y="108" width="196" height="60" rx="7" fill="#f4eff6" stroke="#7a3fb0"/>
+    <text x="18" y="126" font-size="11.5" font-weight="700" fill="#122c4c">Site plan</text>
+    <text x="18" y="142">a drawing of one yard or site,</text>
+    <text x="18" y="156">for one project</text>
+    <rect x="8" y="188" width="196" height="60" rx="7" fill="#f4eff6" stroke="#7a3fb0"/>
+    <text x="18" y="206" font-size="11.5" font-weight="700" fill="#122c4c">Area</text>
+    <text x="18" y="222">a shape on the plan; areas nest</text>
+    <text x="18" y="236">(Laydown A › Bay 3)</text>
+    <rect x="8" y="268" width="196" height="60" rx="7" fill="#fff" stroke="#7a3fb0" stroke-dasharray="4 3"/>
+    <text x="18" y="286" font-size="11.5" font-weight="700" fill="#122c4c">Rack</text>
+    <text x="18" y="302">the older receiving location;</text>
+    <text x="18" y="316">linked to at most one area</text>
+    <!-- WHAT -->
+    <rect x="240" y="28" width="196" height="60" rx="7" fill="#edf6f0" stroke="#157347"/>
+    <text x="250" y="46" font-size="11.5" font-weight="700" fill="#122c4c">Tag or label</text>
+    <text x="250" y="62">one per project, any capitals;</text>
+    <text x="250" y="76">HU- codes are crate labels</text>
+    <rect x="240" y="108" width="196" height="60" rx="7" fill="#edf6f0" stroke="#157347"/>
+    <text x="250" y="126" font-size="11.5" font-weight="700" fill="#122c4c">Count record</text>
+    <text x="250" y="142">expected (imported) or counted;</text>
+    <text x="250" y="156">notes a rejected delivery</text>
+    <rect x="240" y="188" width="196" height="60" rx="7" fill="#edf6f0" stroke="#157347"/>
+    <text x="250" y="206" font-size="11.5" font-weight="700" fill="#122c4c">Material (received)</text>
+    <text x="250" y="222">quantity, rack and area; can be</text>
+    <text x="250" y="236">on hold or going back to vendor</text>
+    <rect x="240" y="268" width="196" height="60" rx="7" fill="#edf6f0" stroke="#157347"/>
+    <text x="250" y="286" font-size="11.5" font-weight="700" fill="#122c4c">Crate (handling unit)</text>
+    <text x="250" y="302">crate, skid, bundle, container;</text>
+    <text x="250" y="316">holds items and crates, 5 deep</text>
+    <!-- MOVING -->
+    <rect x="472" y="28" width="196" height="60" rx="7" fill="#e8eefc" stroke="#174fda"/>
+    <text x="482" y="46" font-size="11.5" font-weight="700" fill="#122c4c">Load (L-0001)</text>
+    <text x="482" y="62">one outside carrier's truck trip</text>
+    <text x="482" y="76">planning › in transit › closed</text>
+    <rect x="472" y="108" width="196" height="60" rx="7" fill="#e8eefc" stroke="#174fda"/>
+    <text x="482" y="126" font-size="11.5" font-weight="700" fill="#122c4c">Stops</text>
+    <text x="482" y="142"><tspan fill="#5d2a8c" font-weight="700">places</tspan>, in order: drop-offs,</text>
+    <text x="482" y="156">pick-ups or both</text>
+    <rect x="472" y="188" width="196" height="60" rx="7" fill="#e8eefc" stroke="#174fda"/>
+    <text x="482" y="206" font-size="11.5" font-weight="700" fill="#122c4c">Manifest lines</text>
+    <text x="482" y="222">one per crate or loose item</text>
+    <text x="482" y="236">planned › on board › delivered</text>
+    <rect x="472" y="268" width="196" height="60" rx="7" fill="#e8eefc" stroke="#174fda"/>
+    <text x="482" y="286" font-size="11.5" font-weight="700" fill="#122c4c">Driver and companies</text>
+    <text x="482" y="302">name and phone, on each load;</text>
+    <text x="482" y="316">up to 3 companies in the chain</text>
+    <rect x="472" y="348" width="196" height="60" rx="7" fill="#fcebec" stroke="#b3141c"/>
+    <text x="482" y="366" font-size="11.5" font-weight="700" fill="#7d0e14">Licence (office only)</text>
+    <text x="482" y="382">number and photos; removed</text>
+    <text x="482" y="396">365 days on, unless kept</text>
+  </g>
+  <!-- relationships -->
+  <g stroke="#3b4a60" stroke-width="1.3" fill="none">
+    <line x1="106" y1="88" x2="106" y2="106" marker-end="url(#da)"/>
+    <line x1="106" y1="168" x2="106" y2="186" marker-end="url(#da)"/>
+    <line x1="106" y1="268" x2="106" y2="250" marker-end="url(#da)"/>
+    <line x1="338" y1="88" x2="338" y2="106" marker-end="url(#da)"/>
+    <line x1="338" y1="168" x2="338" y2="186" marker-end="url(#da)"/>
+    <line x1="338" y1="268" x2="338" y2="250" marker-end="url(#da)"/>
+    <line x1="570" y1="88" x2="570" y2="106" marker-end="url(#da)"/>
+    <line x1="570" y1="168" x2="570" y2="186" marker-end="url(#da)"/>
+    <line x1="570" y1="328" x2="570" y2="346" marker-end="url(#da)"/>
+    <line x1="240" y1="218" x2="206" y2="218" marker-end="url(#da)"/>
+    <polyline points="240,298 222,298 222,218"/>
+    <line x1="436" y1="218" x2="470" y2="218" marker-end="url(#da)"/>
+    <polyline points="436,298 454,298 454,218"/>
+  </g>
+  <g font-size="8.8" fill="#3b4a60">
+    <text x="113" y="101">has plans</text>
+    <text x="113" y="181">has areas</text>
+    <text x="113" y="261">linked to</text>
+    <text x="345" y="101">identifies</text>
+    <text x="345" y="181">received as</text>
+    <text x="345" y="261">holds items</text>
+    <text x="577" y="101">visits</text>
+    <text x="577" y="181">carries pieces</text>
+    <text x="577" y="341">checked in with</text>
+    <text x="222" y="212" text-anchor="middle">sits in</text>
+    <text x="454" y="212" text-anchor="middle">rides as</text>
+  </g>
+  <!-- where is it -->
+  <rect x="8" y="426" width="428" height="72" rx="8" fill="#122c4c"/>
+  <text x="22" y="446" font-size="11.5" font-weight="700" fill="#fff">Where is it? One answer: <tspan font-family="Menlo, monospace" font-size="10.5">item_positions</tspan></text>
+  <g font-size="9.6" fill="#d6e3f7">
+    <text x="22" y="463">on a truck · missing from a truck · in a crate (wherever its</text>
+    <text x="22" y="476">outermost crate is) · at its own place and area · or gone:</text>
+    <text x="22" y="489">issued, shipped or written off</text>
+  </g>
+  <rect x="472" y="426" width="196" height="72" rx="8" fill="#fff" stroke="#8a96a8" stroke-dasharray="4 3"/>
+  <text x="482" y="446" font-size="11.5" font-weight="700" fill="#122c4c">Trackers (planned)</text>
+  <g font-size="9.6" fill="#1c2533">
+    <text x="482" y="463">ride on crates and high-value</text>
+    <text x="482" y="476">items; arrival at shops by</text>
+    <text x="482" y="489">geofence</text>
+  </g>
+</svg>
