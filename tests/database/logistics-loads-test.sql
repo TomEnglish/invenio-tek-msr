@@ -214,8 +214,8 @@ SELECT pg_temp.assert_true((public.record_driver_licence('30000000-0000-4000-800
  '{"number":"tx 9q7z  5678","state":"TX","expiry":"2029-05-31"}')->>'recorded')::boolean,'A repeated licence call is answered');
 SELECT pg_temp.expect_error($q$SELECT public.record_driver_licence('30000000-0000-4000-8000-000000000003','1d000000-0000-4000-8000-000000000001',
  '{"number":"TX 9Q7Z 1111","capturedAt":"2020-01-01T00:00:00Z"}')$q$,'22023','A licence recorded before a newer correction is refused');
-SELECT pg_temp.assert_true((SELECT licence_recorded_at IS NOT NULL FROM public.load_overview WHERE id='1d000000-0000-4000-8000-000000000001'),
- 'Everyone can see that a licence is on file');
+SELECT pg_temp.assert_true((SELECT licence_recorded_at IS NOT NULL AND NOT licence_complete FROM public.load_overview WHERE id='1d000000-0000-4000-8000-000000000001'),
+ 'Everyone can see that a licence is on file, and that it isn''t complete without a photo');
 SELECT pg_temp.as_user('01111111-1111-4111-8111-111111111111');
 SELECT pg_temp.assert_true((SELECT licence_number='TX 9Q7Z 4321' AND licence_state='TX' FROM public.load_driver_licences
  WHERE load_id='1d000000-0000-4000-8000-000000000001'),'Office staff read the licence, and the late retry didn''t overwrite the correction');
@@ -232,6 +232,8 @@ INSERT INTO storage.objects(bucket_id,name) VALUES('driver-licences','1d000000-0
 SELECT public.attach_driver_licence_photo('1d000000-0000-4000-8000-000000000001','1d000000-0000-4000-8000-000000000001/front.jpg');
 SELECT public.attach_driver_licence_photo('1d000000-0000-4000-8000-000000000001','1d000000-0000-4000-8000-000000000001/front.jpg');
 SELECT pg_temp.assert_true((SELECT count(*)=0 FROM storage.objects WHERE bucket_id='driver-licences'),'Field users can''t see licence photos');
+SELECT pg_temp.assert_true((SELECT licence_complete FROM public.load_overview WHERE id='1d000000-0000-4000-8000-000000000001'),
+ 'With a number and a photo, crews see the licence is complete');
 SELECT pg_temp.expect_error($q$SELECT public.attach_driver_licence_photo('1d000000-0000-4000-8000-000000000001','1d000000-0000-4000-8000-000000000001/back.jpg')$q$,
  '22023','A photo is uploaded before it is attached');
 SELECT pg_temp.expect_error($q$SELECT public.attach_driver_licence_photo('1d000000-0000-4000-8000-000000000001','elsewhere/front.jpg')$q$,
@@ -541,6 +543,8 @@ SELECT pg_temp.assert_true((SELECT details->'last4'='null'::jsonb FROM public.au
 SELECT pg_temp.as_user('f1111111-1111-4111-8111-111111111111');
 
 -- Crews see activity without licences, phone numbers or whole records.
+SELECT pg_temp.assert_true((SELECT bool_and(subject='L-0001') FROM public.list_project_activity('b1111111-1111-4111-8111-111111111111',null,200)
+ WHERE action='load_saved' AND entity_id='1d000000-0000-4000-8000-000000000001'),'Activity names the load');
 SELECT pg_temp.assert_true((SELECT count(*)>0 AND count(*) FILTER (WHERE action LIKE 'driver_licence%')=0
  AND count(*) FILTER (WHERE details ? 'before' OR details ? 'after' OR details::text LIKE '%555-0199%')=0
  FROM public.list_project_activity('b1111111-1111-4111-8111-111111111111',null,200)),'Crews see activity without licence or driver details');

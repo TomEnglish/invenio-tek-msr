@@ -759,6 +759,11 @@ begin
  return least(v_at,now());
 end $$;
 
+-- How far a device's clock may run behind or ahead before its changes are
+-- judged older or newer than another's. Within it, the later upload wins.
+create function public.logistics_clock_slack() returns interval
+language sql immutable set search_path=pg_catalog as $$ select interval '5 minutes' $$;
+
 -- Crate labels are upper case; item tags are kept as written.
 create function public.logistics_code(p_code text) returns text
 language sql immutable set search_path=pg_catalog as $$
@@ -1511,7 +1516,7 @@ begin
   if v_load.status in ('closed','cancelled') then
    raise exception 'Load % is %; it can''t change',v_load.load_number,v_load.status using errcode='22023';
   end if;
-  if v_captured<v_load.edited_at then
+  if v_captured<v_load.edited_at-public.logistics_clock_slack() then
    raise exception 'Load % was changed after this edit was made; check it and save again',v_load.load_number using errcode='22023';
   end if;
   v_before:=to_jsonb(v_load);
@@ -1733,7 +1738,7 @@ begin
   end if;
   if v_at.status='done' then raise exception '% is already done',public.logistics_stop_name(v_at) using errcode='22023'; end if;
  elsif v_load.status='in_transit' then
-  if v_captured is null or v_captured>v_load.departed_at then
+  if v_captured is null or v_captured>v_load.departed_at+public.logistics_clock_slack() then
    raise exception 'Load % has left; choose the pick-up stop you''re at',v_load.load_number using errcode='22023';
   end if;
   v_late:=true;
@@ -1798,7 +1803,8 @@ begin
     v_status:=case when v_drop.status='done' then 'missing' else 'on_board' end;
     if v_late and exists(select 1 from public.load_lines y where y.load_id<>v_load.id
       and (y.unit_id=v_piece.unit_id or y.material_id=v_piece.material_id or y.inventory_uid=v_piece.inventory_uid)
-      and y.status in ('on_board','delivered','missing','written_off') and coalesce(y.off_at,y.on_at,y.updated_at)>v_captured) then
+      and y.status in ('on_board','delivered','missing','written_off')
+      and coalesce(y.off_at,y.on_at,y.updated_at)>v_captured+public.logistics_clock_slack()) then
      raise exception '% travelled on another load after this scan was made; the scan is out of date',v_piece.tag using errcode='22023';
     end if;
     if not v_has or v_line.status='not_loaded' then
@@ -1951,7 +1957,7 @@ begin
    v_has:=found;
    if v_has and v_line.status='delivered' then
     -- Already off: a scan here (newer than the one recorded) corrects the stop.
-    if v_line.delivered_stop_id is not distinct from v_stop.id or (v_captured is not null and v_captured<v_line.off_at) then
+    if v_line.delivered_stop_id is not distinct from v_stop.id or v_captured<v_line.off_at-public.logistics_clock_slack() then
      v_skip:=true;
     else
      -- Only where it last came off can be corrected, not once it has moved on.
@@ -2291,7 +2297,7 @@ DO $$ DECLARE f text;
 BEGIN
  FOREACH f IN ARRAY ARRAY[
   'logistics_text(jsonb,text,integer,text)','logistics_date(jsonb,text,text)','logistics_id(jsonb,text,text)',
-  'logistics_flag(jsonb,text,text)','logistics_list(jsonb,text,text)','logistics_captured(jsonb)','logistics_code(text)',
+  'logistics_flag(jsonb,text,text)','logistics_list(jsonb,text,text)','logistics_captured(jsonb)','logistics_clock_slack()','logistics_code(text)',
   'logistics_tag(uuid,text)','logistics_load(uuid,uuid)','logistics_place(uuid,uuid)',
   'logistics_position(uuid,uuid,uuid,uuid,boolean)','logistics_place_item(uuid,uuid,uuid,uuid,uuid,uuid,text,text)','logistics_hold_area(uuid)',
   'logistics_stop(public.loads,uuid,text)','logistics_stop_name(public.load_stops)',
@@ -2494,7 +2500,7 @@ begin
    if item.written_off_at is not null then
     raise exception '% was written off on a load; an administrator can undo that',btrim(item.qr_code) using errcode='22023'; end if;
    perform public.logistics_item_loose(btrim(item.qr_code),null,item.uid,'count');
-   if v_captured<item.counted_at then
+   if v_captured<item.counted_at-public.logistics_clock_slack() then
     raise exception '% was counted again after this count was made; check it and count it again if needed',btrim(item.qr_code) using errcode='22023'; end if;
   end if;
   if jsonb_typeof(p_payload->'proposedCategory')='object' then
@@ -2703,7 +2709,7 @@ begin
  end if;
  v_captured:=public.logistics_captured(p_licence);
  select * into v_row from public.load_driver_licences where load_id=p_load_id for update;
- if found and v_captured<greatest(v_row.recorded_at,v_row.removed_at) then
+ if found and v_captured<greatest(v_row.recorded_at,v_row.removed_at)-public.logistics_clock_slack() then
   raise exception 'The licence for load % was changed after this was recorded; check it and record it again if needed',v_load.load_number using errcode='22023';
  end if;
  v_number:=upper(regexp_replace(btrim(coalesce(p_licence->>'number','')),'\s+',' ','g'));
@@ -2810,6 +2816,15 @@ begin
  return public.driver_licence_clear(v_load,auth.uid(),v_reason,'office');
 end $$;
 
+-- Whether a load has both a licence number and a photo on file: all a crew
+-- needs to know before departure. The licence itself stays with the office.
+create function public.load_licence_complete(p_load_id uuid) returns boolean
+language sql stable security definer set search_path=public as $$
+ select exists(select 1 from public.load_driver_licences d where d.load_id=l.id and d.licence_number is not null)
+  and exists(select 1 from public.driver_licence_photos p where p.load_id=l.id and p.removed_at is null)
+ from public.loads l where l.id=p_load_id and public.has_project_access(l.project_id)
+$$;
+
 -- Licences due for removal on the office's projects, with every file in each
 -- load's folder.
 create function public.driver_licences_due_for_removal() returns table(load_id uuid,load_number text,storage_paths text[])
@@ -2852,26 +2867,37 @@ end $$;
 
 revoke all on function public.driver_licence_due_at(uuid),public.driver_licence_clear(public.loads,uuid,text,text),
  public.record_driver_licence(uuid,uuid,jsonb),public.attach_driver_licence_photo(uuid,text),public.remove_driver_licence_photo(text,text),
- public.remove_driver_licence(uuid,text),public.driver_licences_due_for_removal(),
+ public.remove_driver_licence(uuid,text),public.driver_licences_due_for_removal(),public.load_licence_complete(uuid),
  public.driver_licence_purge_queue(),public.purge_driver_licence(uuid) from public,anon,authenticated;
 grant execute on function public.record_driver_licence(uuid,uuid,jsonb),public.attach_driver_licence_photo(uuid,text),
- public.remove_driver_licence_photo(text,text),public.remove_driver_licence(uuid,text),public.driver_licences_due_for_removal() to authenticated;
+ public.remove_driver_licence_photo(text,text),public.remove_driver_licence(uuid,text),public.driver_licences_due_for_removal(),
+ public.load_licence_complete(uuid) to authenticated;
 grant execute on function public.driver_licence_purge_queue(),public.purge_driver_licence(uuid) to service_role;
 
 -- ---------------------------------------------------------------------------
 -- Activity. The audit log keeps whole before-and-after records, licence
 -- events and drivers' phone numbers, so office staff read it directly;
 -- everyone on a project reads its activity through list_project_activity:
--- what happened, to what, by whom and when, with a fixed set of safe details.
+-- what happened, to what (subject: the load number, crate label or tag), by
+-- whom and when, with a fixed set of safe details.
 -- ---------------------------------------------------------------------------
 drop policy audit_project_read on public.audit_log;
 create policy office_read on public.audit_log for select to authenticated
  using(public.is_office_user() and (public.has_project_access(project_id) or (project_id is null and public.is_admin(auth.uid()))));
 
 create function public.list_project_activity(p_project_id uuid,p_before timestamptz default null,p_limit integer default 50)
-returns table(id uuid,created_at timestamptz,user_id uuid,user_name text,action text,entity_type text,entity_id uuid,details jsonb)
+returns table(id uuid,created_at timestamptz,user_id uuid,user_name text,action text,entity_type text,entity_id uuid,subject text,details jsonb)
 language sql stable security definer set search_path=public as $$
  select a.id,a.created_at,a.user_id,u.full_name,a.action,a.entity_type,a.entity_id,
+  case a.entity_type
+   when 'load' then (select l.load_number from public.loads l where l.id=a.entity_id and l.project_id=a.project_id)
+   when 'handling_unit' then (select h.code from public.handling_units h where h.id=a.entity_id and h.project_id=a.project_id)
+   when 'material' then (select q.code_value from public.materials m join public.qr_codes q on q.id=m.qr_code_id
+    where m.id=a.entity_id and m.project_id=a.project_id)
+   when 'inventory_record' then (select btrim(i.qr_code) from public.inventory_records i where i.uid=a.entity_id and i.project_id=a.project_id)
+   when 'receiving_record' then (select q.code_value from public.receiving_records r join public.qr_codes q on q.id=r.qr_code_id
+    where r.id=a.entity_id and r.project_id=a.project_id)
+  end,
   coalesce((select jsonb_object_agg(k.key,k.value) from jsonb_each(coalesce(a.details,'{}'::jsonb)) k
    where k.key in ('tag','code','created','added','removed','qty','accepted_qty','status','items_released','units_released','pieces','on','undone',
     'confirmed','delivered','missing','not_loaded','not_picked_up','corrected','moved_from','reason','stop_id','line_id','write_off_id')),'{}'::jsonb)
@@ -2954,7 +2980,7 @@ left join public.places pl on pl.id=k.place_id;
 create view public.load_overview with (security_invoker=true) as
 select l.id,l.project_id,l.load_number,l.status,l.origin_place_id,o.name as origin_name,o.kind as origin_kind,l.planned_date,
  l.truck_type,l.truck_number,l.trailer_number,l.bol_number,l.driver_name,l.driver_phone,l.licence_recorded_at,
- l.licence_override_at,l.licence_override_reason,l.started_in_field,l.notes,
+ public.load_licence_complete(l.id) as licence_complete,l.licence_override_at,l.licence_override_reason,l.started_in_field,l.notes,
  (select count(*) from public.load_companies c where c.load_id=l.id)::integer as company_count,
  (select count(*) from public.load_stops s where s.load_id=l.id and s.status<>'cancelled')::integer as stop_count,
  (select count(*) from public.load_stops s where s.load_id=l.id and s.status='done')::integer as stops_done,

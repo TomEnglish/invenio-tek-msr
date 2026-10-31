@@ -241,6 +241,12 @@ SELECT pg_temp.expect_error($q$SELECT pg_temp.op(gen_random_uuid(),'count',
  '22023','A count made before the latest one is refused');
 SELECT pg_temp.expect_error($q$SELECT pg_temp.op(gen_random_uuid(),'count',
  '{"tag":"FL-1","name":"Flanges","quantity":"19","capturedAt":"yesterday"}')$q$,'22023','capturedAt is a real time');
+SELECT pg_temp.op(gen_random_uuid(),'count',jsonb_build_object('tag','FL-1','name','Flanges','quantity','19','zoneId','2b222222-2222-4222-8222-222222222222',
+ 'capturedAt',to_char((now()-interval '2 minutes') at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"')));
+SELECT pg_temp.assert_true((SELECT quantity=19 FROM public.inventory_records WHERE qr_code='FL-1'),
+ 'A count from a phone whose clock is a couple of minutes behind still counts');
+SELECT pg_temp.assert_true((SELECT subject='HU-TEST01' FROM public.list_project_activity('b1111111-1111-4111-8111-111111111111',null,200)
+ WHERE action='handling_unit_packed' ORDER BY created_at LIMIT 1),'Activity names the crate');
 
 -- Held stock: crews can't pack, issue or move it except to a hold area; the
 -- office can.

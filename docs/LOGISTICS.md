@@ -203,7 +203,7 @@ Refusals: `22023` with a message that can be shown as is, `42501` for access, `2
 
 ### Device time, partial lists and moving pieces
 
-- **`capturedAt`**: when the change was made on the device, as an ISO 8601 time with a zone; a clock running ahead counts as now. A count made before the latest count of that tag is refused; so is a `load_save` made before the load's `edited_at`, and a licence change made before the latest one. `load_on` without a stop after departure is accepted only for scans made before departure (a second phone's late uploads), and not for a piece that has travelled on another load since; if the drop-off stop is already done the piece is missing. A `load_off` scan at another stop moves a delivered piece there, unless it was made before the scan recorded, or the piece has since gone on another load or changed (`22023`).
+- **`capturedAt`**: when the change was made on the device, as an ISO 8601 time with a zone; a clock running ahead counts as now. Two devices' times within 5 minutes of each other count as the same moment (`logistics_clock_slack()`), so a phone whose clock runs a little behind isn't refused; the later upload wins. A count made before the latest count of that tag is refused; so is a `load_save` made before the load's `edited_at`, and a licence change made before the latest one. `load_on` without a stop after departure is accepted only for scans made before departure (a second phone's late uploads), and not for a piece that has travelled on another load since; if the drop-off stop is already done the piece is missing. A `load_off` scan at another stop moves a delivered piece there, unless it was made before the scan recorded, or the piece has since gone on another load or changed (`22023`).
 - **Arrival.** A stop is marked arrived by the first piece actually scanned on or off there; a scan where everything was refused doesn't count.
 - **`partial: true`**: pack, load_plan, load_on and load_off apply the tags they can and return the others in `refused: [{code, list?, message, sqlstate}]`, instead of refusing the whole list. A partial pack with refusals isn't sealed.
 - **`move: true`**: on a piece in `load_plan` or `load_on`, takes it off another load's plan if that load hasn't left; the answer lists it in `moved`. Without it, the step is refused and says which load has it.
@@ -220,11 +220,11 @@ Refusals: `22023` with a message that can be shown as is, `42501` for access, `2
 ### Places and activity
 
 - **Shared places** can't be tied to one project while other projects use them, and their kind can't change and they can't be retired by an office user who doesn't work every project using them; an administrator can. Every change to a place is in the audit log.
-- **Activity.** `audit_log` is readable by office staff only (administrators also see entries with no project). Everyone on a project reads `list_project_activity(project_id, before?, limit?)`: what happened, to what, who and when, with a fixed set of safe details and no licence events.
+- **Activity.** `audit_log` is readable by office staff only (administrators also see entries with no project). Everyone on a project reads `list_project_activity(project_id, before?, limit?)`: what happened, to what (`subject`: the load number, crate label or tag), who and when, with a fixed set of safe details and no licence events.
 
 ### Views
 
-- **`load_overview`**: one row per load, with origin and origin kind, next stop, piece counts by status (including written off), flagged count, stop counts, `started_in_field`, `edited_at`, `licence_recorded_at` and the override.
+- **`load_overview`**: one row per load, with origin and origin kind, next stop, piece counts by status (including written off), flagged count, stop counts, `started_in_field`, `edited_at`, `licence_recorded_at`, `licence_complete` (a number and a photo are both on file, which is what departure needs; readable by crews) and the override.
 - **`load_stop_overview`**: stops in order with place and place kind, and counts due, delivered, missing and to pick up.
 - **`load_line_overview`**: manifest lines with name, high value, pick-up, drop-off and delivered places, flags and `is_current_position`.
 - **`handling_unit_overview`**: also `top_status`, `place_kind`, and the load its outermost crate is planned for, on board or missing from.
