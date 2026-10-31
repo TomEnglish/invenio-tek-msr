@@ -116,68 +116,100 @@ The fixture has made-up loads:
 - one closed long enough ago that opening Loads removes its licence;
 - one cancelled.
 
-## Loads (database contract, migration 022)
+## Loads and items (database contract, migration 022)
 
-Phase 2 of logistics. Migration `supabase/migrations/022_loads_and_drivers.sql` is the contract; tests are in `tests/database/logistics-loads-test.sql` plus a race test in `tests/database/concurrency-test.sh`.
+Phase 2 of logistics, reworked after the 31 October workflow review. Migration `supabase/migrations/022_loads_and_drivers.sql` is the contract. Tests: `tests/database/logistics-loads-test.sql`, `logistics-places-units-test.sql`, `field-operations-test.sql` and `initial-inventory-test.sql`, plus races in `concurrency-test.sh`.
+
+### Decisions it enforces
+
+- **A licence before the truck leaves.** `load_depart` needs a licence number and at least one attached photo. Otherwise office staff can send `overrideReason` (5 to 500 characters); it is kept on the load with who and when. A crew sending it is refused (`42501`).
+- **The office plans; a crew can start a load.** A load created by someone who isn't office staff is `started_in_field`. On such a load the crew can plan pieces and change stops until it leaves; on any other load, only office staff can (`42501`). Anyone can still scan an unplanned piece on, with its drop-off stop.
+- **Shop and vendor stops are the office's.** At a place of kind `outside_shop` or `vendor`, only office staff can `stop_complete`. `confirmAll` works only there: it delivers what was due and boards what was to be collected there. `load_depart` with `confirmAll` works only when the origin is a shop or vendor.
+- **Write-offs.** Office staff `line_write_off` a missing piece with a reason. The crate, every crate inside it and every item they hold are written off (crates and lines `written_off`, materials `written_off` with quantity 0, count records `written_off_at`), and `load_write_offs` keeps what they were. An administrator can `line_write_off_undo`, which puts everything back and makes the piece missing again.
+
+### Tags and labels
+
+- **A tag is unique within its project, whatever its capitals.** The same tag can be used in two projects. Look tags up within the project and ignoring case; `lookup_tag(project_id, code)` does that.
+- **HU- codes are crate labels and nothing else.** A check on `qr_codes` keeps them apart, and they are unique across projects. Counting, importing or receiving an HU- code is refused.
+- **Receiving a counted tag** uses the counted spelling. Only an accepted delivery links the tag and marks the count received; the received material takes over the count's crate and load lines. A rejected delivery leaves the tag free and puts `rejected_receipt_id` on the count. The inspection condition is required.
+- **A tag received before it was counted or imported** gets a count record that is already received.
+- **`lookup_tag(project_id, code)`** answers with `kind`: `crate`, `unused_label`, `unknown_label`, `received`, `counted`, `expected`, `written_off` or `unknown`, and `can_receive`, which is true only for an item tag with no receipt in this project that isn't on a truck or written off. Item answers carry the `item_positions` columns.
+
+### Where things are
+
+- **One answer per item: `item_positions`.** A received item is its material; an item not yet received is its count record. `position` is `on_load` or `missing` (the load says where), `in_crate` (where the outermost crate is), `at_place` (its own place and area), `gone` (issued, shipped, used up or written off) or `unknown`. It also gives the crate, the load, the place and area, high value, and `hold` (`on_hold`, `return_to_vendor`).
+- **Items have their own place.** `materials` gained `place_id`, `site_map_id` and `zone_id`; `inventory_records` gained `place_id`. They change on receipt (the rack's area), count, transfer, unpacking, taking out of a crate, unloading, office confirmation, `line_found` and `relocate`.
+- **A site plan draws one place** (`site_maps.place_id`, a yard or site). An area has to be at the place given: on a plan drawn for that place or, for a plan not yet tied to a place, at one of the project's own yards or sites. With an area and no place, the plan's place is used. A new place without an area clears the old area. An area is required (when sealing a crate or counting) only where the place has a plan with areas.
+- **Racks and areas.** A rack is linked to at most one active area (`site_map_zones.location_id`). `location_areas` lists each rack with its area. A received or transferred material takes its rack's area; a material moved to an area takes that area's rack.
+
+### Stock that isn't loose
+
+- **In a crate or on a truck:** transfer, recount, relocate and Ship Out are refused with "take it out of the crate" or "when it comes off". Issuing from a crate is allowed: issuing all of it takes it out; issuing part leaves the rest packed with the lower quantity, and opens a sealed crate. Nothing is issued from a truck.
+- **On hold or being returned** (the receipt's exception decision): crews can't pack, load or issue it, and can transfer it only to a hold-area rack. Office staff can.
+- **Away at a shop or vendor:** rack transfers are refused; it comes back on a load.
+- **Ship Out** is for office staff, for stock leaving the project for good.
+- **Count records** change only through counting, importing and receiving; office staff can't insert or update them directly.
 
 ### What is stored
 
-- **`loads`**: one outside carrier's truck trip.
-  - Numbered `L-0001` upwards per project.
-  - Status runs planning → loading → in transit → delivered → closed. A load can be cancelled until it leaves.
-  - Holds the origin place, planned date, truck and trailer numbers, the carrier's bill of lading number, notes, and the driver's name and phone.
-- **`load_companies`**: up to 3 companies per load, in order from the one we hired to the one whose truck it is. Each has a name, a role (broker, carrier, dispatcher or other), a contact and a phone.
-- **`load_stops`**: the places the truck goes to after it leaves, in order.
-  - Each stop is a drop-off, a pick-up, or both.
-  - Status is pending, arrived (by scan, tracker or office), then done.
-  - A stop taken off the plan is kept as cancelled, with no position in the order.
-- **`load_lines`**: the manifest, one line per top-level crate or loose item.
-  - Status: planned → on board → delivered or missing. A planned piece can also end as not loaded (left behind) or removed (taken off the plan).
-  - Flags: `extra` (came off but the records didn't have it on the truck), `wrong_stop` (came off somewhere other than its drop-off stop), `found` (was missing, then turned up).
-  - **A piece is on at most one load at a time** while it's planned, on board or missing.
-  - A crate inside another crate, or an item packed in a crate, can't go on separately: it travels with its crate.
-- **Crates on a load**: a crate's status becomes `on_load` when it goes on, then `delivered` at the stop's place. Its status is `missing` if it wasn't unloaded where it was due.
-  - A crate that's on a load or missing, or sits inside one, can't be packed or unpacked.
-  - A planned crate can't go inside another crate or be unpacked.
-  - A delivered crate can be repacked, unpacked or loaded again.
-- **Driver licences** (`load_driver_licences`, `driver_licence_photos`): only office staff can read them.
-  - Photos are in the private `driver-licences` bucket at `<load id>/<name>.jpg`.
-  - Field staff can upload a photo but can't read it back. **Upload without upsert**: upserting needs read access. When retrying, an "already exists" error means the earlier upload landed.
+- **`loads`**: one outside carrier's truck trip, numbered `L-0001` upwards per project. Status runs planning → loading → in transit → delivered → closed; a load can be cancelled until it leaves. It holds the origin, planned date, truck and trailer numbers, bill of lading number, notes, the driver's name and phone, `started_in_field`, `edited_at` (when its latest saved change was made), `licence_recorded_at` and the licence override.
+- **`load_companies`**: up to 3 per load, from the one we hired to the one whose truck it is.
+- **`load_stops`**: in order; drop-off, pick-up or both; pending → arrived (scan, tracker or office) → done. A stop taken off is kept as cancelled.
+- **`load_lines`**: one line per top-level crate or loose item. Planned → on board → delivered, missing or written off; planned pieces can end not loaded or removed. Flags: `extra`, `wrong_stop`, `found`. A piece is on at most one load while planned, on board or missing.
+- **`load_write_offs`**: each write-off, what it changed, and its undo.
+- **Crates on a load**: `on_load` while on board, `delivered` at the stop's place (and area), `missing`, or `written_off`. A crate that's on a load, missing or written off, or inside one, can't be packed, unpacked or moved; a planned crate can't go inside another or be unpacked.
 
 ### Operations (`apply_field_operation`)
 
-Each change is one operation with its own operation ID. A load's ID is made by the caller (a UUID), so steps taken offline can refer to a load before it syncs. Only the keys sent are changed.
+Each change is one operation with its own operation ID; only the keys sent change. A load's ID is made by the caller, so offline steps can name it.
 
 | Action | Payload | Who |
 |---|---|---|
-| `load_save` | `loadId`, and any of: `originPlaceId`, `plannedDate` (YYYY-MM-DD), `truckType`, `truckNumber`, `trailerNumber`, `bolNumber`, `notes`, `driverName`, `driverPhone`, `companies: [{name, role?, contactName?, phone?}]` (replaces the list, at most 3), `stops: [{id, placeId, kind?, plannedDate?}]` (replaces the list; only before the truck leaves). Creates the load if the ID is new. | anyone working the project |
-| `load_plan` | `loadId`, `add: [{code, dropoffStopId, pickupStopId?}]`, `remove: [code]`. Only before the truck leaves. | anyone |
-| `load_on` | `loadId`, `pieces: [code or {code, dropoffStopId}]`, `undo: [code]`, `stopId?`. A piece that wasn't planned needs a drop-off stop. `stopId` is for picking up at a pick-up stop after the truck has left. | anyone |
-| `load_depart` | `loadId`, `confirmAll?`. Needs the driver's name and something on board. Planned pieces not on board stay behind. `confirmAll` marks every planned piece loaded without scanning, for a load leaving a place nobody scans at. | anyone; `confirmAll` office only |
-| `load_off` | `loadId`, `stopId`, `pieces: [code]`, `zoneId?`, `siteMapId?`. The first scan marks the stop arrived. An area can only be chosen at this project's own yard or site. | anyone |
-| `stop_complete` | `loadId`, `stopId`, `confirmAll?`. Pieces due at the stop that weren't scanned off become missing, or delivered with `confirmAll`. Finishing the last stop makes the load delivered. | anyone; `confirmAll` office only |
-| `load_close` | `loadId`, `cancel?`. Closes a delivered load, or cancels one that hasn't left, which puts its crates back as they were. | office only |
-| `line_found` | `lineId`, `placeId`, `note?`. A missing piece turned up. | office only |
+| `pack` | `unitCode`, `kind?`, `description?`, `isHighValue?`, `placeId?`, `siteMapId?`, `zoneId?`, `add?: [tag]`, `remove?: [tag]`, `seal?`, `partial?`, `capturedAt?` | anyone; held stock office only |
+| `unpack` | `unitCode`. Everything comes out where the outermost crate is. | anyone |
+| `move` | `unitCode`, `placeId?`, `siteMapId?`, `zoneId?`, `capturedAt?`. A crate moved without being opened keeps its seal; a sealed one needs an area where its place has a plan. | anyone |
+| `relocate` | `tag`, `placeId?`, `siteMapId?`, `zoneId?`, `reason?`, `capturedAt?`. Corrects where a loose item is without a recount. | anyone |
+| `count` | as before, plus `placeId?`, `isHighValue?`, `capturedAt?` | anyone |
+| `receiving` | as before; `inspection.condition` required; `material.is_high_value?` | anyone |
+| `transfer`, `issue` | as before | anyone; held stock office only |
+| `shipment` | as before | office only |
+| `load_save` | `loadId`, any of `originPlaceId`, `plannedDate`, `truckType`, `truckNumber`, `trailerNumber`, `bolNumber`, `notes`, `driverName`, `driverPhone`, `companies` (replaces, ≤3), `stops: [{id, placeId, kind?, plannedDate?}]` (replaces), `capturedAt?`. After departure, stops change only by office staff and only ones not yet reached. | anyone; stops as above |
+| `load_plan` | `loadId`, `add: [{code, dropoffStopId, pickupStopId?, move?}]`, `remove: [code]`, `partial?`. Before departure. | office, or the crew on a load started in the field |
+| `load_on` | `loadId`, `pieces: [code or {code, dropoffStopId?, move?}]`, `undo?: [code]`, `stopId?`, `partial?`, `capturedAt?` | anyone |
+| `load_depart` | `loadId`, `confirmAll?`, `overrideReason?`, `capturedAt?` | anyone; `confirmAll` and `overrideReason` office only |
+| `load_off` | `loadId`, `stopId`, `pieces: [code]`, `siteMapId?`, `zoneId?`, `partial?`, `capturedAt?`. Allowed until the load is closed. | anyone |
+| `stop_complete` | `loadId`, `stopId`, `confirmAll?`, `capturedAt?` | anyone at our yards and sites; office only at shops and vendors |
+| `load_close` | `loadId`, `cancel?`. Closing needs every stop done and no piece missing. | office only |
+| `line_found` | `lineId`, `placeId`, `note?` | office only |
+| `line_write_off` | `lineId`, `reason` | office only |
+| `line_write_off_undo` | `writeOffId`, `reason` | administrators only |
 
-Refusals use SQLSTATE `22023` with a message that can be shown as is, and `42501` for access.
+Refusals: `22023` with a message that can be shown as is, `42501` for access, `23505` for an operation ID reused for a different request.
+
+### Device time, partial lists and moving pieces
+
+- **`capturedAt`**: when the change was made on the device, as an ISO 8601 time with a zone; a clock running ahead counts as now. A count made before the latest count of that tag is refused; so is a `load_save` made before the load's `edited_at`, and a licence change made before the latest one. `load_on` without a stop after departure is accepted only for scans made before departure (a second phone's late uploads); if the drop-off stop is already done the piece is missing. A `load_off` scan at another stop moves a delivered piece there, unless it was made before the scan recorded.
+- **`partial: true`**: pack, load_plan, load_on and load_off apply the tags they can and return the others in `refused: [{code, list?, message, sqlstate}]`, instead of refusing the whole list. A partial pack with refusals isn't sealed.
+- **`move: true`**: on a piece in `load_plan` or `load_on`, takes it off another load's plan if that load hasn't left; the answer lists it in `moved`. Without it, the step is refused and says which load has it.
 
 ### The licence, outside `field_operations`
 
-These calls keep the number out of `field_operations`. The audit log records only the last four characters.
+- **`record_driver_licence(operation_id, load_id, {number, state?, expiry?, capturedAt?})`**: every operation ID is remembered, so a retry is answered and never applied again. Field staff can record while the load is open; office staff at any time. A licence past its removal date can't be recorded.
+- **`attach_driver_licence_photo(load_id, path)`** after uploading to `driver-licences/<load id>/<name>.jpg`, `.jpeg` or `.png`, without upsert. Storage refuses other names, sub-folders and a fifth file in a load's folder.
+- **Office removal at any time.** Delete a wrong photo through Storage, then call `remove_driver_licence_photo(path)`. `remove_driver_licence(load_id, reason)` needs a reason (5+ characters) before the licence is due; delete the folder's files through Storage first. Removal clears `loads.licence_recorded_at`, and a licence can then be recorded again.
+- **Due for removal**: 90 days after the load closes or is cancelled, or 90 days after its last activity if it never closes. `driver_licences_due_for_removal()` lists due loads on the office user's projects with every file in each folder.
+- **Daily job.** `.github/workflows/purge-driver-licences.yml` runs `scripts/purge-driver-licences.mjs` with the service role: `driver_licence_purge_queue()`, delete each folder's files, `purge_driver_licence(load_id)`. It needs the `SUPABASE_SERVICE_ROLE_KEY` repository secret.
+- **Projects** can't be completed or archived while any of their loads is open.
 
-- **`record_driver_licence(operation_id, load_id, {number, state?, expiry?})`**: records or corrects the licence. A repeated operation ID returns the first answer.
-  - Field staff can call it while the load is open; office staff can call it at any time.
-  - It returns `{recorded, last4}`. `loads.licence_recorded_at` then tells everyone a licence is on file.
-- **`attach_driver_licence_photo(load_id, path)`**: call it after the upload. A load keeps at most 4 photos.
-- **Removal after 90 days**: office staff call `driver_licences_due_for_removal()` for loads closed more than 90 days ago.
-  1. Delete each load's photos through Storage. Deleting is allowed only then, and only for office staff.
-  2. Call `remove_driver_licence(load_id)`. It refuses while any photo is still stored, then clears the number, the state and the expiry.
+### Places and activity
 
-The office Loads page does this whenever office staff open it.
+- **Shared places** can't be tied to one project while other projects use them, and their kind can't change and they can't be retired by an office user who doesn't work every project using them; an administrator can. Every change to a place is in the audit log.
+- **Activity.** `audit_log` is readable by office staff only (administrators also see entries with no project). Everyone on a project reads `list_project_activity(project_id, before?, limit?)`: what happened, to what, who and when, with a fixed set of safe details and no licence events.
 
 ### Views
 
-- **`load_overview`**: one row per load, with origin, next stop, piece counts by status, flagged count, stop counts, and whether a licence is on file.
-- **`load_stop_overview`**: stops in order, with their place, and counts due, delivered and missing.
-- **`load_line_overview`**: manifest lines with the piece's name, high-value flag, pick-up, drop-off and delivered places, flags, and `is_current_position`. That marks the line that says where a piece is now: its latest line that put it on a truck, off at a place, or missing.
-- **`handling_unit_overview`**: also shows `top_status`, plus the `load_id`, `load_number` and `load_line_status` of the load its outermost crate is planned for, on board, or missing from.
+- **`load_overview`**: one row per load, with origin and origin kind, next stop, piece counts by status (including written off), flagged count, stop counts, `started_in_field`, `edited_at`, `licence_recorded_at` and the override.
+- **`load_stop_overview`**: stops in order with place and place kind, and counts due, delivered, missing and to pick up.
+- **`load_line_overview`**: manifest lines with name, high value, pick-up, drop-off and delivered places, flags and `is_current_position`.
+- **`handling_unit_overview`**: also `top_status`, `place_kind`, and the load its outermost crate is planned for, on board or missing from.
+- **`item_positions`** and **`location_areas`**: see above.
