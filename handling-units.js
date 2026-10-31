@@ -60,6 +60,8 @@
         const cell = el('td'), where = logistics.unitWhere(unit);
         if (unit.parent_code) cell.append(el('div', `Inside ${unit.parent_code}`, 'mono'));
         if (where) cell.append(el('div', where, unit.parent_code ? 'small text-muted' : ''));
+        // 022: the load its outermost crate is planned for, on or missing from.
+        if (unit.load_number) cell.append(el('div', `${{ planned: 'Planned on', on_board: 'On', missing: 'Missing from' }[unit.load_line_status] || 'On'} load ${unit.load_number}`, 'small'));
         if (!cell.childNodes.length) cell.append(el('span', 'Not recorded', 'small text-muted'));
         return cell;
     }

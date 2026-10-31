@@ -59,3 +59,49 @@ test('places are read and written with the unscoped client; crates through the p
     for (const table of ['handling_units', 'handling_unit_contents', 'handling_unit_overview', 'handling_unit_items']) assert.equal(isProjectScopedTable(table), true, table);
     assert.equal(isProjectScopedTable('places'), false, 'places are shared by every project');
 });
+
+test('Loads and the rebuilt Outside Shops use the shared shell, and Loads is under Logistics in the sidebar', () => {
+    const loadsPage = { 'loads.html': ['loads.js', 'Loads', ['newLoad', 'housekeeping', 'showOpen', 'showFinished', 'loadBoard', 'loadDrawer', 'loadHeader', 'loadBody', 'loadStatus']],
+        'outside-shop-inventory.html': ['outside-shops.js', 'Outside Shops', ['filterShop', 'filterSearch', 'shopSections']] };
+    for (const [file, [script, title, ids]] of Object.entries(loadsPage)) {
+        const html = fs.readFileSync(file, 'utf8');
+        assert.match(html, /<body>\n<section class="work-page">/, file);
+        assert.match(html, /<p id="pageMessage" role="status" aria-live="polite" tabindex="-1">/, file);
+        for (const needed of ['js/utils/auth-guard.js', 'js/utils/project-scope.js', 'js/utils/sidebar.js', 'js/utils/loads-helpers.js', script]) {
+            assert.match(html, new RegExp(`src="${needed.replaceAll('.', '\\.')}\\?v=`), `${file} loads ${needed}`);
+        }
+        assert.ok(html.indexOf('loads-helpers.js') < html.indexOf(`src="${script}`), `${file}: helpers load before the page script`);
+        for (const id of ids) assert.match(html, new RegExp(`id="${id}"`), `${file} has #${id}`);
+        assert.match(sidebar, new RegExp(`'${file.replace('.', '\\.')}': +'${title}'`), `${file} is in PAGE_TITLES`);
+        assert.doesNotMatch(html, /<script>(?!\s*$)|onclick=|outside_shop_inventory|shop_contacts/, `${file}: no inline script, and none of the old tables`);
+    }
+    assert.match(fs.readFileSync('loads.html', 'utf8'), /<dialog id="loadDrawer" class="review-drawer load-drawer" aria-labelledby="loadTitle"><div id="loadHeader"><\/div><fieldset id="loadBody"/);
+    const logisticsNav = sidebar.slice(sidebar.indexOf("section: 'Logistics'"), sidebar.indexOf("section: 'Planning'"));
+    assert.match(logisticsNav, /label: 'Loads', +icon: '[\w-]+', +href: 'loads\.html'/);
+});
+
+test('Loads never parses HTML, logs nothing, sends every change as an operation and keeps the licence out of URLs and print-outs', () => {
+    for (const file of ['loads.js', 'outside-shops.js', 'js/utils/loads-helpers.js']) {
+        const js = fs.readFileSync(file, 'utf8');
+        assert.doesNotMatch(js, /innerHTML|outerHTML|insertAdjacentHTML|document\.write/, `${file} never parses strings as HTML`);
+        assert.doesNotMatch(js, /console\./, `${file} logs nothing`);
+        assert.match(js, /await window\.InvenioAuthReady|module\.exports/, file);
+    }
+    const loads = fs.readFileSync('loads.js', 'utf8'), shops = fs.readFileSync('outside-shops.js', 'utf8');
+    assert.doesNotMatch(loads + shops, /\.(insert|update|upsert|delete)\(/, 'no direct table writes: changes are operations');
+    assert.match(loads, /rpc\('apply_field_operation', \{ p_operation_id: crypto\.randomUUID\(\), p_project_id: projectId, p_action: action, p_payload: payload \}\)/);
+    assert.match(loads, /rpc\('record_driver_licence', \{ p_operation_id: crypto\.randomUUID\(\), p_load_id: load\.id, p_licence: licence \}\)/);
+    assert.match(loads, /\.upload\(target\.path, file, \{ contentType: file\.type, upsert: false \}\)/);
+    assert.match(loads, /createSignedUrl\(photo\.storage_path, 300\)/);
+    // The only URL a page builds carries a load's ID, and the print-out is given everything but the licence.
+    assert.deepEqual([...(loads + shops).matchAll(/\?load=\$\{[^}]+\}/g)].map(match => match[0]), ['?load=${encodeURIComponent(piece.line.load_id)}']);
+    assert.match(loads, /writeManifest\(printWindow, \{ load: state\.load, companies: state\.companies, stops: state\.stops, lines: state\.lines \}\)/);
+    const writer = loads.slice(loads.indexOf('function writeManifest'), loads.indexOf('// ---- Licence housekeeping'));
+    assert.doesNotMatch(writer, /licen[cs]e/i, 'the print-out code never touches the licence');
+});
+
+test('the load tables and views are project-scoped', () => {
+    for (const table of ['loads', 'load_companies', 'load_stops', 'load_lines', 'load_overview', 'load_stop_overview', 'load_line_overview', 'load_driver_licences', 'driver_licence_photos']) {
+        assert.equal(isProjectScopedTable(table), true, table);
+    }
+});

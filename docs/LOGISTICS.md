@@ -53,6 +53,64 @@ Run `python3 tests/browser/serve.py`, then open `http://127.0.0.1:8092/places.ht
 - It also has crates nested three deep, and it answers label reservations.
 - To see the field-worker view, run `sessionStorage.setItem('fixtureRole', 'field_worker')` in the browser console and reload.
 
+## Loads (`loads.html`)
+
+- **Board.** Columns for planning, loading, in transit and delivered. A switch shows closed and cancelled loads instead.
+  - Each card shows the load number, the origin and next stop, the driver, and the piece counts that aren't zero.
+  - It also shows any flags, a "Licence on file" badge and the planned date.
+  - Everything comes from `load_overview`, read through the project scope.
+- **New load.** The form makes a load ID with `crypto.randomUUID()`. Its first `load_save` creates the load and gets its number; the drawer then opens in full.
+- **Every change is one operation.** Each is `apply_field_operation` with a new operation ID.
+  - 022's refusals are shown as the database words them.
+  - While a change saves, the drawer is disabled and a second change says so.
+  - The board and the load reload afterwards, saved or refused.
+- **The drawer.** It has sections for status, details, companies, stops, the manifest and, for office staff, the driver's licence.
+  - A section with unsaved edits keeps them when another section saves.
+  - Escape asks before dropping edits.
+  - A finished load, or any load on a project that isn't active, shows its details and companies as text.
+- **Stops.** Stops are edited (added, reordered, removed) only until the truck leaves. New stops get their IDs on the page, so pieces planned for a stop stay with it.
+  - After departure, each stop shows what's due, delivered and missing.
+  - "Mark delivered" (office) finishes a drop-off stop without scanning.
+  - "Finish stop" warns that pieces not scanned off become missing.
+- **Manifest.** It's grouped by drop-off stop. A piece is planned by crate code or item tag, or taken off the plan, until the truck leaves.
+  - Flags (extra, wrong stop, found) and missing pieces are shown.
+  - Office staff mark a missing piece found at a place, with a note.
+- **Status actions.**
+  - "Mark loaded and depart" (office) is `load_depart` with `confirmAll`, for a truck leaving a place where nobody scans.
+  - "Depart with what's on board" sends the truck off with what was scanned on; the rest stays behind.
+  - "Cancel load" and "Close load" (office) call `load_close`.
+- **Driver's licence (office staff only).** Field staff never read it, and the page doesn't ask for it for them.
+  - The number, state and expiry are saved with `record_driver_licence`, with a new operation ID each time. The page repeats only the last four characters.
+  - Photos are shown through 5-minute signed links.
+  - A new photo is uploaded to `driver-licences/<load id>/<new id>.jpg` (or `.png`) without upsert, then attached. If attaching fails, it can be retried without uploading again.
+- **Printed manifest.** It opens during the click, as the crate labels do, with one page section per stop: tag, piece and high-value mark.
+  - It shows the load, driver name and phone, truck, trailer, bill of lading and companies, plus signature lines for the shipper, driver and receiver.
+  - The print code is never given the licence.
+- **Removing old licences.** When office staff open Loads, the page runs `driver_licences_due_for_removal()`. For each load it deletes the photos through Storage, then calls `remove_driver_licence`.
+  - A small note says how many were removed and which couldn't be.
+  - It runs in the background and never blocks the board.
+
+## Outside Shops (`outside-shop-inventory.html`)
+
+Rebuilt on 022's data; the old `outside_shop_inventory` and `shop_contacts` tables are no longer read and stay as they were. Every place of kind `outside_shop` gets a section. A retired shop is listed only while something is still there. Each section lists:
+
+- **Crates there now:** top-level rows of `handling_unit_overview` with that place and status `delivered`.
+- **Loose items there now:** `load_line_overview` rows that are the piece's current position, delivered there.
+
+Each row shows how long the piece has been there (from `off_at`) and links to the load that brought it (`loads.html?load=<id>`).
+
+## Trying loads locally
+
+`tests/browser/serve.py` also serves `tests/support/loads-model.js`, a small model of 022's operations, licence functions, bucket and views. The node page tests use the same model.
+
+The fixture has made-up loads:
+
+- one being planned;
+- one in transit, with a licence and a photo;
+- one delivered, with a missing piece;
+- one closed long enough ago that opening Loads removes its licence;
+- one cancelled.
+
 ## Loads (database contract, migration 022)
 
 Phase 2 of logistics. Migration `supabase/migrations/022_loads_and_drivers.sql` is the contract; tests are in `tests/database/logistics-loads-test.sql` plus a race test in `tests/database/concurrency-test.sh`.

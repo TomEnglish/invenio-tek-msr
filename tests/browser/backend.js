@@ -71,6 +71,69 @@
         packed(1,'HU-AAAA11','GT2-LO-001','Lube oil cooler',1), packed(2,'HU-AAAA11','EL-CD-100','Cable drum 240 m',3), packed(3,'HU-BBBB22','GT2-LO-003','Lube oil pump',1),
         packed(4,'HU-CCCC33','GT2-FS-011','Fuel filter set',4), packed(5,'HU-DDDD44','QR-TEST','Steel Pipe',8), packed(6,'HU-GGGG77','X-<i>1</i>','<img src=x onerror=alert(1)>',1.5,'M'),
     ];
+    // Loads (022), run by tests/support/loads-model.js. Made-up fixture loads: one being planned, one on the road with a
+    // licence on file, one delivered with a missing piece, one closed long enough ago for its licence to be removed,
+    // and one cancelled. The counted items they carry are added here, and two crates move with them.
+    if (!state.loads) {
+        const days = n => new Date(Date.now() - n * 86400000).toISOString(), place = n => `f${n}000000-0000-4000-8000-000000000000`;
+        const loadId = n => `1d000000-0000-4000-8000-00000000000${n}`, stopId = n => `5d000000-0000-4000-8000-00000000000${n}`, lineId = n => `7d000000-0000-4000-8000-00000000000${n}`;
+        const counted = (tag, name) => ({ id: tag, uid: crypto.randomUUID(), project_id: project.id, qr_code: tag, inventory_item: name, quantity: 1, uom: 'EA', count_status: 'counted', source: 'field', site_map_id: null, pin_x: null, pin_y: null, zone_id: null, category_id: null });
+        const items = [counted('EL-JB-007', 'Junction box'), counted('GT2-FS-020', 'Fuel pump skid'), counted('EL-JB-008', 'Junction box, spare'), counted('GT2-FS-021', 'Fuel filter housing'), counted('EL-JB-009', 'Junction box, large')];
+        state.inventory.inventory_records.push(...items);
+        const uid = tag => items.find(item => item.qr_code === tag).uid, unit = code => state.inventory.handling_unit_overview.find(row => row.code === code);
+        Object.assign(unit('HU-GGGG77'), { status: 'delivered', place_id: place(3), place_name: 'Fixture Machine Works' });
+        const load = (n, number, status, extra) => ({ id: loadId(n), project_id: project.id, load_number: number, status, origin_place_id: place(1), planned_date: null, truck_type: null, truck_number: null,
+            trailer_number: null, bol_number: null, driver_name: null, driver_phone: null, licence_recorded_at: null, notes: null, departed_at: null, delivered_at: null, closed_at: null,
+            created_at: days(20), updated_at: days(1), ...extra });
+        const stop = (n, load, seq, placeN, extra = {}) => ({ id: stopId(n), project_id: project.id, load_id: loadId(load), seq, place_id: place(placeN), kind: 'dropoff', planned_date: null, status: 'pending', arrived_at: null, completed_at: null, ...extra });
+        const line = (n, load, tag, dropoff, status, extra = {}) => ({ id: lineId(n), project_id: project.id, load_id: loadId(load), unit_id: /^HU-/.test(tag) ? unit(tag).id : null, material_id: null,
+            inventory_uid: /^HU-/.test(tag) ? null : uid(tag), tag, pickup_stop_id: null, dropoff_stop_id: stopId(dropoff), status, flag: null, added_in_field: false, unit_status_before: 'sealed',
+            delivered_stop_id: null, delivered_place_id: null, delivered_source: null, note: null, on_at: null, off_at: null, created_at: days(20), updated_at: days(1), ...extra });
+        state.loads = { ...InvenioLoadsModel.emptyLoads(),
+            loads: [
+                load(1, 'L-0001', 'planning', { planned_date: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10), truck_type: 'Flatbed', truck_number: 'TRK-118', driver_name: 'Dana Ruiz', driver_phone: '555-0170' }),
+                load(2, 'L-0002', 'in_transit', { planned_date: days(1).slice(0, 10), truck_type: 'Step deck', truck_number: 'TRK-204', trailer_number: 'TR-77', bol_number: 'BOL-5521', driver_name: 'Morgan Lee', driver_phone: '555-0181', departed_at: days(1), licence_recorded_at: days(1) }),
+                load(3, 'L-0003', 'delivered', { planned_date: days(13).slice(0, 10), driver_name: 'Sam Patel', departed_at: days(13), delivered_at: days(12) }),
+                load(4, 'L-0004', 'closed', { planned_date: days(130).slice(0, 10), driver_name: 'Riley Shah', departed_at: days(130), delivered_at: days(129), closed_at: days(120), licence_recorded_at: days(130) }),
+                load(5, 'L-0005', 'cancelled', { driver_name: '<img src=x onerror=alert(1)> Driver', closed_at: days(5) }),
+            ],
+            load_companies: [
+                { id: crypto.randomUUID(), project_id: project.id, load_id: loadId(1), position: 1, name: 'Fixture Freight Brokers', role: 'broker', contact_name: 'Ana Gomez', phone: '555-0190' },
+                { id: crypto.randomUUID(), project_id: project.id, load_id: loadId(1), position: 2, name: 'Example Haulage', role: 'carrier', contact_name: null, phone: '555-0191' },
+                { id: crypto.randomUUID(), project_id: project.id, load_id: loadId(2), position: 1, name: 'Example Haulage', role: 'carrier', contact_name: 'Lee Chen', phone: '555-0191' },
+            ],
+            load_stops: [stop(1, 1, 1, 3), stop(2, 1, 2, 5), stop(3, 2, 1, 3), stop(4, 2, 2, 2, { kind: 'both' }),
+                stop(5, 3, 1, 3, { status: 'done', arrived_at: days(12), completed_at: days(12) }), stop(6, 4, 1, 2, { status: 'done', arrived_at: days(129), completed_at: days(129) })],
+            load_lines: [
+                line(1, 1, 'HU-EEEE55', 1, 'planned', { unit_status_before: null }), line(2, 1, 'EL-JB-007', 2, 'planned'),
+                line(3, 2, 'HU-DDDD44', 3, 'on_board', { on_at: days(1) }), line(4, 2, 'GT2-FS-020', 4, 'on_board', { on_at: days(1) }),
+                line(5, 3, 'HU-GGGG77', 5, 'delivered', { on_at: days(13), off_at: days(12), delivered_stop_id: stopId(5), delivered_place_id: place(3), delivered_source: 'scan' }),
+                line(6, 3, 'EL-JB-008', 5, 'delivered', { on_at: days(13), off_at: days(12), delivered_stop_id: stopId(5), delivered_place_id: place(3), delivered_source: 'scan' }),
+                line(7, 3, 'GT2-FS-021', 5, 'missing', { on_at: days(13) }),
+            ],
+            load_driver_licences: [
+                { load_id: loadId(2), project_id: project.id, licence_number: 'D1234-5678-90', licence_state: 'TX', licence_expiry: '2028-04-30', recorded_at: days(1), last_operation_id: null, removed_at: null },
+                { load_id: loadId(4), project_id: project.id, licence_number: 'R9876-5432', licence_state: 'LA', licence_expiry: '2027-01-31', recorded_at: days(130), last_operation_id: null, removed_at: null },
+            ],
+            driver_licence_photos: [
+                { id: crypto.randomUUID(), load_id: loadId(2), project_id: project.id, storage_path: `${loadId(2)}/front.jpg`, created_at: days(1), removed_at: null },
+                { id: crypto.randomUUID(), load_id: loadId(4), project_id: project.id, storage_path: `${loadId(4)}/front.jpg`, created_at: days(130), removed_at: null },
+            ],
+            licence_objects: [`${loadId(2)}/front.jpg`, `${loadId(4)}/front.jpg`],
+        };
+    }
+    // The model reads places, crates and items from the inventory fixtures; only the load tables live in state.loads.
+    const loadsState = Object.defineProperties(state.loads, {
+        places: { get: () => state.inventory.places }, units: { get: () => state.inventory.handling_unit_overview }, items: { get: () => state.inventory.inventory_records },
+    });
+    const officeRole = () => ['office_staff','admin'].includes(me.role);
+    const loadsModel = InvenioLoadsModel.createModel(loadsState, { projectId: project.id, office: officeRole,
+        packedIn: tag => state.inventory.handling_unit_items.find(row => row.tag === tag)?.unit_code || null });
+    // Reads of the load views and tables. Licences and their photos are for office staff only.
+    const loadReads = { ...loadsModel.views, load_companies: () => state.loads.load_companies,
+        load_driver_licences: () => officeRole() ? state.loads.load_driver_licences : [], driver_licence_photos: () => officeRole() ? state.loads.driver_licence_photos : [] };
+    const loadCall = run => { try { const data = run(); save(); return success(data); } catch (error) { return { data: null, error: { code: error.code, message: error.message } }; } };
+    const licencePhoto = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="480" height="300"><rect width="480" height="300" rx="16" fill="#e8eef7"/><rect x="24" y="60" width="120" height="150" fill="#b8c4d6"/><text x="170" y="100" font-size="22" font-family="sans-serif">FIXTURE LICENCE</text><text x="170" y="140" font-size="16" font-family="sans-serif">Not a real document</text></svg>');
     const svg = body => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(body)}`;
     const planImage = svg('<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000"><rect width="1600" height="1000" fill="#f4f1e8"/><rect x="0" y="560" width="1600" height="90" fill="#c9c3b3"/><rect x="900" y="100" width="560" height="380" fill="#ddd6c4" stroke="#8a8370" stroke-width="6"/><g fill="none" stroke="#8a8370" stroke-width="3">' + Array.from({length:8},(_,i)=>`<rect x="${100+i*60}" y="120" width="40" height="300"/>`).join('') + '</g><text x="60" y="980" font-size="40" fill="#5a5444" font-family="sans-serif">North Yard (fixture plan)</text></svg>');
     const photoImage = svg('<svg xmlns="http://www.w3.org/2000/svg" width="480" height="320"><rect width="480" height="320" fill="#cfd8e3"/><circle cx="240" cy="160" r="90" fill="#7d8ea3"/><text x="20" y="300" font-size="24" font-family="sans-serif">Fixture photo</text></svg>');
@@ -103,6 +166,10 @@
         gte(k,v){this.filters.push(r=>r[k]>=v);return this;}
         or(){return this;} on(){return this;} subscribe(callback){if(callback)callback('SUBSCRIBED');return this;}
         then(resolve,reject) {
+            if (loadReads[this.table]) {
+                const rows = loadReads[this.table]().filter(r=>this.filters.every(f=>f(r))).slice(this.start,this.end+1).map(row=>({...row}));
+                return Promise.resolve({data:this.one?rows[0]||null:rows,error:null}).then(resolve,reject);
+            }
             if (state.inventory[this.table]) return Promise.resolve(this.inventory()).then(resolve,reject);
             let rows = this.table==='users' ? [me,{id:'f1111111-1111-4111-8111-111111111111',full_name:'Jordan Field',role:'field_worker'}] : this.table==='projects' ? state.projects : this.table==='user_projects' ? (sessionStorage.getItem('fixtureNoProjects') ? [] : state.projects.map(p=>({user_id:me.id,project_id:p.id,projects:p}))) : this.table==='receiving_records'||this.table==='materials' ? state.records : this.table==='locations' ? [{id:'d1111111-1111-4111-8111-111111111111', project_id:project.id,zone:'A',row:'1',rack:'1'}] : [];
             const mode = new URLSearchParams(location.search).get('fixture');
@@ -148,6 +215,8 @@
             window.fixture.calls.push({name,payload});
             if(name==='project_staff' && new URLSearchParams(location.search).get('fixture')==='staff-error') return {data:null,error:{message:'Fixture staff unavailable'}};
             if(name==='project_staff') return success([{id:me.id,full_name:me.full_name}]);
+            if(name==='apply_field_operation' && payload.p_action!=='exception') return loadCall(() => loadsModel.apply(payload.p_action, payload.p_payload));
+            if(['record_driver_licence','attach_driver_licence_photo','driver_licences_due_for_removal','remove_driver_licence'].includes(name)) return loadCall(() => loadsModel.call(name, payload));
             if(name==='apply_field_operation') {
                 if(payload.p_action==='exception') Object.assign(state.records[0],{exception_owner_id:payload.p_payload.ownerId,exception_due_date:payload.p_payload.dueDate,exception_notes:payload.p_payload.notes,exception_resolution:payload.p_payload.resolution,exception_resolved:payload.p_payload.resolution!=='hold'});
                 save();return success({id:state.records[0].id});
@@ -194,10 +263,15 @@
                 return success({applied:!payload.p_dry_run,errors:[],rows,...counts});
             }
             return success(null);
-        }, storage:{from:bucket=>({
+        }, storage:{from:bucket=>bucket==='driver-licences' ? {
+            // The private licence bucket: office staff read; anyone working the project uploads without overwriting.
+            createSignedUrl:async path=>loadsModel.storage.canRead(path) ? success({signedUrl:uploads.get(path)||licencePhoto}) : {data:null,error:{statusCode:'400',message:'Object not found'}},
+            upload:async(path,blob)=>{ const {error}=loadsModel.storage.upload(path); if(error) return {data:null,error}; uploads.set(path,URL.createObjectURL(blob)); save(); return success({path}); },
+            remove:async paths=>{ const removed=loadsModel.storage.remove(paths); save(); return success(removed.map(name=>({name}))); },
+        } : {
             createSignedUrl:async path=>success({signedUrl:uploads.get(path)||(bucket==='site-plans'?planImage:bucket==='inventory-photos'?photoImage:'')}),
             upload:async(path,blob)=>{uploads.set(path,URL.createObjectURL(blob));return success({path});},
-        })},
+        }},
     }) };
     const originalFetch=window.fetch;
     window.fetch=async(url,options={})=>{

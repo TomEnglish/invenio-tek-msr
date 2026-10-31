@@ -45,6 +45,15 @@
         'handling_unit_contents',
         'handling_unit_overview',
         'handling_unit_items',
+        'loads',
+        'load_companies',
+        'load_stops',
+        'load_lines',
+        'load_overview',
+        'load_stop_overview',
+        'load_line_overview',
+        'load_driver_licences',
+        'driver_licence_photos',
     ]);
 
     let currentUserId = null;

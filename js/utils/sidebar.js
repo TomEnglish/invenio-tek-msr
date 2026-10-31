@@ -12,6 +12,7 @@
         { label: 'Outside Shops',   icon: 'fa-store',             href: 'outside-shop-inventory.html' },
         { label: 'Places',          icon: 'fa-map-pin',           href: 'places.html' },
         { label: 'Crates',          icon: 'fa-box',               href: 'handling-units.html' },
+        { label: 'Loads',           icon: 'fa-truck-moving',      href: 'loads.html' },
         { label: 'Gap Analysis',    icon: 'fa-clipboard-check',   href: 'gap-analysis.html', section: 'Planning' },
         { label: 'PO & Installation',       icon: 'fa-cubes',             href: 'material-tracking.html' },
         { label: 'Delivery Dates',      icon: 'fa-truck',             href: 'delivery-dates.html' },
@@ -33,7 +34,7 @@
         'index.html':                   'Dashboard',
         'shipment-visibility.html':     'Shipment Visibility',
         'inventory.html':               'Yard Inventory',
-        'outside-shop-inventory.html':  'Outside Shop Inventory',
+        'outside-shop-inventory.html':  'Outside Shops',
         'shop-contacts.html':           'Shop Contacts',
         'gap-analysis.html':            'Gap Analysis',
         'material-tracking.html':       'PO & Installation',
@@ -52,6 +53,7 @@
         'site-maps.html': 'Site Maps',
         'places.html': 'Places',
         'handling-units.html': 'Crates',
+        'loads.html': 'Loads',
     };
 
     function getCurrentPage() {
