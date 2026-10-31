@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Invenio Field Platform: field guide</title>
+<title>Invenio Field Platform field guide</title>
 <!-- css -->
 </head>
 <body>
@@ -42,7 +42,7 @@
   <div class="edition">
     <span>Edition</span><b>1 · 31 October 2026</b>
     <span>Field app</span><b>1.1.0 (build 5), over-the-air update 626de00e</b>
-    <span>Office site</span><b>invenio-field-msr.netlify.app, release 465adc6</b>
+    <span>Office site</span><b>release 465adc6</b>
     <span>Database</span><b>migrations to 022 live; 023 (keeping licences 365 days) awaiting release</b>
     <span>Covers</span><b>initial count, receiving, stock, crates, loads and driver check-in</b>
   </div>
@@ -183,7 +183,7 @@
     <li>Press <span class="ui">Finish account setup</span>. On “Enter your email code”, fill <span class="ui">Invited email address</span> and <span class="ui">Email code</span>, then press <span class="ui">Verify code</span>.</li>
     <li>Choose a password of at least 8 characters, enter it twice and press <span class="ui">Update Password</span>.</li>
   </ol>
-  <p>After that, sign in at <strong>invenio-field-msr.netlify.app</strong> (“Sign in”, Material Status Report). <span class="ui">Forgot password?</span> sends a reset code by email; enter it, then set a new password. A wrong or old code shows “This code is incorrect, expired or already used.” Someone with no project sees “Access pending” and a <span class="ui">Check access</span> button.</p>
+  <p>After that, open the office site from the link in your invitation email and bookmark it; it opens on “Sign in” (Material Status Report). <span class="ui">Forgot password?</span> sends a reset code by email; enter it, then set a new password. A wrong or old code shows “This code is incorrect, expired or already used.” Someone with no project sees “Access pending” and a <span class="ui">Check access</span> button.</p>
   <p>The header has the active-project selector (it asks before leaving unsaved work), <span class="ui">Search records...</span>, a theme switch and a bell that opens the Work Inbox. Your email and <span class="ui">Sign Out</span> are at the foot of the sidebar.</p>
 </section>
 
@@ -526,7 +526,7 @@
   <p class="for"><span class="who office">Office</span></p>
   <p class="lede">Before an initial count, the office can import the tags it expects to find, so crews can see what is still missing and every expected item arrives with its details.</p>
   <ol class="steps">
-    <li>On <span class="ui">Initial Inventory</span>, press <span class="ui">Import expected tags</span> and choose a CSV or Excel (.xlsx) file, up to 20 MB and 5,000 rows.</li>
+    <li>On <span class="ui">Initial Inventory</span>, press <span class="ui">Import expected tags</span> and choose a spreadsheet (.xlsx) or CSV file, up to 20 MB and 5,000 rows.</li>
     <li>Match the file's columns to the fields. <span class="ui">Tag</span> is required; <span class="ui">Not imported</span> skips a column.</li>
     <li>Press <span class="ui">Preview import</span>. This is a dry run: any problem blocks the whole file until it is fixed.</li>
     <li>Press <span class="ui">Apply import</span>. The page reports how many tags are new, refreshed and skipped, and how many categories were added.</li>
@@ -702,21 +702,21 @@
 
 <section class="chapter">
   <h2 data-toc="a-arch"><span class="n">A1</span>Architecture and where it runs</h2>
-  <p class="lede">One PostgreSQL database, hosted on Supabase, holds every record and every rule. The field app and the office site are clients of it; neither has a server of its own.</p>
+  <p class="lede">One managed database holds every record and every rule. The field app and the office site are clients of it; neither has a server of its own.</p>
   <table>
     <thead><tr><th style="width:19%">Part</th><th style="width:43%">Where it runs</th><th>Notes</th></tr></thead>
     <tbody>
-      <tr><td>Field app</td><td>iPhone and Android, built with Expo (React Native) from <code>TomEnglish/invenio-field-platform</code>. Version 1.1.0, build 5.</td><td>Offline queue on the phone; new screens arrive as over-the-air updates on the production channel.</td></tr>
-      <tr><td>Office site</td><td>Netlify, deployed from <code>main</code> of <code>TomEnglish/invenio-tek-msr</code>, at invenio-field-msr.netlify.app.</td><td>Plain HTML and JavaScript; <code>scripts/build-site.mjs</code> builds <code>dist/</code> and a <code>release.json</code> of asset hashes.</td></tr>
-      <tr><td>Database and sign-in</td><td>Supabase project “InventoryApp_w_MSR”: PostgreSQL with row-level security, and Supabase Auth.</td><td>Shared by both clients. Every migration lives in the MSR repository.</td></tr>
+      <tr><td>Field app</td><td>iPhone and Android, built from the field app repository. Version 1.1.0, build 5.</td><td>Offline queue on the phone; new screens arrive as over-the-air updates on the production channel.</td></tr>
+      <tr><td>Office site</td><td>A managed web host, deployed from <code>main</code> of the office repository (MSR).</td><td>Plain HTML and JavaScript; the site build writes a <code>release.json</code> of asset hashes.</td></tr>
+      <tr><td>Database and sign-in</td><td>The managed database (project “InventoryApp_w_MSR”), with row-level security, and its sign-in service.</td><td>Shared by both clients. Every migration lives in the MSR repository.</td></tr>
       <tr><td>Private storage</td><td>Buckets <code>inspection-photos</code>; <code>site-plans</code> (15 MB; PNG, JPEG, WEBP); <code>inventory-photos</code> (10 MB); <code>driver-licences</code> (10 MB; JPEG, PNG; at most 4 files a load).</td><td>Read only through short-lived signed links.</td></tr>
-      <tr><td>Admin function</td><td>Supabase Edge Function <code>admin-users</code>, with JWT verification on.</td><td>Invitations, users, projects and the admin audit.</td></tr>
-      <tr><td>Email</td><td>Supabase Auth, sending through Resend.</td><td>Templates in <code>supabase/templates/</code>.</td></tr>
-      <tr><td>Licence job</td><td>GitHub Actions, <code>purge-driver-licences.yml</code>, daily at 09:17 UTC.</td><td>Removes licences that are due and not kept.</td></tr>
+      <tr><td>Admin function</td><td>A server function, <code>admin-users</code>, that checks each caller's sign-in token.</td><td>Invitations, users, projects and the admin audit.</td></tr>
+      <tr><td>Email</td><td>The sign-in service, sending through an email delivery provider.</td><td>Templates in the office repository.</td></tr>
+      <tr><td>Licence job</td><td>A scheduled job in the office repository, daily at 09:17 UTC.</td><td>Removes licences that are due and not kept.</td></tr>
       <tr><td>Trackers</td><td>GPS trackers from an outside provider. The live sync still runs from the legacy repository.</td><td>See A9.</td></tr>
     </tbody>
   </table>
-  <p>Both clients sign in with Supabase Auth and talk to the database directly with the public key; what each person may read or change is decided inside the database by row-level security and checked functions (A4, A5). The service-role key, which bypasses those rules, is used only by the admin function, the licence job and the purchase-order import (A9), and lives only in their secret stores.</p>
+  <p>Both clients sign in through the database's sign-in service and talk to the database directly with its public key; what each person may read or change is decided inside the database by row-level security and checked functions (A4, A5). The service-role key, which bypasses those rules, is used only by the admin function, the licence job and the purchase-order import (A9), and lives only in their secret stores.</p>
 </section>
 
 <section class="chapter">
@@ -809,7 +809,7 @@
     <li>Invitations and resets use email codes that last an hour and work once; only the newest is valid.</li>
     <li>Deactivating someone takes effect at once. The last active administrator can't be removed.</li>
     <li>The admin function accepts requests only from the production office site.</li>
-    <li>Secrets are never kept in the repositories. The service-role key exists only in GitHub's repository secrets and the function's secret store; set it there yourself and never paste it into a chat, file or ticket.</li>
+    <li>Secrets are never kept in the repositories. The service-role key exists only in the repository's secret store and the function's secret store; set it there yourself and never paste it into a chat, file or ticket.</li>
   </ul>
 </section>
 
@@ -823,7 +823,7 @@
     <li><strong>Site Maps:</strong> press <span class="ui">New map</span>, tie it to the yard or site, upload the plan, draw the areas (nested as crews name them), set each area's rack, and work through <span class="ui">Racks without an area</span> until it is empty.</li>
     <li><strong>Counting</strong> (if there is an initial count): set up <span class="ui">Inventory Categories</span> and <span class="ui">Import expected tags</span>.</li>
     <li><strong>Crates:</strong> <span class="ui">Print crate labels</span> for the first weeks of packing.</li>
-    <li><strong>Licence job:</strong> confirm the <code>SUPABASE_SERVICE_ROLE_KEY</code> secret is set and the job's last run passed before loads start carrying licences.</li>
+    <li><strong>Licence job:</strong> confirm the job's service-role secret is set and its last run passed before loads start carrying licences.</li>
     <li><strong>Training:</strong> have crews practise in Training Yard (below) before they work in the new project.</li>
   </ol>
   <h3>Training Yard</h3>
@@ -839,8 +839,8 @@
       <tr><td>Projects</td><td>Create, edit, complete (read-only) or archive (hidden). Completing or archiving is refused while loads are open.</td></tr>
       <tr><td>Data Browser</td><td>Browse any table for the active project, 25 to 100 rows at a time, and export CSV. History tables are read-only and nothing can be deleted. Material records can be corrected with a reason of at least five characters. <span class="ui">Locations</span> is the only table with <span class="ui">Add</span>: it is where racks are made.</td></tr>
       <tr><td>Activity &amp; Audit</td><td>Administrator changes (users and projects) with person, time and old and new values, 25 a page. Operational history (counts, crates, loads) is in Data Browser › <span class="ui">Audit Log</span>, and on the app's Activity tab.</td></tr>
-      <tr><td>Auth settings</td><td>Hosted in Supabase: email codes last 3,600 seconds; the redirect allowlist has <code>/login.html</code> and <code>/login.html?setup=invite</code>; templates and subjects as in <code>docs/INVITATION_RECOVERY.md</code>.</td></tr>
-      <tr><td>Function secrets</td><td>Names only: <code>SUPABASE_URL</code>, <code>SUPABASE_ANON_KEY</code>, <code>SUPABASE_SERVICE_ROLE_KEY</code>, <code>INVITATION_TTL_SECONDS</code> (default 3600), <code>INVITATION_EMAIL_ENABLED</code>. With email switched off, invitations are disabled and the page says so.</td></tr>
+      <tr><td>Auth settings</td><td>Held by the sign-in service: email codes last 3,600 seconds; the redirect allowlist has <code>/login.html</code> and <code>/login.html?setup=invite</code>; templates and subjects as in <code>docs/INVITATION_RECOVERY.md</code>.</td></tr>
+      <tr><td>Function secrets</td><td>The database address, its public and service-role keys, <code>INVITATION_TTL_SECONDS</code> (default 3600) and <code>INVITATION_EMAIL_ENABLED</code>. With email switched off, invitations are disabled and the page says so.</td></tr>
     </tbody>
   </table>
 </section>
@@ -852,37 +852,37 @@
     <thead><tr><th style="width:24%">What changed</th><th>How it is released</th></tr></thead>
     <tbody>
       <tr><td>Database</td><td>A new migration file in the MSR repository, applied to production with the guarded procedure below.</td></tr>
-      <tr><td>Office site</td><td>Merge the pull request to <code>main</code>; Netlify deploys and the smoke test checks it.</td></tr>
-      <tr><td>Admin function</td><td><code>supabase functions deploy admin-users --project-ref &lt;ref&gt; --use-api</code></td></tr>
-      <tr><td>App screens</td><td>An over-the-air update: <code>eas update --channel production --environment production --message "…"</code></td></tr>
-      <tr><td>App native parts</td><td>A new store build (<code>eas build</code>), only when native modules or the app version change.</td></tr>
+      <tr><td>Office site</td><td>Merge the pull request to <code>main</code>; the web host deploys it and the smoke test checks it.</td></tr>
+      <tr><td>Admin function</td><td>Deployed from the office repository with the database host's command-line tool, token checks on.</td></tr>
+      <tr><td>App screens</td><td>An over-the-air update to the production channel.</td></tr>
+      <tr><td>App native parts</td><td>A new store build, only when native modules or the app version change.</td></tr>
     </tbody>
   </table>
   <h3>Database migrations</h3>
   <ol class="steps">
-    <li>Write the change as a new numbered file in <code>supabase/migrations/</code>. Never edit a migration that has run in production, and never change production by hand in the SQL editor.</li>
-    <li>CI builds a fresh database from every migration and runs the database tests (<code>tests/database/run.sh</code>, PostgreSQL 16).</li>
+    <li>Write the change as a new numbered migration file in the office repository. Never edit a migration that has run in production, and never change production by hand.</li>
+    <li>CI builds a fresh database from every migration and runs the database tests (<code>tests/database/run.sh</code>).</li>
     <li>Rehearse on a copy at the previous version, then run the tests again.</li>
-    <li>Fingerprint production with <code>supabase/checks/schema-fingerprint.sql</code> (read-only) and compare it with a fresh build at the previous version. They must match line for line; <code>--detail</code> finds any difference.</li>
+    <li>Fingerprint production with the schema fingerprint check (read-only) and compare it with a fresh build at the previous version. They must match line for line; <code>--detail</code> finds any difference.</li>
     <li>Back up, then apply in one transaction: check that production's latest migration is the one before this; record the migration with its full text; check the stored text's checksum; run it. Any error rolls all of it back.</li>
     <li>Fingerprint again, compare with a fresh build at the new version, and record the release.</li>
     <li>Release what depends on it: the office site, the admin function, the app update.</li>
   </ol>
   <h3>Office site</h3>
-  <p>Netlify runs <code>scripts/build-site.mjs</code>, which copies the pages and scripts, checks that the required pages exist and writes <code>release.json</code> with the commit and SHA-256 hashes of the key assets. The <code>production-smoke</code> job then waits for that commit to go live, checks the asset hashes and confirms private paths return 404. To roll back, restore the last verified deploy in Netlify.</p>
+  <p>The web host runs the site build, which copies the pages and scripts, checks that the required pages exist and writes <code>release.json</code> with the commit and SHA-256 hashes of the key assets. The <code>production-smoke</code> job then waits for that commit to go live, checks the asset hashes and confirms private paths return 404. To roll back, restore the last verified deploy on the web host.</p>
   <h3>Field app</h3>
   <p>App updates carry new screens to every phone on the same runtime (1.1.0). A phone downloads an update when the app opens and switches to it the next time the app is fully closed and reopened. The current production update is 626de00e on build 5.</p>
   <h3>Licence job</h3>
-  <p><code>.github/workflows/purge-driver-licences.yml</code> runs <code>scripts/purge-driver-licences.mjs</code> every day at 09:17 UTC and can be run by hand from the Actions tab. It needs the repository secret <code>SUPABASE_SERVICE_ROLE_KEY</code>, which an administrator sets in GitHub; <code>SUPABASE_URL</code> is optional. If a run fails, the Loads page's backup still removes due licences when office staff open it; fix the job the same week.</p>
+  <p>A scheduled job in the office repository runs the licence removal script every day at 09:17 UTC, and can be run by hand. It needs the service-role key as a repository secret, which an administrator sets; the database address is optional. If a run fails, the Loads page's backup still removes due licences when office staff open it; fix the job the same week.</p>
 </section>
 
 <section class="chapter cont">
   <h2 data-toc="a-integrations"><span class="n">A9</span>Integrations</h2>
   <h3>GPS trackers</h3>
-  <p>The <span class="ui">GPS Tracking</span> page shows the GPS trackers, but its data updates only while the legacy hourly job in <code>TomEnglish/MSR_F6B</code> writes to the shared database; the MSR repository's own tracker sync workflow is a manual placeholder that prints the hand-over steps. The cut-over is set out in <code>docs/INTEGRATION_OWNERSHIP.md</code>.</p>
+  <p>The <span class="ui">GPS Tracking</span> page shows the GPS trackers, but its data updates only while the legacy hourly job in the old tracker repository writes to the shared database; the MSR repository's own tracker sync workflow is a manual placeholder that prints the hand-over steps. The cut-over is set out in <code>docs/INTEGRATION_OWNERSHIP.md</code>.</p>
   <p><strong>Planned.</strong> Trackers will be attached to crates and high-value items, not trucks. A server job will record positions and use each place's arrival radius to mark crates as arrived at shops and stops, with a map on each load and a warning when a tracker in transit goes quiet. Before building it, confirm with the tracker provider that the tags will be seen at outside shops, since they report only near a gateway.</p>
   <h3>Purchase orders and shipments</h3>
-  <p><code>sync_po_shipment_data.py</code> checks an MSR workbook and, only with <code>--apply</code>, a <code>--project-id</code> and the service-role key, imports both sheets in one transaction. Without <code>--apply</code> it only validates. It never deletes rows.</p>
+  <p>The purchase-order import script checks an MSR workbook and, only with <code>--apply</code>, a <code>--project-id</code> and the service-role key, imports both sheets in one transaction. Without <code>--apply</code> it only validates. It never deletes rows.</p>
 </section>
 
 <section class="chapter">
@@ -920,9 +920,8 @@
     </tbody>
   </table>
   <h3>Updating this guide</h3>
-  <p>The guide is built from <code>docs/booklet/</code> in the MSR repository: <code>booklet.html</code> (the text), <code>booklet.css</code> (the print style) and <code>diagrams/</code>. When the software changes, edit the text, add a row above, update the edition lines on the cover, and run:</p>
-  <pre>python3 scripts/build-booklet.py</pre>
-  <p>It prints the guide with Google Chrome to <code>docs/booklet/Invenio-Field-Platform-booklet.pdf</code> and numbers the contents. Keep the contents to one page.</p>
+  <p>The guide is built from <code>docs/booklet/</code> in the MSR repository: <code>booklet.html</code> (the text), <code>booklet.css</code> (the print style) and <code>diagrams/</code>. When the software changes, edit the text, add a row above, update the edition lines on the cover, and run the booklet build (the command is in <code>docs/booklet/README.md</code>).</p>
+  <p>It prints the guide to <code>docs/booklet/Invenio-Field-Platform-booklet.pdf</code> and numbers the contents. Keep the contents to one page.</p>
 </section>
 
 </body>

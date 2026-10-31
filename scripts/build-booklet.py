@@ -8,7 +8,9 @@ diagrams in docs/booklet/diagrams, which the build inlines where the page
 says <!-- svg:name -->, and the logos in docs/booklet/images, inlined where
 an img says src="images/name.png". It prints the page with headless Google Chrome, finds
 the page each chapter starts on with poppler's pdftotext, writes those numbers
-into the contents, and prints again. CHROME overrides Chrome's path.
+into the contents, and prints again. CHROME overrides Chrome's path. Last, it
+replaces the browser's name in the PDF's creator and producer fields with the
+guide's own, so the file names no tools.
 Without pdftotext the contents are printed without page numbers.
 """
 import base64
@@ -67,12 +69,34 @@ def chapter_pages(pdf, html):
     return found
 
 
+def clean_metadata(pdf):
+    """Overwrite the document information dictionary in place, padded to the
+    same length so the cross-reference offsets stay valid."""
+    data = pdf.read_bytes()
+    ref = re.search(rb'/Info (\d+) 0 R', data[data.rfind(b'trailer'):])
+    start = data.find(b'\n' + ref.group(1) + b' 0 obj\n') if ref else -1
+    if start < 0:
+        return
+    head = data.index(b'<<', start)
+    tail = data.index(b'>>\nendobj', head) + 2
+    old = data[head:tail]
+    title = re.search(rb'/Title (\((?:\\.|[^\\)])*\))', old)
+    dates = re.findall(rb'/(?:CreationDate|ModDate) \([^)]*\)', old)
+    new = (b'<</Title ' + (title.group(1) if title else b'(Invenio Field Platform field guide)')
+           + b'\n/Author (Kindred Industrial Services and Invenio Technologies)'
+           + b'\n/Creator (Invenio Field Platform)\n/Producer (Invenio Field Platform)\n' + b'\n'.join(dates))
+    if len(new) + 2 > len(old):
+        return
+    pdf.write_bytes(data[:head] + new + b' ' * (len(old) - len(new) - 2) + b'>>' + data[tail:])
+
+
 def main():
     out = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ROOT / 'Invenio-Field-Platform-booklet.pdf').resolve()
     render(assemble({}), out)
     numbers = chapter_pages(out, (ROOT / 'booklet.html').read_text(encoding='utf-8'))
     if numbers:
         render(assemble(numbers), out)
+    clean_metadata(out)
     print(f'{out} ({len(numbers)} chapters numbered)')
 
 
