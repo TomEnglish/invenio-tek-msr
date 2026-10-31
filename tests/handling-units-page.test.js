@@ -31,8 +31,8 @@ const ITEMS = [item('HU-AAAA11', 'GT2-LO-010', 'Lube oil cooler'), item('HU-AAAA
     item('HU-CCCC33', 'GT2-FS-011', 'Fuel filter set', 4), item('HU-GGGG77', 'X-<i>1</i>', '<img src=x onerror=alert(1)>', 1.5, 'M')];
 
 /** The two crate views and the label RPC. Set `paused` to hold every request until step() lets the oldest one through. */
-function fakeServer() {
-    const server = { units: structuredClone(UNITS), items: structuredClone(ITEMS), log: [], paused: false, waiting: [], fail: null, reserved: 0 };
+function fakeServer(units = UNITS) {
+    const server = { units: structuredClone(units), items: structuredClone(ITEMS), log: [], paused: false, waiting: [], fail: null, reserved: 0 };
     server.step = () => server.waiting.shift()();
     async function respond(request) {
         server.log.push(request);
@@ -70,8 +70,8 @@ function fakeQrLibrary(calls) {
     };
 }
 
-async function openPage({ role = 'admin', projectStatus = 'active' } = {}) {
-    const server = fakeServer(), qrCalls = [], opened = [];
+async function openPage({ role = 'admin', projectStatus = 'active', units } = {}) {
+    const server = fakeServer(units), qrCalls = [], opened = [];
     const { document, Option } = fakeDocument();
     const context = {
         document, Option, console, setTimeout, structuredClone, Intl,
@@ -118,7 +118,7 @@ test('lists only this project\'s crates by code, with status counts, search and 
     assert.deepEqual(page.codes(), ['HU-AAAA11', 'HU-BBBB22', 'HU-CCCC33', 'HU-DDDD44', 'HU-FFFF66', 'HU-GGGG77']);
     assert.equal(page.$('resultSummary').textContent, '6 crates');
     assert.deepEqual(page.$('filterStatus').options.map(option => option.textContent),
-        ['All statuses (6)', 'Open (3)', 'Sealed (1)', 'On a load (1)', 'Delivered (0)', 'Unpacked (1)']);
+        ['All statuses (6)', 'Open (3)', 'Sealed (1)', 'On a load (1)', 'Delivered (0)', 'Unpacked (1)', 'Missing (0)', 'Written off (0)']);
     const row = code => page.$('unitRows').querySelectorAll('tr').find(item => item.querySelector('.mono').textContent === code);
     const cells = code => row(code).childNodes.map(cell => cell.textContent);
     assert.deepEqual(cells('HU-AAAA11').slice(1, 5), ['Lube oil spares', 'Sealed', 'North Yard laydown · T1 Pipe Racks › Rack 2', '2 items, 1 crate']);
@@ -313,4 +313,19 @@ test('typing a label count does not leave the page marked as having unsaved work
     await page.print('1');
     page.$('labelDialog').close();
     assert.equal(page.context.InvenioUnsavedChanges, false);
+});
+
+test('022: a crate on a load says which load, and a missing one has its own status', async () => {
+    const page = await openPage({ units: [
+        unit('HU-LOAD01', { status: 'on_load', load_id: 'l1', load_number: 'L-0002', load_line_status: 'on_board' }),
+        unit('HU-PLAN01', { status: 'sealed', load_id: 'l1', load_number: 'L-0001', load_line_status: 'planned', place_name: 'North Yard laydown' }),
+        unit('HU-MISS01', { status: 'missing', load_id: 'l3', load_number: 'L-0003', load_line_status: 'missing' }),
+    ] });
+    const where = code => page.$('unitRows').querySelectorAll('tr').find(row => row.querySelector('.mono').textContent === code).childNodes[3].textContent;
+    assert.equal(where('HU-LOAD01'), 'On load L-0002');
+    assert.equal(where('HU-PLAN01'), 'North Yard laydownPlanned on load L-0001');
+    assert.equal(where('HU-MISS01'), 'Missing from load L-0003');
+    assert.ok(page.$('filterStatus').options.some(option => option.textContent === 'Missing (1)'));
+    page.filter('missing');
+    assert.deepEqual(page.codes(), ['HU-MISS01']);
 });

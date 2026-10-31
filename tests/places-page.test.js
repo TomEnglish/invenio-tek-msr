@@ -31,11 +31,23 @@ const PLACES = [
  * Set `paused` to hold every request until step() lets the oldest one through.
  */
 function fakeServer(rows, { role }) {
-    const server = { places: structuredClone(rows), log: [], paused: false, waiting: [], fail: null, assigned: [PROJECT_ID], inserted: 0, edits: 0 };
+    const server = { places: structuredClone(rows), log: [], paused: false, waiting: [], fail: null, assigned: [PROJECT_ID], inserted: 0, edits: 0, usedBy: {} };
     const office = ['office_staff', 'admin'].includes(role);
     const reachable = row => office && (!row.project_id || server.assigned.includes(row.project_id));
     const clash = row => row.is_active !== false && server.places.some(other => other.id !== row.id && other.is_active !== false && other.name.toLowerCase() === row.name.toLowerCase());
     const duplicate = { code: '23505', message: 'duplicate key value violates unique constraint "places_active_name"' };
+    // 022's place_guard: `usedBy` lists the projects using a place (loads, crates, items, plans).
+    function sharedPlaceGuard(row, values) {
+        const users = server.usedBy[row.id] || [];
+        if (values.project_id && values.project_id !== row.project_id && users.some(project => project !== values.project_id)) {
+            return { code: '22023', message: `${row.name} is in use by other projects, so it can't belong to one project` };
+        }
+        if (((values.kind && values.kind !== row.kind) || (row.is_active !== false && values.is_active === false)) && role !== 'admin'
+            && users.some(project => !server.assigned.includes(project))) {
+            return { code: '42501', message: `${row.name} is in use by another project; ask an administrator to change or retire it` };
+        }
+        return null;
+    }
     server.step = () => server.waiting.shift()();
     async function respond(request) {
         server.log.push(request);
@@ -54,6 +66,8 @@ function fakeServer(rows, { role }) {
         if (request.op === 'update') {
             const allowed = matching.filter(reachable);
             if (allowed.some(row => clash({ ...row, ...request.values }))) return { data: null, error: duplicate };
+            const refused = allowed.map(row => sharedPlaceGuard(row, request.values)).find(Boolean);
+            if (refused) return { data: null, error: refused };
             allowed.forEach(row => Object.assign(row, structuredClone(request.values), { updated_at: new Date(Date.UTC(2026, 9, 29, 9, 0, ++server.edits)).toISOString() }));
             return { data: allowed.map(row => ({ id: row.id })), error: null };
         }
@@ -425,4 +439,44 @@ test('a place tied to a closed project says so, and a map click past the antimer
     page.$('addPlace').click(); await settle();
     page.formMap().fire('click', { latlng: { lat: 29.5, lng: -455.25, wrap: () => ({ lat: 29.5, lng: -95.25 }) } });
     assert.deepEqual([page.input('latitude').value, page.input('longitude').value], ['29.500000', '-95.250000']);
+});
+
+// ---- 022: shared places --------------------------------------------------------------------------------------
+test("retiring a place another project uses is refused with the database's reason, not a permission message", async () => {
+    const page = await openPage({ role: 'office_staff' });
+    page.server.usedBy.v1 = [PROJECT_ID, OTHER_PROJECT];
+    await page.view('Gulf Valve Supply');
+    page.action('Retire').click(); await settle();
+    assert.equal(page.status(), 'Could not retire Gulf Valve Supply: Gulf Valve Supply is in use by another project; ask an administrator to change or retire it');
+    assert.equal(page.server.place('Gulf Valve Supply').is_active, true);
+    assertFocus(page, page.action('Retire'), 'focus stays on Retire');
+    // An administrator may.
+    const admin = await openPage({ role: 'admin' });
+    admin.server.usedBy.v1 = [PROJECT_ID, OTHER_PROJECT];
+    await admin.view('Gulf Valve Supply');
+    admin.action('Retire').click(); await settle();
+    assert.equal(admin.server.place('Gulf Valve Supply').is_active, false);
+});
+
+test("changing the kind of a place another project uses is refused with the database's reason; the form keeps the change", async () => {
+    const page = await openPage({ role: 'office_staff' });
+    page.server.usedBy.s1 = [OTHER_PROJECT];
+    await page.view('Fixture Machine Works');
+    page.action('Edit').click(); await settle();
+    page.fill({ kind: 'vendor' });
+    await page.submit();
+    assert.equal(page.status(), 'Could not save: Fixture Machine Works is in use by another project; ask an administrator to change or retire it');
+    assert.equal(page.input('kind').value, 'vendor', 'the form is still open with the change');
+    assert.equal(page.server.place('Fixture Machine Works').kind, 'outside_shop');
+});
+
+test('tying a shared yard or site to one project while others use it is refused with the 22023 reason as written', async () => {
+    const page = await openPage({ role: 'office_staff', rows: [...PLACES, place('t1', 'Coastal Terminal site', 'site')] });
+    page.server.usedBy.t1 = [PROJECT_ID, OTHER_PROJECT];
+    await page.view('Coastal Terminal site');
+    page.action('Edit').click(); await settle();
+    page.fill({ project_id: PROJECT_ID });
+    await page.submit();
+    assert.equal(page.status(), "Could not save: Coastal Terminal site is in use by other projects, so it can't belong to one project");
+    assert.equal(page.server.place('Coastal Terminal site').project_id, null);
 });

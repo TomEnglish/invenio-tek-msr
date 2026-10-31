@@ -21,14 +21,14 @@
     <p id="pageMessage" role="status" aria-live="polite" tabindex="-1"></p>
     <div id="mapWorkspace" class="site-map-layout" hidden>
         <section class="card site-map-card" aria-labelledby="mapTitle">
-            <div class="card-header"><div><h2 id="mapTitle" class="h6 mb-0"></h2><span id="mapMeta" class="small text-muted"></span></div><div id="mapActions" class="d-flex flex-wrap gap-2"></div></div>
+            <div class="card-header"><div><h2 id="mapTitle" class="h6 mb-0"></h2><span id="mapMeta" class="small text-muted"></span><span id="mapPlace" class="small d-block"></span></div><div id="mapActions" class="d-flex flex-wrap gap-2"></div></div>
             <div id="drawBar" class="site-map-toolbar" hidden><span id="drawHint" role="status"></span><span class="d-flex gap-2"><button type="button" id="undoPoint" class="btn btn-sm btn-outline">Undo point</button><button type="button" id="finishZone" class="btn btn-sm btn-primary">Finish area</button><button type="button" id="cancelDraw" class="btn btn-sm btn-ghost">Cancel</button></span></div>
             <div id="siteMap" class="site-map-canvas" role="region" aria-label="Site plan"></div>
             <div id="mapEmpty" class="card-body" hidden><p id="mapEmptyText" class="mb-0 text-muted">This map has no plan image yet.</p></div>
         </section>
         <aside class="card site-map-panel" aria-labelledby="zonesTitle">
             <div class="card-header"><h2 id="zonesTitle" class="h6 mb-0">Areas</h2><button type="button" id="drawZone" class="btn btn-sm btn-primary" hidden>Draw area</button></div>
-            <div class="card-body"><ul id="zoneList" class="zone-list" aria-labelledby="zonesTitle"></ul><div id="zoneEditor" hidden></div></div>
+            <div class="card-body"><ul id="zoneList" class="zone-list" aria-labelledby="zonesTitle"></ul><div id="zoneEditor" hidden></div><section id="rackStatus" class="border-top mt-3 pt-3" aria-labelledby="rackStatusTitle" hidden></section></div>
         </aside>
     </div>
 </section>
@@ -41,12 +41,12 @@
     <script src="js/utils/formatting.js?v=20260424f"></script>
     <script src="js/utils/branding.js?v=20261010portal"></script>
     <script src="js/utils/supabase-client.js?v=20260424f"></script>
-    <script src="js/utils/project-scope.js?v=20261028area3"></script>
+    <script src="js/utils/project-scope.js?v=20261031racks"></script>
     <script src="js/utils/user-access.js?v=20260908a"></script>
     <script src="js/utils/auth-guard.js?v=20260908a"></script>
     <script src="js/utils/sidebar.js?v=20261028area3"></script>
     <script src="js/utils/inventory-helpers.js?v=20261028area3"></script>
     <script src="js/utils/site-map-view.js?v=20261028area3"></script>
-    <script src="site-maps.js?v=20261028area3"></script>
+    <script src="site-maps.js?v=20261031racks"></script>
 </body>
 </html>

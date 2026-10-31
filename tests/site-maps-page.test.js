@@ -10,20 +10,51 @@ const { fakeDocument, settle, assertFocus } = require('./support/fake-dom');
 
 const source = fs.readFileSync('site-maps.js', 'utf8');
 const MAP_ID = 'm1', PROJECT_ID = 'p1';
+// Arrays made inside the page's vm context aren't deepEqual to this file's; compare plain copies.
+const plain = value => JSON.parse(JSON.stringify(value));
+
+// Places the plan can draw (022): this project's yard, a shared site, a retired shared yard; plus places it can't.
+const place = (id, name, kind, extra = {}) => ({ id, name, kind, project_id: null, is_active: true, ...extra });
+const PLACES = [
+    place('y1', 'North Yard laydown', 'yard', { project_id: PROJECT_ID }), place('s1', 'Coastal Terminal site', 'site'),
+    place('y0', 'Old Pipe Yard', 'yard', { is_active: false }), place('w1', 'West Yard gate', 'yard', { project_id: 'p9' }),
+    place('o1', 'Fixture Machine Works', 'outside_shop'),
+];
+const rack = (id, zone, row, number, extra = {}) => ({ id, project_id: PROJECT_ID, zone, row, rack: number, is_hold_area: false, ...extra });
 
 /**
- * In-memory site_map_zones. Set `paused` to hold every request until step() lets the oldest one through.
- * Like 020's guard, a parent that would put an area inside itself is refused with 22023.
+ * In-memory site_maps, site_map_zones, places and racks. Set `paused` to hold every request until step() lets the
+ * oldest one through. Like 020's guard, a parent that would put an area inside itself is refused with 22023; like
+ * 022, a rack is linked to one active area (23505 on site_map_zones_rack), location_areas lists each rack with that
+ * area, and a plan draws one of this project's yards or sites (42501).
  */
-function fakeServer(zones, { image = false } = {}) {
+function fakeServer(zones, { image = false, places = PLACES, locations = [], map = {}, otherMaps = [], fail = null } = {}) {
     const server = { zones: zones.map(zone => ({ map_id: MAP_ID, project_id: PROJECT_ID, parent_id: null, is_active: true, color: '#174fda',
-        location_id: null, shape: [[0.1, 0.1], [0.2, 0.1], [0.2, 0.2]], ...zone })), log: [], paused: false, waiting: [], fail: null, inserted: 0 };
+        location_id: null, shape: [[0.1, 0.1], [0.2, 0.1], [0.2, 0.2]], ...zone })), log: [], paused: false, waiting: [], fail, inserted: 0,
+        places: structuredClone(places), locations: structuredClone(locations) };
     const plan = image ? { storage_path: `${PROJECT_ID}/${MAP_ID}.png`, image_width: 1000, image_height: 1000 } : { storage_path: null };
+    server.maps = [{ id: MAP_ID, project_id: PROJECT_ID, name: 'Plan', is_active: true, place_id: null, ...plan, ...map }, ...structuredClone(otherMaps)];
     const insideItself = (id, parentId) => {
         for (let node = server.zones.find(zone => zone.id === parentId), steps = 0; node && steps < 50; node = server.zones.find(zone => zone.id === node.parent_id), steps++) {
             if (node.id === id) return true;
         }
         return false;
+    };
+    const path = zone => zone.parent_id ? `${path(server.zones.find(other => other.id === zone.parent_id))} › ${zone.name}` : zone.name;
+    const rackTaken = zone => zone.is_active !== false && zone.location_id && server.zones.some(other => other.id !== zone.id && other.is_active !== false && other.location_id === zone.location_id);
+    const RACK_TAKEN = { code: '23505', message: 'duplicate key value violates unique constraint "site_map_zones_rack"', details: 'Key (location_id)=(l1) already exists.' };
+    const badPlace = row => row.place_id && !server.places.some(item => item.id === row.place_id && ['yard', 'site'].includes(item.kind) && (!item.project_id || item.project_id === row.project_id));
+    const PLACE_REFUSED = { code: '42501', message: "A site plan draws one of this project's yards or sites" };
+    const views = {
+        location_areas: () => server.locations.map(item => {
+            const zone = server.zones.find(other => other.location_id === item.id && other.is_active !== false);
+            const map = zone && server.maps.find(other => other.id === zone.map_id);
+            return { location_id: item.id, project_id: item.project_id, rack_zone: item.zone, rack_row: item.row, rack: item.rack, is_hold_area: item.is_hold_area,
+                zone_id: zone?.id || null, site_map_id: zone?.map_id || null, area: zone ? path(zone) : null, place_id: map?.place_id || null };
+        }),
+        // The page's .or() is "project_id is null or this project"; it orders by name.
+        places: request => server.places.filter(item => !request.or || !item.project_id || request.or.includes(`project_id.eq.${item.project_id}`))
+            .sort((a, b) => a.name.localeCompare(b.name)),
     };
     server.step = () => server.waiting.shift()();
     server.order = () => [...server.zones].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
@@ -32,15 +63,34 @@ function fakeServer(zones, { image = false } = {}) {
         if (server.paused) await new Promise(resolve => server.waiting.push(resolve));
         const failure = server.fail?.(request);
         if (failure) return { data: null, error: failure };
-        if (request.table === 'site_maps') return { data: [{ id: MAP_ID, project_id: PROJECT_ID, name: 'Plan', is_active: true, ...plan }], error: null };
+        const matches = row => request.filters.every(([key, value]) => Array.isArray(value) ? value.includes(row[key]) : row[key] === value);
+        if (views[request.table]) return { data: views[request.table](request).filter(matches).map(row => structuredClone(row)), error: null };
+        if (request.table === 'site_maps') {
+            if (request.op === 'insert') {
+                const row = { id: `map${++server.inserted}`, project_id: PROJECT_ID, storage_path: null, ...structuredClone(request.values) };
+                if (badPlace(row)) return { data: null, error: PLACE_REFUSED };
+                server.maps.push(row);
+                return { data: request.single ? structuredClone(row) : [structuredClone(row)], error: null };
+            }
+            const matching = server.maps.filter(matches);
+            if (request.op === 'update') {
+                if ('place_id' in request.values && matching.some(row => badPlace({ ...row, ...request.values }))) return { data: null, error: PLACE_REFUSED };
+                matching.forEach(row => Object.assign(row, structuredClone(request.values)));
+                return { data: null, error: null };
+            }
+            return { data: matching.map(row => structuredClone(row)), error: null };
+        }
         if (request.table !== 'site_map_zones') return { data: [], error: null };
         if (request.op === 'insert') {
-            server.zones.push({ id: `new${++server.inserted}`, project_id: PROJECT_ID, parent_id: null, is_active: true, ...structuredClone(request.values) });
+            const row = { id: `new${++server.inserted}`, project_id: PROJECT_ID, parent_id: null, is_active: true, ...structuredClone(request.values) };
+            if (rackTaken(row)) return { data: null, error: RACK_TAKEN };
+            server.zones.push(row);
             return { data: null, error: null };
         }
-        const matching = server.zones.filter(zone => request.filters.every(([key, value]) => zone[key] === value));
+        const matching = server.zones.filter(matches);
         if (request.op === 'update') {
             if (matching.some(zone => request.values.parent_id && insideItself(zone.id, request.values.parent_id))) return { data: null, error: { code: '22023', message: 'An area cannot be placed inside itself' } };
+            if (matching.some(zone => rackTaken({ ...zone, ...request.values }))) return { data: null, error: RACK_TAKEN };
             matching.forEach(zone => Object.assign(zone, structuredClone(request.values)));
             return { data: null, error: null };
         }
@@ -51,7 +101,10 @@ function fakeServer(zones, { image = false } = {}) {
         select() { return this; }
         order() { return this; }
         range() { return this; }
+        single() { this.request.single = true; return this; }
         eq(key, value) { this.request.filters.push([key, value]); return this; }
+        in(key, values) { this.request.filters.push([key, [...values]]); return this; }
+        or(filter) { this.request.or = filter; return this; }
         update(values) { Object.assign(this.request, { op: 'update', values }); return this; }
         insert(values) { Object.assign(this.request, { op: 'insert', values }); return this; }
         then(resolve, reject) { return respond(this.request).then(resolve, reject); }
@@ -87,8 +140,8 @@ function fakeLeaflet() {
 }
 
 
-async function openPage(zones, { role = 'admin', image = false } = {}) {
-    const server = fakeServer(zones, { image });
+async function openPage(zones, { role = 'admin', image = false, ...data } = {}) {
+    const server = fakeServer(zones, { image, ...data });
     const leaflet = fakeLeaflet(), confirms = [];
     const { document, Option } = fakeDocument();
     const context = {
@@ -115,7 +168,7 @@ async function openPage(zones, { role = 'admin', image = false } = {}) {
     const draw = async points => { for (const [x, y] of points) leaflet.map.fire('click', { latlng: { lng: x, lat: y } }); $('finishZone').click(); await settle(); };
     const status = () => editor.querySelector('[role="status"]').textContent;
     const outlineWarning = () => editor.querySelector('.zone-outline-warning').textContent;
-    return { server, document, $, rows, names, row, control, leaflet, confirms, editor, formField, choose, submit, draw, status, outlineWarning };
+    return { server, document, context, $, rows, names, row, control, leaflet, confirms, editor, formField, choose, submit, draw, status, outlineWarning };
 }
 
 const rootsABC = [{ id: 'a', name: 'A', sort_order: 10 }, { id: 'b', name: 'B', sort_order: 20 }, { id: 'c', name: 'C', sort_order: 30 }];
@@ -341,4 +394,154 @@ test('while a save is running, other actions say so instead of asking and then d
     await settle();
     assert.equal(page.confirms.length, 1);
     assert.equal(page.server.zone('Rack 2').is_active, false);
+});
+
+// ---- 022: the place a plan draws, and racks linked to areas ---------------------------------------------------
+const mapDialog = page => {
+    const content = page.$('mapDialogContent');
+    const formField = id => content.querySelector(`[id="${id}"]`);
+    const submit = async () => { await content.querySelector('form').onsubmit({ preventDefault() {} }); await settle(); };
+    return { content, formField, submit, status: () => content.querySelector('[role="status"]').textContent };
+};
+const mapAction = (page, text) => page.$('mapActions').querySelectorAll('button').find(node => node.textContent === text);
+const optionTexts = select => select.options.map(option => `${option.textContent}${option.disabled ? ' [disabled]' : ''}`);
+
+test('everyone sees the place a plan draws, or that it is not tied to one yet', async () => {
+    const field = await openPage(rootsABC, { role: 'field_worker', map: { place_id: 'y1' } });
+    assert.equal(field.$('mapPlace').textContent, 'Place: North Yard laydown');
+    assert.equal(mapAction(field, 'Name and place'), undefined, 'field crews only read it');
+    const loose = await openPage(rootsABC);
+    assert.equal(loose.$('mapPlace').textContent, 'Not tied to a place yet: its areas can be used at any yard or site.');
+    const retired = await openPage(rootsABC, { map: { place_id: 'y0' } });
+    assert.equal(retired.$('mapPlace').textContent, 'Place: Old Pipe Yard (retired)');
+    // Places are shared, so they are read unscoped and narrowed to the yards and sites this project can use.
+    const read = loose.server.log.find(request => request.table === 'places');
+    assert.deepEqual(plain([read.filters, read.or]), [[['kind', ['yard', 'site']]], 'project_id.is.null,project_id.eq.p1']);
+});
+
+test('office staff choose the place under Name and place; only a changed place is sent', async () => {
+    const page = await openPage(rootsABC, { map: { place_id: 'y0' } });
+    mapAction(page, 'Name and place').click();
+    const dialog = mapDialog(page);
+    assert.deepEqual(optionTexts(dialog.formField('mapPlaceChoice')), ['Not tied to a place yet', 'Coastal Terminal site', 'North Yard laydown', 'Old Pipe Yard (retired)'],
+        "this project's and shared yards and sites; the retired one only because the plan is on it");
+    assert.equal(dialog.formField('mapPlaceChoice').value, 'y0');
+    dialog.formField('mapName').value = 'Yard plan';
+    await dialog.submit();
+    assert.deepEqual(plain(page.server.writes().at(-1).values), { name: 'Yard plan' }, 'a rename leaves the place alone');
+    mapAction(page, 'Name and place').click();
+    mapDialog(page).formField('mapPlaceChoice').value = 's1';
+    await mapDialog(page).submit();
+    assert.deepEqual(plain(page.server.writes().at(-1).values), { name: 'Yard plan', place_id: 's1' });
+    assert.equal(page.$('mapPlace').textContent, 'Place: Coastal Terminal site');
+    assert.equal(page.$('pageMessage').textContent, 'Saved Yard plan.');
+    mapAction(page, 'Name and place').click();
+    mapDialog(page).formField('mapPlaceChoice').value = '';
+    await mapDialog(page).submit();
+    assert.equal(page.server.maps[0].place_id, null);
+    assert.equal(page.$('mapPlace').textContent, 'Not tied to a place yet: its areas can be used at any yard or site.');
+});
+
+test("a place the database refuses for the plan shows its 42501 reason as written", async () => {
+    const page = await openPage(rootsABC);
+    mapAction(page, 'Name and place').click();
+    const dialog = mapDialog(page);
+    dialog.formField('mapPlaceChoice').value = 's1';
+    // Meanwhile the site is tied to another project.
+    page.server.places.find(item => item.id === 's1').project_id = 'p9';
+    await dialog.submit();
+    assert.equal(dialog.status(), "Could not save: A site plan draws one of this project's yards or sites");
+    assert.equal(page.server.maps[0].place_id, null);
+    page.server.fail = request => request.table === 'site_maps' && request.op === 'update' ? { code: '22023', message: 'This site plan is no longer in use' } : null;
+    await dialog.submit();
+    assert.equal(dialog.status(), 'Could not save: This site plan is no longer in use');
+});
+
+test("a new map starts on the project's own yard and saves the place with it", async () => {
+    const page = await openPage([]);
+    // Just enough of the browser to prepare an image that needs no resizing, and Storage to take it.
+    Object.assign(page.server.client, { storage: { from: () => ({ upload: async () => ({ error: null }) }) } });
+    page.$('newMap').onclick();
+    const dialog = mapDialog(page);
+    assert.equal(dialog.formField('mapPlaceChoice').value, 'y1', 'North Yard laydown is the only yard or site of this project');
+    dialog.formField('mapName').value = 'South laydown';
+    dialog.formField('mapPlaceChoice').value = 's1';
+    page.context.URL = { createObjectURL: () => 'blob:upload', revokeObjectURL() {} };
+    page.context.Image = class { set src(value) { setTimeout(() => this.onload()); } get naturalWidth() { return 800; } get naturalHeight() { return 600; } };
+    dialog.formField('mapFile').files = [{ type: 'image/png', size: 1000 }];
+    await dialog.submit();
+    const insert = page.server.writes().find(request => request.table === 'site_maps' && request.op === 'insert');
+    assert.deepEqual(plain(insert.values), { name: 'South laydown', is_active: true, place_id: 's1' });
+    assert.equal(page.$('mapPlace').textContent, 'Place: Coastal Terminal site');
+});
+
+const RACKS = [rack('l1', 'A', '1', '1'), rack('l2', 'A', '1', '2'), rack('l3', 'B', '2', '1', { is_hold_area: true })];
+const SOUTH = { id: 'm2', project_id: PROJECT_ID, name: 'South plan', is_active: true, place_id: null, storage_path: null };
+// Rack 1 has rack A1; an area on another plan has A2; B1 (a hold area) has no area yet.
+const racked = (extra = []) => [...plan.map(zone => zone.id === 'r1' ? { ...zone, location_id: 'l1' } : zone),
+    { id: 'far', map_id: 'm2', name: 'Far bay', sort_order: 10, location_id: 'l2' }, ...extra];
+const rackPanel = page => [page.$('rackStatus').querySelector('p').textContent, ...page.$('rackStatus').querySelectorAll('li').map(item => item.textContent)];
+
+test('the area editor lists the racks, marks the ones other areas have, and the panel counts racks without an area', async () => {
+    const page = await openPage(racked(), { image: true, locations: RACKS, otherMaps: [SOUTH] });
+    assert.deepEqual(rackPanel(page), ['1 of 3 racks are not linked to an area yet. Edit an area to choose its rack.', 'B · Row 2, Rack 1 (hold area)']);
+    assert.ok(page.server.log.some(request => request.table === 'location_areas'));
+    assert.equal(require('../js/utils/project-scope').isProjectScopedTable('location_areas'), true, 'location_areas is read through the project scope');
+    page.control('Rack 2', 'Edit Rack 2').click();
+    assert.deepEqual(optionTexts(page.formField('zoneLocation')), ['No rack', 'A · Row 1, Rack 1: linked to T1 Pipe Racks › Rack 1 [disabled]',
+        'A · Row 1, Rack 2: linked to Far bay on South plan [disabled]', 'B · Row 2, Rack 1 (hold area)']);
+    assert.equal(page.formField('zoneLocation').value, '');
+    page.formField('zoneLocation').value = 'l3';
+    await page.submit();
+    assert.equal(page.server.writes().at(-1).values.location_id, 'l3');
+    assert.equal(page.$('pageMessage').textContent, 'Saved T1 Pipe Racks › Rack 2.');
+    assert.deepEqual(rackPanel(page), ['All 3 racks are linked to an area.']);
+    assert.match(page.row('Rack 2').textContent, /B · Row 2, Rack 1/);
+    // An area's own rack is its choice, not marked as taken.
+    page.control('Rack 1', 'Edit Rack 1').click();
+    assert.equal(page.formField('zoneLocation').value, 'l1');
+    assert.equal(page.formField('zoneLocation').options[1].disabled, false);
+});
+
+test('a rack linked elsewhere meanwhile is refused with that reason, told apart from a name clash', async () => {
+    const page = await openPage(racked(), { image: true, locations: RACKS, otherMaps: [SOUTH] });
+    page.control('Rack 2', 'Edit Rack 2').click();
+    page.formField('zoneLocation').value = 'l3';
+    page.server.zone('Bay').location_id = 'l3';
+    await page.submit();
+    assert.equal(page.status(), 'Could not save: That rack is already linked to another area.');
+    assert.equal(page.server.zone('Rack 2').location_id, null);
+    assert.equal(page.formField('zoneLocation').value, 'l3', 'the choice is kept');
+    assert.equal(page.formField('zoneLocation').options.at(-1).textContent, 'B · Row 2, Rack 1 (hold area): linked to Warehouse › Bay', 'and now shows who has it');
+    assert.deepEqual(rackPanel(page), ['All 3 racks are linked to an area.']);
+    page.formField('zoneLocation').value = '';
+    page.server.fail = request => request.op === 'update' ? { code: '23505', message: 'duplicate key value violates unique constraint "site_map_zones_sibling_name"' } : null;
+    await page.submit();
+    assert.equal(page.status(), 'Could not save: Another active area inside T1 Pipe Racks is already named Rack 2.');
+});
+
+test('making an area active again when another area has its rack says so, and the rack list reloads', async () => {
+    const page = await openPage([...rootsABC, { id: 'old', name: 'Old bay', sort_order: 40, is_active: false, location_id: 'l1' }, { id: 'new', name: 'New bay', sort_order: 50, location_id: 'l1' }],
+        { locations: RACKS });
+    const reads = () => page.server.log.filter(request => request.table === 'location_areas').length;
+    const before = reads();
+    page.control('Old bay', 'Make active: Old bay').click();
+    await settle();
+    assert.equal(page.$('pageMessage').textContent, 'Could not save: That rack is already linked to another area.');
+    assert.equal(page.server.zone('Old bay').is_active, false);
+    page.control('New bay', 'Make inactive: New bay').click();
+    await settle();
+    assert.equal(reads(), before + 2, 'racks reload after each switch');
+    assert.deepEqual(rackPanel(page).slice(0, 1), ['3 of 3 racks are not linked to an area yet. Edit an area to choose its rack.']);
+});
+
+test('field crews see no rack panel; a rack list that fails to load says why to the office', async () => {
+    const field = await openPage(rootsABC, { role: 'field_worker', locations: RACKS });
+    assert.equal(field.$('rackStatus').hidden, true);
+    const none = await openPage(rootsABC);
+    assert.equal(none.$('rackStatus').hidden, true, 'nothing to show for a project without racks');
+    const failed = await openPage(rootsABC, { locations: RACKS, fail: request => request.table === 'location_areas' ? { code: '08006', message: 'Connection lost' } : null });
+    assert.equal(failed.$('rackStatus').querySelector('p').textContent, 'Racks could not be loaded: Connection lost');
+    const missing = await openPage(rootsABC, { locations: RACKS, fail: request => request.table === 'location_areas' ? { code: 'PGRST205', message: 'Could not find the table' } : null });
+    assert.equal(missing.$('rackStatus').querySelector('p').textContent, 'Rack links need migration 022 in this database.');
 });

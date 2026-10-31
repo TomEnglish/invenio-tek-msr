@@ -1384,3 +1384,35 @@ button.category-toggle:hover { background:var(--primary-soft); color:var(--prima
 .unit-children li:last-child { border-bottom:0; }
 @media (max-width:1024px) { .places-layout { grid-template-columns:1fr; } }
 @media (max-width:600px) { .place-form-grid { grid-template-columns:1fr; } }
+/* Loads and Outside Shops (logistics) */
+.load-board { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1rem; align-items:start; }
+.load-board.is-finished { grid-template-columns:1fr; }
+.load-column { min-width:0; padding:.75rem; background:var(--raised); border-radius:var(--radius-lg); }
+.load-column h2 { margin:0 0 .5rem; font-size:.8125rem; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--text-muted); }
+.load-cards { display:grid; gap:.5rem; margin:0; padding:0; list-style:none; }
+.is-finished .load-cards { grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); }
+.load-card { display:flex; flex-direction:column; gap:.25rem; width:100%; padding:.75rem; text-align:left; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); overflow-wrap:anywhere; }
+.load-card:hover, .load-card:focus-visible { border-color:var(--primary); }
+.load-card-top { display:flex; justify-content:space-between; gap:.5rem; }
+.load-card-badges { display:flex; flex-wrap:wrap; gap:.25rem; }
+.review-drawer.load-drawer { width:min(980px,100%); }
+.load-body { min-width:0; margin:0; padding:0; border:0; }
+.load-section { margin-top:1rem; padding-top:1rem; border-top:1px solid var(--border); }
+.load-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0 1rem; }
+.load-grid .span-all, .load-row .span-all { grid-column:1 / -1; }
+.load-rows { display:grid; gap:.5rem; margin:0 0 .75rem; padding:0; list-style:none; }
+.load-row { display:grid; grid-template-columns:1.5rem repeat(4,minmax(0,1fr)); gap:0 .75rem; align-items:end; padding:.5rem; border:1px solid var(--border); border-radius:var(--radius-md); }
+.stop-row { grid-template-columns:1.5rem minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) auto; }
+.load-row-number { align-self:center; font-weight:600; color:var(--text-muted); }
+.load-row-tools { display:flex; flex-wrap:wrap; gap:.25rem; margin-bottom:1rem; }
+.company-row .load-row-tools { grid-column:2 / -1; margin-bottom:0; }
+.stop-list { display:grid; gap:.75rem; margin:0; padding:0; list-style:none; }
+.stop-item { padding:.5rem .75rem; border:1px solid var(--border); border-radius:var(--radius-md); }
+.found-form { min-width:220px; }
+.licence-photos { display:flex; flex-wrap:wrap; gap:.75rem; }
+.licence-photos img { width:200px; height:130px; object-fit:cover; border:1px solid var(--border); border-radius:var(--radius-md); }
+.licence-photo { display:flex; flex-direction:column; gap:.25rem; margin:0; }
+.reason-form { min-width:240px; max-width:36rem; }
+.reason-form textarea { resize:vertical; }
+@media (max-width:1024px) { .load-board { grid-template-columns:repeat(2,minmax(0,1fr)); } .load-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:600px) { .load-board, .load-grid, .load-row, .stop-row { grid-template-columns:1fr; } .company-row .load-row-tools { grid-column:auto; } }

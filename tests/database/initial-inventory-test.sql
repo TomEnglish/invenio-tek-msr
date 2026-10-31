@@ -64,12 +64,12 @@ DO $$ DECLARE first_result jsonb; replay jsonb; items_before bigint; audits_befo
 BEGIN
  SELECT result INTO first_result FROM results WHERE name='first';
  SELECT count(*) INTO items_before FROM public.inventory_records;
- SELECT count(*) INTO audits_before FROM public.audit_log WHERE action='inventory_counted';
+ SELECT count(*) INTO audits_before FROM public.list_project_activity('b1111111-1111-4111-8111-111111111111',null,200) WHERE action='inventory_counted';
  PERFORM pg_temp.assert_true(audits_before=1,'A count writes one audit record');
  replay:=public.apply_field_operation('20000000-0000-4000-8000-000000000001','b1111111-1111-4111-8111-111111111111','count',pg_temp.count_payload('GEN1-CV-101'));
  PERFORM pg_temp.assert_true(replay=first_result,'Replaying a count returns the original result');
  PERFORM pg_temp.assert_true((SELECT count(*)=items_before FROM public.inventory_records),'Replay creates no second item');
- PERFORM pg_temp.assert_true((SELECT count(*)=audits_before FROM public.audit_log WHERE action='inventory_counted'),'Replay creates no second audit');
+ PERFORM pg_temp.assert_true((SELECT count(*)=audits_before FROM public.list_project_activity('b1111111-1111-4111-8111-111111111111',null,200) WHERE action='inventory_counted'),'Replay creates no second audit');
 END $$;
 SELECT pg_temp.expect_error($query$
  SELECT public.apply_field_operation('20000000-0000-4000-8000-000000000001','b1111111-1111-4111-8111-111111111111','count',
@@ -204,6 +204,25 @@ SELECT pg_temp.assert_true((SELECT (result->>'applied')::boolean=false AND jsonb
 SELECT pg_temp.expect_error($query$
  SELECT public.import_inventory_items('b2222222-2222-4222-8222-222222222222','[{"tag":"A"}]'::jsonb,true)
 $query$,'42501','Office users cannot import into a project they are not assigned to');
+INSERT INTO results VALUES('labels',public.import_inventory_items('b1111111-1111-4111-8111-111111111111',
+ '[{"tag":"hu-crate1"},{"tag":"CASE-1"},{"tag":"case-1"}]'::jsonb,true));
+SELECT pg_temp.assert_true((SELECT (result->>'applied')::boolean=false AND jsonb_array_length(result->'errors')=2
+ AND result->'errors' @> '[{"tag":"hu-crate1","message":"HU- codes are crate labels; give the item its own tag"}]'
+ AND result->'errors' @> '[{"message":"Tag appears more than once in the file"}]' FROM results WHERE name='labels'),
+ 'An import refuses crate labels and the same tag in other capitals');
+INSERT INTO results VALUES('recase',public.import_inventory_items('b1111111-1111-4111-8111-111111111111','[{"tag":"gen1-cv-101","name":"Valve"}]'::jsonb,false));
+SELECT pg_temp.assert_true((SELECT result->'rows'->0->>'action'='skip_counted' FROM results WHERE name='recase')
+ AND (SELECT count(*)=1 FROM public.inventory_records WHERE lower(qr_code)='gen1-cv-101'),'An import matches a counted tag whatever its capitals');
+-- Office staff change count records only by importing, not directly.
+SELECT pg_temp.expect_error($query$
+ INSERT INTO public.inventory_records(project_id,qr_code,inventory_item) VALUES('b1111111-1111-4111-8111-111111111111','OFFICE-1','Direct')
+$query$,'42501','Office staff cannot create count records directly');
+DO $$ DECLARE changed bigint;
+BEGIN
+ UPDATE public.inventory_records SET count_status='expected',quantity=99 WHERE qr_code='GEN1-CV-101';
+ GET DIAGNOSTICS changed=ROW_COUNT;
+ PERFORM pg_temp.assert_true(changed=0,'Office staff cannot edit count records directly');
+END $$;
 
 -- ---- Counting an expected tag, then receiving it --------------------------
 SELECT set_config('request.jwt.claim.sub','f1111111-1111-4111-8111-111111111111',true);
@@ -233,6 +252,11 @@ INSERT INTO results VALUES('plain_receipt',public.apply_field_operation(
   'decision',jsonb_build_object('status','accepted','has_exception',false))));
 SELECT pg_temp.assert_true((SELECT result->'inventory_uid'='null'::jsonb FROM results WHERE name='plain_receipt'),
  'Receiving a tag with no count still works');
+SELECT set_config('request.jwt.claim.sub','01111111-1111-4111-8111-111111111111',true);
+INSERT INTO results VALUES('late_import',public.import_inventory_items('b1111111-1111-4111-8111-111111111111','[{"tag":"never-counted","name":"Other"}]'::jsonb,false));
+SELECT pg_temp.assert_true((SELECT count_status='received' AND receiving_record_id=(SELECT (result->>'id')::uuid FROM results WHERE name='plain_receipt')
+ FROM public.inventory_records WHERE lower(qr_code)='never-counted'),'A tag received before it was imported is imported as received');
+SELECT set_config('request.jwt.claim.sub','f1111111-1111-4111-8111-111111111111',true);
 
 -- ---- Merging categories ----------------------------------------------------
 SELECT pg_temp.expect_error($query$

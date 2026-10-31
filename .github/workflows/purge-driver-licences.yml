@@ -1,0 +1,29 @@
+name: Remove expired driver licences
+# Daily: removes driver licence numbers and photos 90 days after a load
+# closes, or after its last activity if it never closes (migration 022).
+# Needs the SUPABASE_SERVICE_ROLE_KEY repository secret.
+on:
+  schedule:
+    - cron: '17 9 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: purge-driver-licences
+  cancel-in-progress: false
+jobs:
+  purge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Remove licences that are due
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL || 'https://lzroduricxyshgyjdkki.supabase.co' }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/purge-driver-licences.mjs

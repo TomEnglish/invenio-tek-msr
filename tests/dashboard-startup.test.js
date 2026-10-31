@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-function dashboard() {
+function dashboard({ role } = {}) {
   let start;
   let resolveAccess;
   let loads = 0;
@@ -12,6 +12,7 @@ function dashboard() {
   const indicator = { textContent: 'Connecting...' };
   const context = vm.createContext({
     console: { log() {}, error() {} },
+    InvenioCurrentProfile: role ? { role } : undefined,
     isSupabaseConfigured: () => true,
     InvenioAuthReady: new Promise(resolve => { resolveAccess = resolve; }),
     document: {
@@ -66,4 +67,15 @@ test('dashboard does not start data or realtime access when the auth guard denie
   await startup;
   assert.equal(app.loads, 0);
   assert.equal(app.filters.length, 0);
+});
+
+test('only office staff watch the activity log, which 022 lets only them read', async () => {
+  for (const [role, watched] of [['field_worker', false], ['office_staff', true], ['admin', true]]) {
+    const app = dashboard({ role });
+    const startup = app.start();
+    app.allow();
+    await startup;
+    assert.equal(app.filters.some(options => options.table === 'audit_log'), watched, role);
+    assert.ok(app.filters.some(options => options.table === 'receiving_records'), role);
+  }
 });

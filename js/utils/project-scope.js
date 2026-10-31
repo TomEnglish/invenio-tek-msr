@@ -39,12 +39,24 @@
         'inventory_categories',
         'site_maps',
         'site_map_zones',
+        // 022: each rack with its area.
+        'location_areas',
         'inventory_photos',
         // Places (021) are shared by every project, so they are not listed here.
         'handling_units',
         'handling_unit_contents',
         'handling_unit_overview',
         'handling_unit_items',
+        'loads',
+        'load_companies',
+        'load_stops',
+        'load_lines',
+        'load_write_offs',
+        'load_overview',
+        'load_stop_overview',
+        'load_line_overview',
+        'load_driver_licences',
+        'driver_licence_photos',
     ]);
 
     let currentUserId = null;

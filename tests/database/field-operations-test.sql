@@ -40,13 +40,14 @@ BEGIN
  SELECT result INTO first_result FROM operation_results WHERE name='receipt';
  SELECT count(*) INTO receipts_before FROM public.receiving_records;
  SELECT count(*) INTO materials_before FROM public.materials;
- SELECT count(*) INTO audits_before FROM public.audit_log;
+ SELECT count(*) INTO audits_before FROM public.list_project_activity('b1111111-1111-4111-8111-111111111111',null,200);
  PERFORM pg_temp.assert_true(audits_before>0,'Receiving writes an audit record');
+ PERFORM pg_temp.assert_true((SELECT count(*)=0 FROM public.audit_log),'Field crews read activity through list_project_activity, not the audit log');
  replay:=public.apply_field_operation('10000000-0000-4000-8000-000000000001','b1111111-1111-4111-8111-111111111111','receiving',pg_temp.receiving_payload('OPS-ACCEPTED'));
  PERFORM pg_temp.assert_true(replay=first_result,'Identical replay returns the original result');
  PERFORM pg_temp.assert_true((SELECT count(*)=receipts_before FROM public.receiving_records),'Replay creates no second receipt');
  PERFORM pg_temp.assert_true((SELECT count(*)=materials_before FROM public.materials),'Replay creates no second material');
- PERFORM pg_temp.assert_true((SELECT count(*)=audits_before FROM public.audit_log),'Replay creates no second audit');
+ PERFORM pg_temp.assert_true((SELECT count(*)=audits_before FROM public.list_project_activity('b1111111-1111-4111-8111-111111111111',null,200)),'Replay creates no second audit');
 END $$;
 SELECT pg_temp.expect_error($query$
  SELECT public.apply_field_operation('10000000-0000-4000-8000-000000000001','b1111111-1111-4111-8111-111111111111','receiving',pg_temp.receiving_payload('OPS-CHANGED'))
@@ -71,6 +72,11 @@ SELECT pg_temp.assert_true((SELECT status='rejected' FROM public.receiving_recor
  WHERE id=(SELECT (result->>'id')::uuid FROM operation_results WHERE name='rejected')),'Rejected receiving still records the inspection');
 SELECT pg_temp.assert_true((SELECT count(*)=0 FROM public.materials
  WHERE receiving_record_id=(SELECT (result->>'id')::uuid FROM operation_results WHERE name='rejected')),'Rejected receiving adds no inventory');
+SELECT pg_temp.assert_true((SELECT entity_id IS NULL FROM public.qr_codes WHERE code_value='OPS-REJECTED'),'A rejected delivery doesn''t use up the tag');
+INSERT INTO operation_results VALUES('redelivered',public.apply_field_operation(
+ '10000000-0000-4000-8000-000000000009','b1111111-1111-4111-8111-111111111111','receiving',pg_temp.receiving_payload('OPS-REJECTED')));
+SELECT pg_temp.assert_true((SELECT entity_id=(SELECT (result->>'id')::uuid FROM operation_results WHERE name='redelivered')
+ FROM public.qr_codes WHERE code_value='OPS-REJECTED'),'The redelivery can be received on the same tag');
 
 DO $$ DECLARE bad_quantity numeric;
 BEGIN
@@ -92,8 +98,27 @@ SELECT pg_temp.expect_error($query$SELECT public.apply_field_operation(gen_rando
  'b1111111-1111-4111-8111-111111111111','unknown_action','{}')$query$,'22023','Unknown operations are rejected');
 SELECT pg_temp.expect_error($query$SELECT public.apply_field_operation(gen_random_uuid(),
  'b2222222-2222-4222-8222-222222222222','receiving',pg_temp.receiving_payload('OPS-UNASSIGNED'))$query$,'42501','Unassigned project operation is denied');
+-- Tags are unique per project, whatever their capitals: the same tag can be
+-- received in two projects, but only once in each.
+INSERT INTO operation_results VALUES('same-tag',public.apply_field_operation(gen_random_uuid(),
+ 'b1111111-1111-4111-8111-111111111111','receiving',pg_temp.receiving_payload('other-project-qr')));
+SELECT pg_temp.assert_true((SELECT q.project_id='b1111111-1111-4111-8111-111111111111' AND q.id<>'d3333333-3333-4333-8333-333333333333'
+ FROM public.receiving_records r JOIN public.qr_codes q ON q.id=r.qr_code_id WHERE r.id=(SELECT (result->>'id')::uuid FROM operation_results WHERE name='same-tag')),
+ 'A tag another project uses is received as this project''s own tag');
 SELECT pg_temp.expect_error($query$SELECT public.apply_field_operation(gen_random_uuid(),
- 'b1111111-1111-4111-8111-111111111111','receiving',pg_temp.receiving_payload('OTHER-PROJECT-QR'))$query$,'42501','Another project QR cannot be relinked');
+ 'b1111111-1111-4111-8111-111111111111','receiving',pg_temp.receiving_payload('Ops-Accepted'))$query$,'22023','A tag received once can''t be received again in other capitals');
+SELECT pg_temp.expect_error($query$SELECT public.apply_field_operation(gen_random_uuid(),
+ 'b1111111-1111-4111-8111-111111111111','receiving',pg_temp.receiving_payload('hu-abcd12'))$query$,'22023','A crate label can''t be received as an item tag');
+SELECT pg_temp.expect_error($query$SELECT public.apply_field_operation(gen_random_uuid(),
+ 'b1111111-1111-4111-8111-111111111111','receiving',pg_temp.receiving_payload('OPS-NO-CONDITION')#-'{inspection,condition}')$query$,
+ '22023','Receiving without a condition is refused with a reason');
+INSERT INTO operation_results VALUES('weight',public.apply_field_operation(gen_random_uuid(),
+ 'b1111111-1111-4111-8111-111111111111','receiving',jsonb_set(pg_temp.receiving_payload('OPS-WEIGHT'),'{material,weight}','0.1234567')));
+SELECT pg_temp.assert_true((SELECT r.weight=0.1234567 FROM public.receiving_records r WHERE r.id=(SELECT (result->>'id')::uuid FROM operation_results WHERE name='weight')),
+ 'Any weight that isn''t negative is accepted, as before');
+SELECT pg_temp.expect_error($query$SELECT public.apply_field_operation(gen_random_uuid(),
+ 'b1111111-1111-4111-8111-111111111111','receiving',jsonb_set(pg_temp.receiving_payload('OPS-BAD-WEIGHT'),'{material,weight}','"heavy"'))$query$,
+ '22023','A weight that isn''t a number is refused with a reason');
 SELECT pg_temp.expect_error($query$SELECT public.apply_field_operation(gen_random_uuid(),
  'b1111111-1111-4111-8111-111111111111','receiving',jsonb_set(pg_temp.receiving_payload('OPS-BAD-LOCATION'),
  '{location,location_id}','"c3333333-3333-4333-8333-333333333333"'))$query$,'42501','Receiving rejects another project location');
@@ -132,8 +157,12 @@ BEGIN
  PERFORM pg_temp.assert_true((SELECT current_quantity=7 FROM public.materials WHERE id=material),'Issue deducts quantity exactly once');
 
  payload:=jsonb_build_object('materialId',material,'destination','Site','quantity',7);
+ PERFORM pg_temp.expect_error(format($query$SELECT public.apply_field_operation(gen_random_uuid(),
+  'b1111111-1111-4111-8111-111111111111','shipment',%L::jsonb)$query$,payload),'42501','Ship Out is for office staff');
+ PERFORM set_config('request.jwt.claim.sub','01111111-1111-4111-8111-111111111111',true);
  result:=public.apply_field_operation('10000000-0000-4000-8000-000000000006','b1111111-1111-4111-8111-111111111111','shipment',payload);
  replay:=public.apply_field_operation('10000000-0000-4000-8000-000000000006','b1111111-1111-4111-8111-111111111111','shipment',payload);
+ PERFORM set_config('request.jwt.claim.sub','f1111111-1111-4111-8111-111111111111',true);
  PERFORM pg_temp.assert_true(result=replay AND (result->>'current_quantity')::integer=0,'Shipment replay returns original exhausted quantity');
  PERFORM pg_temp.assert_true((SELECT count(*)=1 FROM public.shipments_out WHERE material_id=material),'Shipment replay records one shipment');
  PERFORM pg_temp.assert_true((SELECT current_quantity=0 FROM public.materials WHERE id=material),'Shipment deducts remaining quantity exactly once');
@@ -152,8 +181,8 @@ SET LOCAL ROLE authenticated;
 SELECT pg_temp.expect_error($query$SELECT public.apply_field_operation('10000000-0000-4000-8000-000000000007',
  'b1111111-1111-4111-8111-111111111111','receiving',pg_temp.receiving_payload('OPS-ROLLBACK'))$query$,'P0902','Audit failure aborts receiving');
 SELECT pg_temp.assert_true((SELECT count(*)=0 FROM public.qr_codes WHERE code_value='OPS-ROLLBACK'),'Audit failure rolls back the newly created QR');
-SELECT pg_temp.assert_true((SELECT count(*)=3 FROM public.receiving_records),'Audit failure creates no extra receipt');
-SELECT pg_temp.assert_true((SELECT count(*)=2 FROM public.materials),'Audit failure creates no extra material');
+SELECT pg_temp.assert_true((SELECT count(*)=6 FROM public.receiving_records),'Audit failure creates no extra receipt');
+SELECT pg_temp.assert_true((SELECT count(*)=5 FROM public.materials),'Audit failure creates no extra material');
 SELECT pg_temp.expect_error($query$SELECT public.apply_field_operation('10000000-0000-4000-8000-000000000008',
  'b1111111-1111-4111-8111-111111111111','issue',jsonb_build_object('materialId',
  (SELECT result->>'material_id' FROM operation_results WHERE name='partial'),'jobNumber','ROLLBACK','quantity',1))$query$,

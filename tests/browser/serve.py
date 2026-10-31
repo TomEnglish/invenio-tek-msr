@@ -11,7 +11,8 @@ class Handler(SimpleHTTPRequestHandler):
         elif path.endswith('.html'):
             file = Path('.' + path)
             if not file.is_file(): return super().do_GET()
-            backend = '/tests/browser/login-backend.js' if path == '/login.html' else '/tests/browser/backend.js'
+            # Other pages get the loads model (022's rules for the fixture) and then the fixture backend.
+            backend = '/tests/browser/login-backend.js' if path == '/login.html' else '/tests/support/loads-model.js"></script><script src="/tests/browser/backend.js'
             body = file.read_text().replace('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',backend).encode()
         else: return super().do_GET()
         self.send_response(200); self.send_header('Content-Type','text/html' if path.endswith('.html') else 'text/javascript'); self.send_header('Cache-Control','no-store'); self.end_headers(); self.wfile.write(body)

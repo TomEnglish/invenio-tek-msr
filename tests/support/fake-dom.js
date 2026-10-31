@@ -34,6 +34,7 @@ class FakeElement {
     }
     removeChild(node) { this.childNodes = this.childNodes.filter(child => child !== node); node.parentNode = null; }
     remove() { this.parentNode?.removeChild(this); }
+    replaceWith(node) { const parent = this.parentNode; node.parentNode?.removeChild(node); parent.childNodes[parent.childNodes.indexOf(this)] = node; node.parentNode = parent; this.parentNode = null; }
     setAttribute(name, value) { this.attributes.set(name, String(value)); }
     getAttribute(name) {
         if (name.startsWith('data-')) return this.dataset[name.slice(5).replace(/-(\w)/g, (_, letter) => letter.toUpperCase())] ?? null;
@@ -58,7 +59,8 @@ class FakeElement {
     addEventListener(type, listener) { (this.listeners[type] ||= []).push(listener); }
     dispatch(type, extra = {}) {
         const event = { type, target: this, cancelable: true, defaultPrevented: false, preventDefault() { if (this.cancelable) this.defaultPrevented = true; }, ...extra };
-        for (let node = this; node; node = node.parentNode) (node.listeners[type] || []).forEach(listener => listener(event));
+        // Listeners and on… handler properties, on this element and then up the tree, as events bubble in a browser.
+        for (let node = this; node; node = node.parentNode) { (node.listeners[type] || []).forEach(listener => listener(event)); node[`on${type}`]?.call(node, event); }
         return event;
     }
     focus() { this.ownerDocument.activeElement = this; this.dispatch('focusin'); }
@@ -83,7 +85,13 @@ function fakeDocument() {
         readyState: 'complete', listeners: {},
         createElement: tag => new FakeElement(document, tag),
         createElementNS: (namespace, tag) => new FakeElement(document, tag),
-        getElementById: id => { if (!elements.has(id)) { const node = new FakeElement(document, 'div'); node.id = id; document.body.append(node); elements.set(id, node); } return elements.get(id); },
+        // An element the page made and gave an id is found, as in a browser; any other id gets a placeholder on first use.
+        getElementById: id => {
+            const placed = document.body.querySelector(`[id="${id}"]`);
+            if (placed) return placed;
+            if (!elements.has(id)) { const node = new FakeElement(document, 'div'); node.id = id; document.body.append(node); elements.set(id, node); }
+            return elements.get(id);
+        },
         addEventListener() {},
     };
     document.body = new FakeElement(document, 'body');

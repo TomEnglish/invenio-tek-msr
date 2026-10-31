@@ -201,6 +201,17 @@ for (const [databaseCode, message, publicCode] of [
   });
 }
 
+Deno.test('a project change the database refuses comes back as 409 with its reason', async () => {
+  const message = "Close or cancel this project's open loads (2) first";
+  const { clients, calls } = setup({ rpcError: { code: '22023', message } });
+  const response = await handle(request('PATCH', { resource: 'projects', projectId: PROJECT, name: 'Main Yard', status: 'completed' }), clients);
+  equal(response.status, 409);
+  const body = await response.json();
+  equal(body.error.code, 'REFUSED');
+  equal(body.error.message, message);
+  equal(calls.rpc.length, 1);
+});
+
 for (const [query, code] of [
   ['?role=super_admin', 'INVALID_ROLE'],
   ['?status=unknown', 'INVALID_STATUS'],
