@@ -153,7 +153,7 @@ Phase 2 of logistics, reworked after the 31 October workflow review. Migration `
 
 - **One answer per item: `item_positions`.** A received item is its material; an item not yet received is its count record. `position` is `on_load` or `missing` (the load says where), `in_crate` (where the outermost crate is), `at_place` (its own place and area), `gone` (issued, shipped, used up or written off) or `unknown`. It also gives the crate, the load, the place and area, high value, and `hold` (`on_hold`, `return_to_vendor`).
 - **Items have their own place.** `materials` gained `place_id`, `site_map_id` and `zone_id`; `inventory_records` gained `place_id`. They change on receipt (the rack's area), count, transfer, unpacking, taking out of a crate, unloading, office confirmation, `line_found` and `relocate`.
-- **A site plan draws one place** (`site_maps.place_id`, a yard or site). An area has to be at the place given: on a plan drawn for that place or, for a plan not yet tied to a place, at one of the project's own yards or sites. With an area and no place, the plan's place is used. A new place without an area clears the old area. An area is required (when sealing a crate or counting) only where the place has a plan with areas.
+- **A site plan draws one place** (`site_maps.place_id`, an active yard or site). An area has to be at the place given: on a plan drawn for that place or, for a plan not yet tied to a place, at one of the project's own yards or sites. With an area and no place, the plan's place is used. A new place without an area clears the old area. An area is required (when sealing a crate or counting) only where the place has a plan with areas.
 - **Racks and areas.** A rack is linked to at most one active area (`site_map_zones.location_id`). `location_areas` lists each rack with its area. A received or transferred material takes its rack's area; a material put in an area takes that area's rack (none if it has none), and one taken to another place without an area is no longer on a yard rack. A change of rack is recorded in `material_movements`.
 - **Plans the migration ties to places.** Each existing plan is tied to its project's yard or site where the project has just one. A plan not yet tied to a place accepts its areas at any yard or site, never at a shop or vendor.
 
@@ -215,7 +215,7 @@ Refusals: `22023` with a message that can be shown as is, `42501` for access, `2
 - **Office removal at any time.** Delete a wrong photo through Storage, then call `remove_driver_licence_photo(path, reason?)`. `remove_driver_licence(load_id, reason)` needs a reason (5+ characters) before the licence is due; delete the folder's files through Storage first. Removal clears `loads.licence_recorded_at`, and a licence can then be recorded again.
 - **Due for removal**: 90 days after the load closes or is cancelled, or 90 days after its last activity if it never closes. `driver_licences_due_for_removal()` lists due loads on the office user's projects with every file in each folder.
 - **Daily job.** `.github/workflows/purge-driver-licences.yml` runs `scripts/purge-driver-licences.mjs` with the service role: `driver_licence_purge_queue()`, delete each folder's files, `purge_driver_licence(load_id)`. It needs the `SUPABASE_SERVICE_ROLE_KEY` repository secret.
-- **Projects** can't be completed or archived while any of their loads is open.
+- **Projects** can't be completed or archived while any of their loads is open. The admin function passes the database's reason through (409 `REFUSED`).
 
 ### Places and activity
 

@@ -73,6 +73,10 @@ begin
    and (p.project_id is null or p.project_id=new.project_id)) then
   raise exception 'A site plan draws one of this project''s yards or sites' using errcode='42501';
  end if;
+ if new.place_id is not null and new.place_id is distinct from (case when tg_op='UPDATE' then old.place_id end)
+   and not exists(select 1 from public.places p where p.id=new.place_id and p.is_active) then
+  raise exception 'That place is retired; restore it or choose another' using errcode='22023';
+ end if;
  return new;
 end $$;
 create trigger site_maps_place_guard before insert or update of place_id,project_id on public.site_maps

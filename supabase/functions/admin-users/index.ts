@@ -244,6 +244,8 @@ function databaseError(error: { code?: string; message: string }): never {
     throw { status: 409, code: 'LAST_ADMIN', message: 'The last active administrator cannot be removed.' };
   }
   if (error.code === '42501') throw { status: 403, code: 'FORBIDDEN', message: 'Administrator access is required.' };
+  // A refusal the database words for people, e.g. completing a project with loads still open.
+  if (error.code === '22023') throw { status: 409, code: 'REFUSED', message: error.message };
   if (error.code === 'P0002') throw { status: 404, code: 'NOT_FOUND', message: 'The requested record no longer exists.' };
   throw new Error(error.message);
 }

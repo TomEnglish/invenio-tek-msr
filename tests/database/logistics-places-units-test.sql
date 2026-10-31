@@ -189,6 +189,10 @@ RESET ROLE;
 UPDATE public.site_maps SET place_id='9a222222-2222-4222-8222-222222222222' WHERE id='5b111111-1111-4111-8111-111111111111';
 SELECT pg_temp.expect_error($q$UPDATE public.site_maps SET place_id='9a111111-1111-4111-8111-111111111111'
  WHERE id='5b111111-1111-4111-8111-111111111111'$q$,'42501','A site plan draws a yard or site');
+INSERT INTO public.places(id,kind,name,project_id,is_active) VALUES
+ ('9a444444-4444-4444-8444-444444444444','yard','Old laydown','b1111111-1111-4111-8111-111111111111',false);
+SELECT pg_temp.expect_error($q$UPDATE public.site_maps SET place_id='9a444444-4444-4444-8444-444444444444'
+ WHERE id='5b111111-1111-4111-8111-111111111111'$q$,'22023','A site plan can''t be tied to a retired place');
 UPDATE public.site_map_zones SET location_id='c1111111-1111-4111-8111-111111111111' WHERE id='2b222222-2222-4222-8222-222222222222';
 INSERT INTO public.locations(id,project_id,zone,row,rack,is_hold_area) VALUES
  ('c2222222-2222-4222-8222-222222222222','b1111111-1111-4111-8111-111111111111','HOLD','1','1',true),
