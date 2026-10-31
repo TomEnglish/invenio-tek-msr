@@ -57,7 +57,7 @@ Run `python3 tests/browser/serve.py`, then open `http://127.0.0.1:8092/places.ht
 
 - **Board.** Columns for planning, loading, in transit and delivered. A switch shows closed and cancelled loads instead.
   - Each card shows the load number, the origin and next stop, the driver, and the piece counts that aren't zero (written off included).
-  - It also shows any flags, "Started in the field", "Left without licence", "Licence on file" and the planned date.
+  - It also shows any flags, "Started in the field", "Left without licence", "Licence on file" and the planned date. "Licence on file" means the number and a photo are both recorded (`licence_complete`), as departure needs; a number or a photo alone doesn't count.
   - Office staff get a third switch, "Started in the field (N)", while crews have open loads they started. It lists those loads so the office can check them and plan the rest.
   - Everything comes from `load_overview`, read through the project scope.
 - **New load.** The form makes a load ID with `crypto.randomUUID()`. Its first `load_save` creates the load and gets its number; the drawer then opens in full. A load someone other than office staff creates is started in the field.

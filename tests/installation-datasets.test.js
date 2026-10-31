@@ -41,7 +41,7 @@ const projectSchedulePage = fs.readFileSync('dist/project-schedule.html', 'utf8'
 assert.match(indexPage, /project-scope\.js\?v=20260909a/);
 assert.match(indexPage, /dashboard\.js\?v=20261031activity/);
 assert.match(indexPage, /data-health\.js\?v=20260909d/);
-assert.match(materialTrackingPage, /material-tracking-supabase\.js\?v=20260909c/);
+assert.match(materialTrackingPage, /material-tracking-supabase\.js\?v=20261031unchanged/);
 assert.match(projectSchedulePage, /project-schedule\.js\?v=20260909a/);
 
 console.log('MSR publication boundary tests passed');
