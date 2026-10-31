@@ -98,3 +98,13 @@ test('error text names migration 022 when it is missing and shows 022\'s refusal
     assert.equal(loads.errorMessage({ code: '42501', message: 'Only office staff can close or cancel a load' }), 'Only office staff can close or cancel a load');
     assert.equal(loads.errorMessage({ code: '42501', message: 'permission denied for function apply_field_operation' }), 'You do not have permission to make this change.');
 });
+
+test('only changed details are sent, and the board says a licence is on file only until 90 days after closing', () => {
+    assert.deepEqual(loads.changedKeys({ originPlaceId: 'p1', notes: 'New', driverName: 'Dana' }, { originPlaceId: 'p1', notes: '', driverName: 'Dana' }), { notes: 'New' });
+    assert.deepEqual(loads.changedKeys({ notes: '' }, { notes: 'Old' }), { notes: '' }, 'clearing a field is a change');
+    const now = Date.parse('2026-10-31T12:00:00Z'), day = 86400000;
+    assert.equal(loads.licenceOnFile({ licence_recorded_at: '2026-10-01T00:00:00Z', closed_at: null }, now), true);
+    assert.equal(loads.licenceOnFile({ licence_recorded_at: '2026-06-01T00:00:00Z', closed_at: new Date(now - 89 * day).toISOString() }, now), true);
+    assert.equal(loads.licenceOnFile({ licence_recorded_at: '2026-06-01T00:00:00Z', closed_at: new Date(now - 91 * day).toISOString() }, now), false);
+    assert.equal(loads.licenceOnFile({ licence_recorded_at: null, closed_at: null }, now), false);
+});

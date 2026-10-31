@@ -6,9 +6,11 @@
     const projectId = InvenioProjectScope.getActiveProjectId();
     const profile = InvenioCurrentProfile;
     // 022: anyone working an active project can plan loads and finish stops; confirming without scanning, closing,
-    // cancelling, marking found and the driver's licence are for office staff.
+    // cancelling, marking found and changing the driver's licence are for office staff. Office staff can read licences
+    // and remove old ones on any project they can see, active or not.
     const working = InvenioProjectScope.activeProject.status === 'active';
-    const office = ['office_staff', 'admin'].includes(profile.role) && working;
+    const officeRole = ['office_staff', 'admin'].includes(profile.role), office = officeRole && working;
+    const PHOTO_NAME = /^[A-Za-z0-9_-]{1,80}\.(jpg|jpeg|png)$/;
     const lock = { busy: false };
     const STILL_SAVING = 'Still saving the last change. Try again in a moment.';
     const message = text => { $('pageMessage').textContent = text; };
@@ -65,18 +67,18 @@
 
     function card(load) {
         const node = button('', 'load-card', () => openLoad(load.id));
-        const top = el('div', '', 'load-card-top');
+        const top = el('span', '', 'load-card-top');
         top.append(el('strong', load.load_number, 'mono'), el('span', dayText(load.planned_date), 'small text-muted'));
         node.append(top);
         if (loadsApi.isFinished(load)) node.append(chip(loadsApi.LOAD_STATUS[load.status], load.status));
         const route = [load.origin_name && `From ${load.origin_name}`, load.next_stop && `Next: ${load.next_stop}`].filter(Boolean).join(' · ');
-        if (route) node.append(el('div', route, 'small'));
-        node.append(el('div', load.driver_name ? `Driver ${load.driver_name}` : 'No driver yet', `small${load.driver_name ? '' : ' text-muted'}`));
+        if (route) node.append(el('span', route, 'small'));
+        node.append(el('span', load.driver_name ? `Driver ${load.driver_name}` : 'No driver yet', `small${load.driver_name ? '' : ' text-muted'}`));
         const counts = loadsApi.cardCounts(load);
-        node.append(el('div', counts.length ? counts.join(' · ') : 'Nothing planned', 'small text-muted'));
-        const badges = el('div', '', 'load-card-badges');
+        node.append(el('span', counts.length ? counts.join(' · ') : 'Nothing planned', 'small text-muted'));
+        const badges = el('span', '', 'load-card-badges');
         if (load.flagged_count) badges.append(el('span', `${plural(load.flagged_count, 'flag')}`, 'chip chip-warn'));
-        if (load.licence_recorded_at) badges.append(el('span', 'Licence on file', 'chip chip-success'));
+        if (loadsApi.licenceOnFile(load)) badges.append(el('span', 'Licence on file', 'chip chip-success'));
         if (badges.childNodes.length) node.append(badges);
         return node;
     }
@@ -125,34 +127,39 @@
 
     async function loadDetail(state) {
         const id = state.id;
-        const [companies, stops, lines, licence, photos] = await Promise.all([
+        const [companies, stops, lines, licence, photos, listed] = await Promise.all([
             fetchAll('load_companies', 'id,position,name,role,contact_name,phone', query => query.eq('load_id', id)),
             fetchAll('load_stop_overview', '*', query => query.eq('load_id', id)),
             fetchAll('load_line_overview', '*', query => query.eq('load_id', id)),
             // Only office staff can read licences; nobody else asks.
-            office ? projectSupabaseClient.from('load_driver_licences').select('licence_number,licence_state,licence_expiry,recorded_at,removed_at').eq('load_id', id).maybeSingle() : { data: null },
-            office ? fetchAll('driver_licence_photos', 'id,storage_path,created_at', query => query.eq('load_id', id).is('removed_at', null)) : [],
+            officeRole ? projectSupabaseClient.from('load_driver_licences').select('licence_number,licence_state,licence_expiry,recorded_at,removed_at').eq('load_id', id).maybeSingle() : { data: null },
+            officeRole ? fetchAll('driver_licence_photos', 'id,storage_path,created_at', query => query.eq('load_id', id).is('removed_at', null)) : [],
+            // What is in the load's folder, to find a photo that uploaded but was never attached.
+            officeRole ? supabaseClient.storage.from('driver-licences').list(id, { limit: 100 }) : { data: [] },
         ]);
         if (licence.error) throw licence.error;
+        const stored = (listed.data || []).filter(object => PHOTO_NAME.test(object.name)).map(object => `${id}/${object.name}`);
         Object.assign(state, { load: loads.find(load => load.id === id) || state.load, companies: companies.sort((a, b) => a.position - b.position),
-            stops: stops.sort((a, b) => a.seq - b.seq), lines, licence: licence.data, photos });
+            stops: stops.sort((a, b) => a.seq - b.seq), lines, licence: licence.data, photos,
+            unattached: stored.filter(path => !photos.some(photo => photo.storage_path === path)) });
     }
 
     async function openLoad(id) {
-        const state = { id, isNew: false, load: loads.find(load => load.id === id), dirty: {}, companyDraft: null, stopDraft: null, finding: null, pendingPhoto: null };
+        const state = { id, isNew: false, load: loads.find(load => load.id === id), dirty: {}, companyDraft: null, stopDraft: null, found: null, unattached: [] };
         if (!state.load) { message('That load is not in this project.'); return; }
         current = state;
-        $('loadHeader').replaceChildren(el('h2', state.load.load_number));
+        const heading = el('h2', state.load.load_number); heading.id = 'loadTitle';
+        $('loadHeader').replaceChildren(heading);
         body.replaceChildren(el('p', 'Loading…', 'text-muted'));
         status('');
         if (!drawer.open) drawer.showModal();
         try { await loadDetail(state); }
         catch (error) { if (current === state) body.replaceChildren(el('p', `Could not load ${state.load.load_number}: ${loadsApi.errorMessage(error)}`, 'text-danger')); return; }
-        if (current === state) renderDrawer();
+        if (current === state) renderDrawer({ focus: 'close' });
     }
 
     function openNew() {
-        current = { id: crypto.randomUUID(), isNew: true, load: null, companies: [], stops: [], lines: [], licence: null, photos: [], dirty: {}, companyDraft: null, stopDraft: null };
+        current = { id: crypto.randomUUID(), isNew: true, load: null, companies: [], stops: [], lines: [], licence: null, photos: [], unattached: [], dirty: {}, companyDraft: null, stopDraft: null };
         status('');
         renderDrawer();
         if (!drawer.open) drawer.showModal();
@@ -172,7 +179,14 @@
         tools.append(close);
         header.append(titleWrap, tools);
         $('loadHeader').replaceChildren(header);
-        const sections = state.isNew ? ['details'] : ['actions', 'details', 'companies', 'stops', 'manifest', ...(office ? ['licence'] : [])];
+        // An edit kept across a redraw must still be possible: stops can't change once the truck has left, and nothing
+        // changes on a finished load. Lists nobody is editing are rebuilt from what was just read.
+        if (load && !loadsApi.beforeDeparture(load)) state.dirty.stops = false;
+        if (load && loadsApi.isFinished(load)) state.dirty.details = state.dirty.companies = false;
+        if (!state.dirty.companies) state.companyDraft = null;
+        if (!state.dirty.stops) state.stopDraft = null;
+        window.InvenioUnsavedChanges = dirty();
+        const sections = state.isNew ? ['details'] : ['actions', 'details', 'companies', 'stops', 'manifest', ...(officeRole ? ['licence'] : [])];
         const renderers = { actions: renderActions, details: renderDetails, companies: renderCompanies, stops: renderStops, manifest: renderManifest, licence: renderLicence };
         const kept = new Map([...body.childNodes].filter(node => node.dataset?.section).map(node => [node.dataset.section, node]));
         body.replaceChildren(...sections.map(name => {
@@ -210,9 +224,10 @@
         const stale = outcome.reloadError ? ` The page could not refresh (${loadsApi.errorMessage(outcome.reloadError)}). Reload it.` : '';
         message(text + stale);
         if (current !== state) return !outcome.error;
-        if (!outcome.error && state.isNew) state.isNew = false;
-        if (!outcome.error) state.load = loads.find(load => load.id === state.id) || state.load;
-        if (state.load) renderDrawer({ focus });
+        // A load is no longer new once the board has it; if the reload failed, saving again updates the same load.
+        const saved = loads.find(load => load.id === state.id);
+        if (saved) { state.load = saved; state.isNew = false; }
+        renderDrawer({ focus });
         status(text + stale);
         return !outcome.error;
     }
@@ -222,21 +237,24 @@
         const load = current.load, number = load.load_number, actions = el('div', '', 'd-flex flex-wrap gap-2');
         section.append(el('h3', 'Status', 'h6'));
         const notes = [];
+        // Counted from the manifest just read: the board row may be older, and confirmAll leaves pick-up pieces alone.
+        const planned = current.lines.filter(line => line.status === 'planned' && !line.pickup_stop_id).length;
+        const onBoard = current.lines.filter(line => line.status === 'on_board').length;
         if (loadsApi.beforeDeparture(load)) {
             if (!load.driver_name) notes.push("Add the driver's name before the truck leaves.");
             if (office) {
                 const depart = button('Mark loaded and depart', 'btn btn-primary', () => {
-                    if (!confirm(`Mark the ${plural(load.planned_count, 'planned piece')} as loaded and send ${number} on its way? Use this for a truck leaving a place where nobody scans.`)) return;
+                    if (!confirm(`Mark the ${plural(planned, 'planned piece')} as loaded and send ${number} on its way? Use this for a truck leaving a place where nobody scans.`)) return;
                     void operate('load_depart', { loadId: load.id, confirmAll: true }, { failed: `Could not send ${number} on its way`, focus: 'actions',
                         done: result => `${number} has left with ${plural(result.on_board, 'piece')} on board.` });
                 });
                 depart.dataset.focusKey = 'actions';
                 actions.append(depart);
             }
-            if (working && load.on_board_count) {
+            if (working && onBoard) {
                 actions.append(button("Depart with what's on board", 'btn btn-outline', () => {
-                    const left = load.planned_count ? ` ${plural(load.planned_count, 'planned piece')} that ${load.planned_count === 1 ? "wasn't" : "weren't"} scanned on will stay behind.` : '';
-                    if (!confirm(`Send ${number} on its way with the ${plural(load.on_board_count, 'piece')} on board?${left}`)) return;
+                    const left = planned ? ` ${plural(planned, 'planned piece')} that ${planned === 1 ? "wasn't" : "weren't"} scanned on will stay behind.` : '';
+                    if (!confirm(`Send ${number} on its way with the ${plural(onBoard, 'piece')} on board?${left}`)) return;
                     void operate('load_depart', { loadId: load.id }, { failed: `Could not send ${number} on its way`, focus: 'actions',
                         done: result => `${number} has left with ${plural(result.on_board, 'piece')} on board${result.not_loaded ? `; ${plural(result.not_loaded, 'piece')} stayed behind` : ''}.` });
                 }));
@@ -296,12 +314,17 @@
         const save = el('button', current.isNew ? 'Create load' : 'Save details', 'btn btn-primary'); save.type = 'submit'; save.dataset.focusKey = 'details';
         form.append(save);
         form.oninput = markDirty('details');
+        // load_save changes only the keys it is sent, so only what was changed here is sent: someone else's change to
+        // another field stays, and an origin since retired doesn't block saving the rest.
+        const shown = loadsApi.detailsPayload(Object.fromEntries(Object.entries(inputs).map(([key, control]) => [key, control.value]))).payload;
         form.onsubmit = event => {
             event.preventDefault();
             const result = loadsApi.detailsPayload(Object.fromEntries(Object.entries(inputs).map(([key, control]) => [key, control.value])));
             if (result.error) { status(result.error); inputs[result.field]?.focus(); return; }
             const state = current, creating = state.isNew;
-            void operate('load_save', { loadId: state.id, ...result.payload }, { focus: 'details',
+            const changes = creating ? result.payload : loadsApi.changedKeys(result.payload, shown);
+            if (!Object.keys(changes).length) { status('Nothing has changed.'); return; }
+            void operate('load_save', { loadId: state.id, ...changes }, { focus: 'details',
                 failed: creating ? 'Could not create the load' : `Could not save ${state.load.load_number}`,
                 done: saved => { state.dirty.details = false; window.InvenioUnsavedChanges = dirty(); return creating ? `Created ${saved.load_number}.` : `Saved ${saved.load_number}'s details.`; } });
         };
@@ -456,7 +479,8 @@
             const stop = group.stop;
             section.append(el('h4', stop ? `Stop ${stop.seq} · ${stop.place_name} (${loadsApi.STOP_KINDS[stop.kind]})` : 'Other stops', 'h6 mt-3'));
             const table = el('table', '', 'table table-sm'), head = el('tr'), rows = el('tbody');
-            for (const label of ['Tag', 'Piece', 'Status', '']) { const cell = el('th', label); cell.scope = 'col'; head.append(cell); }
+            for (const label of ['Tag', 'Piece', 'Status']) { const cell = el('th', label); cell.scope = 'col'; head.append(cell); }
+            const actionsHead = el('th'); actionsHead.scope = 'col'; actionsHead.append(el('span', 'Actions', 'visually-hidden')); head.append(actionsHead);
             const thead = el('thead'); thead.append(head);
             for (const line of group.lines) rows.append(manifestRow(load, line, planning));
             table.append(thead, rows);
@@ -505,9 +529,9 @@
             }, `Remove ${line.tag} from the plan`));
         }
         if (office && line.status === 'missing') {
-            if (current.finding === line.id) actions.append(foundForm(line));
+            if (current.found?.lineId === line.id) actions.append(foundForm(line));
             else {
-                const found = button('Mark found', 'btn btn-sm btn-outline', () => { current.finding = line.id; renderDrawer(); $('foundPlace')?.focus(); }, `Mark ${line.tag} found`);
+                const found = button('Mark found', 'btn btn-sm btn-outline', () => { current.found = { lineId: line.id, placeId: '', note: '' }; renderDrawer(); $('foundPlace')?.focus(); }, `Mark ${line.tag} found`);
                 found.dataset.focusKey = `found-${line.id}`;
                 actions.append(found);
             }
@@ -517,20 +541,23 @@
     }
 
     function foundForm(line) {
-        const form = el('form', '', 'found-form');
+        // What was chosen and typed survives a refusal and the redraw after it.
+        const draft = current.found, form = el('form', '', 'found-form');
         form.noValidate = true;
-        const where = field(form, 'Found at', select(placeOptions(null, 'Choose a place')), 'foundPlace');
-        const note = field(form, 'Note (optional)', el('input', '', 'form-control'), 'foundNote'); note.maxLength = 500;
+        const where = field(form, 'Found at', select(placeOptions(null, 'Choose a place'), draft.placeId), 'foundPlace');
+        const note = field(form, 'Note (optional)', el('input', '', 'form-control'), 'foundNote'); note.maxLength = 500; note.value = draft.note;
+        where.onchange = () => { draft.placeId = where.value; };
+        note.oninput = () => { draft.note = note.value; };
         const save = el('button', 'Save', 'btn btn-sm btn-primary'); save.type = 'submit';
         const actions = el('div', '', 'd-flex gap-2');
-        actions.append(save, button('Cancel', 'btn btn-sm btn-ghost', () => { current.finding = null; renderDrawer({ focus: `found-${line.id}` }); }));
+        actions.append(save, button('Cancel', 'btn btn-sm btn-ghost', () => { current.found = null; renderDrawer({ focus: `found-${line.id}` }); }));
         form.append(actions);
         form.onsubmit = event => {
             event.preventDefault();
             if (!where.value) { status(`Choose where ${line.tag} turned up.`); where.focus(); return; }
             const state = current;
             void operate('line_found', { lineId: line.id, placeId: where.value, note: note.value.trim() }, { focus: 'actions', failed: `Could not mark ${line.tag} found`,
-                done: () => { state.finding = null; return `${line.tag} is marked found at ${places.find(place => place.id === where.value)?.name}.`; } });
+                done: () => { state.found = null; return `${line.tag} is marked found at ${places.find(place => place.id === where.value)?.name}.`; } });
         };
         return form;
     }
@@ -540,24 +567,29 @@
         const load = current.load, licence = current.licence;
         section.append(el('h3', "Driver's licence", 'h6'), el('p', 'Office staff only. Never printed, and removed 90 days after the load closes.', 'small text-muted'));
         if (licence?.removed_at) { section.append(el('p', `Removed ${timeText(licence.removed_at)}, 90 days after the load closed.`, 'small')); return; }
-        const form = el('form'), grid = el('div', '', 'load-grid');
-        form.noValidate = true;
-        const number = field(grid, 'Licence number', el('input', '', 'form-control'), 'licenceNumber');
-        Object.assign(number, { autocomplete: 'off', spellcheck: false, maxLength: 40, value: licence?.licence_number || '' });
-        const issuer = field(grid, 'Issuing state', el('input', '', 'form-control'), 'licenceState'); issuer.maxLength = 40; issuer.value = licence?.licence_state || '';
-        const expiry = field(grid, 'Expiry date', el('input', '', 'form-control'), 'licenceExpiry'); expiry.type = 'date'; expiry.value = licence?.licence_expiry || '';
-        form.append(grid);
-        if (licence?.recorded_at) form.append(el('p', `Recorded ${timeText(licence.recorded_at)}.`, 'small text-muted'));
-        const save = el('button', 'Save licence', 'btn btn-primary'); save.type = 'submit'; save.dataset.focusKey = 'licence';
-        form.append(save);
-        form.oninput = markDirty('licence');
-        form.onsubmit = event => {
-            event.preventDefault();
-            const result = loadsApi.licenceValues({ number: number.value, state: issuer.value, expiry: expiry.value });
-            if (result.error) { status(result.error); ({ number, state: issuer, expiry })[result.field]?.focus(); return; }
-            void saveLicence(load, result.licence);
-        };
-        section.append(form);
+        // Changing it needs an active project (022's record and attach calls do); reading doesn't.
+        if (office) {
+            const form = el('form'), grid = el('div', '', 'load-grid');
+            form.noValidate = true;
+            const number = field(grid, 'Licence number', el('input', '', 'form-control'), 'licenceNumber');
+            Object.assign(number, { autocomplete: 'off', spellcheck: false, maxLength: 40, value: licence?.licence_number || '' });
+            const issuer = field(grid, 'Issuing state', el('input', '', 'form-control'), 'licenceState'); issuer.maxLength = 40; issuer.value = licence?.licence_state || '';
+            const expiry = field(grid, 'Expiry date', el('input', '', 'form-control'), 'licenceExpiry'); expiry.type = 'date'; expiry.value = licence?.licence_expiry || '';
+            form.append(grid);
+            if (licence?.recorded_at) form.append(el('p', `Recorded ${timeText(licence.recorded_at)}.`, 'small text-muted'));
+            const save = el('button', 'Save licence', 'btn btn-primary'); save.type = 'submit'; save.dataset.focusKey = 'licence';
+            form.append(save);
+            form.oninput = markDirty('licence');
+            form.onsubmit = event => {
+                event.preventDefault();
+                const result = loadsApi.licenceValues({ number: number.value, state: issuer.value, expiry: expiry.value });
+                if (result.error) { status(result.error); ({ number, state: issuer, expiry })[result.field]?.focus(); return; }
+                void saveLicence(load, result.licence);
+            };
+            section.append(form);
+        } else if (licence) {
+            section.append(factList([['Licence number', licence.licence_number], ['Issuing state', licence.licence_state], ['Expiry date', dayText(licence.licence_expiry)]]));
+        } else section.append(el('p', 'No licence recorded.', 'small text-muted'));
 
         const photos = el('div', '', 'licence-photos');
         section.append(el('h4', 'Photos', 'h6 mt-3'), photos);
@@ -571,12 +603,18 @@
                 else image.src = data.signedUrl;
             });
         });
-        if (current.pendingPhoto) {
-            section.append(button('Try attaching the photo again', 'btn btn-sm btn-outline mt-2', () => void attachPhoto(load, current.pendingPhoto)));
-        } else if (current.photos.length < loadsApi.MAX_LICENCE_PHOTOS) {
+        if (!office) return;
+        // A photo in the load's folder that was never attached (an attach that failed, here or on a phone) would keep
+        // the licence from being removed after 90 days, so it is offered for attaching.
+        if (current.unattached.length) {
+            section.append(el('p', `${plural(current.unattached.length, 'uploaded photo isn’t', 'uploaded photos aren’t')} attached to this load yet.`, 'small zone-warning mt-2'),
+                button(current.unattached.length === 1 ? 'Attach the uploaded photo' : `Attach the ${current.unattached.length} uploaded photos`, 'btn btn-sm btn-outline',
+                    () => void savePhoto(load, null, current.unattached)));
+        }
+        if (current.photos.length < loadsApi.MAX_LICENCE_PHOTOS) {
             const label = el('label', 'Add a photo (JPEG or PNG, up to 10 MB)', 'form-label mt-2'); label.htmlFor = 'licencePhoto';
             const input = el('input', '', 'form-control'); Object.assign(input, { id: 'licencePhoto', type: 'file', accept: 'image/jpeg,image/png' });
-            input.onchange = () => { const file = input.files?.[0]; input.value = ''; if (file) void addPhoto(load, file); };
+            input.onchange = () => { const file = input.files?.[0]; input.value = ''; if (file) void savePhoto(load, file, []); };
             section.append(label, input);
         } else section.append(el('p', `A load keeps at most ${loadsApi.MAX_LICENCE_PHOTOS} photos.`, 'small text-muted mt-2'));
     }
@@ -594,36 +632,38 @@
         }], refresh);
         body.disabled = false;
         if (!outcome.error) state.dirty.licence = false;
-        window.InvenioUnsavedChanges = dirty();
         const text = outcome.error ? `Could not save the licence: ${loadsApi.errorMessage(outcome.error)}` : `Saved the licence${last4 ? ` ending ${last4}` : ''}.`;
         if (current === state) { renderDrawer({ focus: 'licence' }); status(text); }
     }
 
-    // Upload without overwriting, then attach. If attaching fails, the uploaded photo can be attached again later.
-    async function addPhoto(load, file) {
-        const target = loadsApi.licencePhotoPath(load.id, file, crypto.randomUUID());
+    /**
+     * Uploads a new photo without overwriting, then attaches it (and any earlier uploads still unattached), all under
+     * the save lock, so nothing else runs in between and the drawer can't close or switch loads part-way.
+     */
+    async function savePhoto(load, file, earlier) {
+        const target = file ? loadsApi.licencePhotoPath(load.id, file, crypto.randomUUID()) : { path: null };
         if (target.error) { status(target.error); return; }
         if (lock.busy) { status(STILL_SAVING); return; }
-        status('Uploading the photo…');
-        const { error } = await supabaseClient.storage.from('driver-licences').upload(target.path, file, { contentType: file.type, upsert: false });
-        if (error && !/already exists/i.test(error.message || '')) { status(`Could not upload the photo: ${loadsApi.errorMessage(error)}`); return; }
-        await attachPhoto(load, target.path);
-    }
-
-    async function attachPhoto(load, path) {
-        if (lock.busy) { status(STILL_SAVING); return; }
-        body.disabled = true;
+        body.disabled = true; status(file ? 'Uploading the photo…' : 'Attaching…');
         const state = current;
+        let uploaded = !file;
         const outcome = await inv.writeThenReload(lock, [async () => {
-            const { error } = await supabaseClient.rpc('attach_driver_licence_photo', { p_load_id: load.id, p_path: path });
-            if (error) throw error;
+            if (file) {
+                const { error } = await supabaseClient.storage.from('driver-licences').upload(target.path, file, { contentType: file.type, upsert: false });
+                // "Already exists" means an earlier try of this same upload landed.
+                if (error && !/already exists/i.test(error.message || '')) throw error;
+                uploaded = true;
+            }
+            for (const path of [...earlier, ...(target.path ? [target.path] : [])]) {
+                const { error } = await supabaseClient.rpc('attach_driver_licence_photo', { p_load_id: load.id, p_path: path });
+                if (error) throw error;
+            }
         }], refresh);
         body.disabled = false;
-        state.pendingPhoto = outcome.error ? path : null;
-        if (current === state) {
-            renderDrawer();
-            status(outcome.error ? `The photo was uploaded but could not be attached: ${loadsApi.errorMessage(outcome.error)}` : 'Added the photo.');
-        }
+        const text = !outcome.error ? (file ? 'Added the photo.' : 'Attached the uploaded photos.')
+            : uploaded ? `The photo was uploaded but could not be attached: ${loadsApi.errorMessage(outcome.error)}. Attach it again from this section.`
+            : `Could not upload the photo: ${loadsApi.errorMessage(outcome.error)}`;
+        if (current === state) { renderDrawer(); status(text); } else message(text);
     }
 
     // ---- Printable manifest -----------------------------------------------------------------
@@ -650,6 +690,7 @@ section { break-inside: avoid-page; }
     function printManifest() {
         const state = current;
         if (!state?.load) return;
+        if (lock.busy) { status(STILL_SAVING); return; }
         const printWindow = window.open('', '_blank');
         if (!printWindow) { status('Allow pop-ups for this site, then choose Print manifest again.'); return; }
         printWindow.opener = null;
@@ -719,14 +760,22 @@ section { break-inside: avoid-page; }
         const failed = [];
         for (const row of data || []) {
             try {
-                if (row.storage_paths?.length) {
-                    const { error: storageError } = await supabaseClient.storage.from('driver-licences').remove(row.storage_paths);
+                // The attached photos, and anything else in the load's folder: remove_driver_licence refuses while any
+                // object is left there, including a photo that was uploaded but never attached.
+                const listed = await supabaseClient.storage.from('driver-licences').list(row.load_id, { limit: 100 });
+                const paths = [...new Set([...(row.storage_paths || []), ...(listed.data || []).map(object => `${row.load_id}/${object.name}`)])];
+                if (paths.length) {
+                    const { error: storageError } = await supabaseClient.storage.from('driver-licences').remove(paths);
                     if (storageError) throw storageError;
                 }
                 const { error: removeError } = await supabaseClient.rpc('remove_driver_licence', { p_load_id: row.load_id });
                 if (removeError) throw removeError;
                 removed++;
-            } catch (failure) { failed.push(`${row.load_number} (${loadsApi.errorMessage(failure)})`); }
+            } catch (failure) {
+                // The list covers every project this user can see; say when a load isn't in the open one.
+                const name = loads.some(load => load.id === row.load_id) ? row.load_number : `${row.load_number} in another project`;
+                failed.push(`${name} (${loadsApi.errorMessage(failure)})`);
+            }
         }
         const parts = [];
         if (removed) parts.push(`Removed the driver's licence of ${plural(removed, 'load')} closed more than 90 days ago.`);
@@ -747,7 +796,7 @@ section { break-inside: avoid-page; }
     $('newLoad').onclick = openNew;
     try { await Promise.all([loadBoard(), loadPlaces()]); }
     catch (error) { message(`Could not load loads: ${loadsApi.errorMessage(error)}`); return; }
-    if (office) void removeOldLicences();
+    if (officeRole) void removeOldLicences();
     // Outside Shops links to a load with ?load=<id>.
     const linked = new URLSearchParams(location.search).get('load');
     if (linked) void openLoad(linked);

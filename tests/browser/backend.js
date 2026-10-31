@@ -268,6 +268,7 @@
             createSignedUrl:async path=>loadsModel.storage.canRead(path) ? success({signedUrl:uploads.get(path)||licencePhoto}) : {data:null,error:{statusCode:'400',message:'Object not found'}},
             upload:async(path,blob)=>{ const {error}=loadsModel.storage.upload(path); if(error) return {data:null,error}; uploads.set(path,URL.createObjectURL(blob)); save(); return success({path}); },
             remove:async paths=>{ const removed=loadsModel.storage.remove(paths); save(); return success(removed.map(name=>({name}))); },
+            list:async prefix=>success(loadsModel.storage.list(prefix)),
         } : {
             createSignedUrl:async path=>success({signedUrl:uploads.get(path)||(bucket==='site-plans'?planImage:bucket==='inventory-photos'?photoImage:'')}),
             upload:async(path,blob)=>{uploads.set(path,URL.createObjectURL(blob));return success({path});},

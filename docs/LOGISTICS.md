@@ -19,7 +19,7 @@ Phase 1 of logistics. Migration `supabase/migrations/021_places_and_handling_uni
   - While a save is running, the drawer stays open.
 - **Retiring and naming.** Nothing is deleted; a retired place is listed under **Retired** and can be restored.
   - Names are unique among active places, ignoring case. Restoring a place whose name an active place now uses is refused with that reason.
-- **Shop Contacts.** Places replaces Shop Contacts in the sidebar. The old page and its data are untouched, and Outside Shops is unchanged.
+- **Shop Contacts.** Places replaces Shop Contacts in the sidebar. The old page and its data are untouched. (Outside Shops was rebuilt in phase 2; see below.)
 
 ## Crates (`handling-units.html`)
 
@@ -65,9 +65,11 @@ Run `python3 tests/browser/serve.py`, then open `http://127.0.0.1:8092/places.ht
   - While a change saves, the drawer is disabled and a second change says so.
   - The board and the load reload afterwards, saved or refused.
 - **The drawer.** It has sections for status, details, companies, stops, the manifest and, for office staff, the driver's licence.
-  - A section with unsaved edits keeps them when another section saves.
+  - A section with unsaved edits keeps them when another section saves; every other section is redrawn from what was just read.
+  - An edit the change made pointless is dropped: stops once the truck has left, anything once the load is finished.
   - Escape asks before dropping edits.
   - A finished load, or any load on a project that isn't active, shows its details and companies as text.
+  - Saving details sends only the fields that changed, since `load_save` changes only the keys it is sent. Someone else's change to another field stays, and an origin retired since doesn't block saving the rest.
 - **Stops.** Stops are edited (added, reordered, removed) only until the truck leaves. New stops get their IDs on the page, so pieces planned for a stop stay with it.
   - After departure, each stop shows what's due, delivered and missing.
   - "Mark delivered" (office) finishes a drop-off stop without scanning.
@@ -81,13 +83,16 @@ Run `python3 tests/browser/serve.py`, then open `http://127.0.0.1:8092/places.ht
   - "Cancel load" and "Close load" (office) call `load_close`.
 - **Driver's licence (office staff only).** Field staff never read it, and the page doesn't ask for it for them.
   - The number, state and expiry are saved with `record_driver_licence`, with a new operation ID each time. The page repeats only the last four characters.
+  - Office staff on a project that isn't active can read the licence, but not change it, as 022's calls require.
   - Photos are shown through 5-minute signed links.
-  - A new photo is uploaded to `driver-licences/<load id>/<new id>.jpg` (or `.png`) without upsert, then attached. If attaching fails, it can be retried without uploading again.
+  - A new photo is uploaded to `driver-licences/<load id>/<new id>.jpg` (or `.png`) without upsert, then attached, both under the save lock.
+  - The page lists the load's folder, so a photo that uploaded but was never attached (here or from a phone) is offered for attaching, even after the drawer was closed.
 - **Printed manifest.** It opens during the click, as the crate labels do, with one page section per stop: tag, piece and high-value mark.
   - It shows the load, driver name and phone, truck, trailer, bill of lading and companies, plus signature lines for the shipper, driver and receiver.
   - The print code is never given the licence.
-- **Removing old licences.** When office staff open Loads, the page runs `driver_licences_due_for_removal()`. For each load it deletes the photos through Storage, then calls `remove_driver_licence`.
-  - A small note says how many were removed and which couldn't be.
+- **Removing old licences.** When office staff open Loads (on any project), the page runs `driver_licences_due_for_removal()`, which covers every project they can see. For each load it deletes everything in the load's folder through Storage, attached or not, then calls `remove_driver_licence`.
+  - A small note says how many were removed and which couldn't be, naming a load from another project as such.
+  - 022 keeps `licence_recorded_at` after removal, so the board's "Licence on file" badge stops showing 90 days after a load closes.
   - It runs in the background and never blocks the board.
 
 ## Outside Shops (`outside-shop-inventory.html`)

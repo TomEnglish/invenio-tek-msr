@@ -86,6 +86,7 @@ function fakeServer(state, { role }) {
         if (request.storage === 'upload') { const { error } = model.storage.upload(request.path); return { data: error ? null : { path: request.path }, error }; }
         if (request.storage === 'signed') return model.storage.canRead(request.path) ? { data: { signedUrl: `signed:${request.path}` }, error: null } : { data: null, error: { message: 'Object not found' } };
         if (request.storage === 'remove') return { data: model.storage.remove(request.paths).map(name => ({ name })), error: null };
+        if (request.storage === 'list') return { data: model.storage.list(request.prefix), error: null };
         const rows = reads[request.table]().filter(row => request.filters.every(([key, value]) => (row[key] ?? null) === value)).map(row => structuredClone(row));
         if (request.one) return { data: rows[0] || null, error: null };
         return { data: rows.slice(request.from, request.to + 1), error: null };
@@ -106,6 +107,7 @@ function fakeServer(state, { role }) {
             upload: (path, file, options) => respond({ storage: 'upload', bucket, path, file, options }),
             createSignedUrl: (path, seconds) => respond({ storage: 'signed', bucket, path, seconds }),
             remove: paths => respond({ storage: 'remove', bucket, paths }),
+            list: (prefix, options) => respond({ storage: 'list', bucket, prefix, options }),
         }) },
     };
     server.ops = () => server.log.filter(request => request.rpc === 'apply_field_operation').map(request => request.args);
@@ -391,6 +393,8 @@ test('while a change saves, the drawer is disabled, a second change says so, and
     assert.equal(page.status(), 'Still saving the last change. Try again in a moment.');
     page.drawer.escape(); page.drawer.escape({ activated: false });
     assert.equal(page.drawer.open, true);
+    page.find('Print manifest').click();
+    assert.equal(page.opened.length, 0, 'no print-out of data about to change');
     page.server.step(); await settle();
     assert.equal(page.server.waiting.length > 0, true, 'the reload is waiting, still locked');
     page.find('Save stops').click();
@@ -442,33 +446,56 @@ test('the licence (office only): read, saved with a new operation ID each time, 
     assert.ok(!page.card('L-0002').textContent.includes('5432'));
 });
 
-test('licence photos: shown through 5-minute signed links, added without overwriting, then attached; a failed attach can be retried', async () => {
+test('licence photos: shown through 5-minute signed links, uploaded without overwriting and attached under the save lock', async () => {
     const page = await openPage();
     await page.open('L-0002');
     const signed = page.server.log.filter(request => request.storage === 'signed');
     assert.deepEqual(plain(signed.map(request => [request.bucket, request.path, request.seconds])), [['driver-licences', `${id(32)}/front.jpg`, 300]]);
     assert.equal(page.section('licence').querySelector('img').src, `signed:${id(32)}/front.jpg`);
-    const file = { type: 'image/jpeg', size: 2048, name: 'IMG_0001.HEIC.jpg' };
-    page.server.fail = request => request.rpc === 'attach_driver_licence_photo' && { code: '22023', message: 'Upload the photo before attaching it' };
+    const file = { type: 'image/jpeg', size: 2048, name: 'IMG_0001.jpg' };
+    page.server.paused = true;
     const picker = page.input('licencePhoto'); picker.files = [file]; picker.onchange();
+    await settle();
+    assert.equal(page.body.disabled, true, 'locked from the start of the upload');
+    page.find('Save companies').click();
+    assert.equal(page.status(), 'Still saving the last change. Try again in a moment.');
+    page.drawer.escape(); page.drawer.escape({ activated: false });
+    assert.equal(page.drawer.open, true, "the drawer can't close or switch loads mid-upload");
+    page.server.paused = false;
+    while (page.server.waiting.length) page.server.step();
     await settle();
     const [upload] = page.server.log.filter(request => request.storage === 'upload');
     assert.match(upload.path, new RegExp(`^${id(32)}/[0-9a-f-]{36}\\.jpg$`));
     assert.deepEqual(plain(upload.options), { contentType: 'image/jpeg', upsert: false });
     assert.equal(upload.file, file);
-    assert.equal(page.status(), 'The photo was uploaded but could not be attached: Upload the photo before attaching it');
-    page.server.fail = null;
-    await page.press('Try attaching the photo again');
-    assert.equal(page.server.log.filter(request => request.storage === 'upload').length, 1, 'not uploaded twice');
-    assert.deepEqual(plain(page.server.calls('attach_driver_licence_photo').at(-1).args), { p_load_id: id(32), p_path: upload.path });
+    assert.deepEqual(plain(page.server.calls('attach_driver_licence_photo').map(call => call.args)), [{ p_load_id: id(32), p_path: upload.path }]);
     assert.equal(page.status(), 'Added the photo.');
     assert.equal(page.section('licence').querySelectorAll('img').length, 2);
+    assert.equal(page.server.ops().length, 0, 'Save companies never ran');
     page.input('licencePhoto').files = [{ type: 'image/gif', size: 10 }]; page.input('licencePhoto').onchange();
     assert.equal(page.status(), 'Choose a JPEG or PNG photo.');
     page.server.state.driver_licence_photos.push(...[1, 2].map(n => ({ id: id(80 + n), load_id: id(32), project_id: P, storage_path: `${id(32)}/x${n}.jpg`, removed_at: null })));
     await page.open('L-0002');
     assert.equal(page.input('licencePhoto'), null);
     assert.ok(page.section('licence').textContent.includes('A load keeps at most 4 photos.'));
+});
+
+test('a photo uploaded but never attached is found in the bucket and attached, so the licence can still be removed later', async () => {
+    const state = world();
+    state.licence_objects.push(`${id(32)}/orphan.jpg`);
+    let refusals = 1;
+    const page = await openPage({ state, fail: request => request.rpc === 'attach_driver_licence_photo' && refusals-- > 0
+        && { code: '22023', message: 'A load keeps at most 4 licence photos' } });
+    await page.open('L-0002');
+    assert.ok(page.server.log.some(request => request.storage === 'list' && request.bucket === 'driver-licences' && request.prefix === id(32)), "the load's folder is listed");
+    assert.ok(page.section('licence').textContent.includes('1 uploaded photo isn’t attached to this load yet.'));
+    await page.press('Attach the uploaded photo');
+    assert.equal(page.status(), 'The photo was uploaded but could not be attached: A load keeps at most 4 licence photos. Attach it again from this section.');
+    assert.ok(page.find('Attach the uploaded photo'), 'still offered after a refusal');
+    await page.press('Attach the uploaded photo');
+    assert.equal(page.status(), 'Attached the uploaded photos.');
+    assert.ok(page.server.state.driver_licence_photos.some(row => row.storage_path === `${id(32)}/orphan.jpg`));
+    assert.equal(page.find('Attach the uploaded photo'), undefined);
 });
 
 test('the printed manifest has the load, driver, truck, companies, one section per stop and signature lines, and never the licence', async () => {
@@ -497,32 +524,42 @@ test('the printed manifest has the load, driver, truck, companies, one section p
     for (const secret of [LICENCE, '5678', 'TX 2028', '2028-04-30']) assert.ok(!second.body.textContent.includes(secret) && !second.title.includes(secret), `no ${secret}`);
 });
 
-test("opening Loads removes licences 90 days after a load closed: photos first, then the number; failures don't stop the rest", async () => {
+test("opening Loads removes licences 90 days after a load closed, in every project: the folder first, then the number; failures don't stop the rest", async () => {
     const state = world();
-    state.loads.push({ ...state.loads[3], id: id(36), load_number: 'L-0006' });
-    state.load_driver_licences.push({ ...state.load_driver_licences[1], load_id: id(36) });
+    state.loads.push({ ...state.loads[3], id: id(36), load_number: 'L-0006' }, { ...state.loads[3], id: id(37), project_id: 'p2', load_number: 'L-0001' });
+    state.load_driver_licences.push({ ...state.load_driver_licences[1], load_id: id(36) }, { ...state.load_driver_licences[1], load_id: id(37), project_id: 'p2' });
+    state.licence_objects.push(`${id(34)}/never-attached.jpg`);
     const page = await openPage({ state });
     const steps = page.server.log.filter(request => request.rpc === 'driver_licences_due_for_removal' || request.rpc === 'remove_driver_licence' || request.storage === 'remove')
         .map(request => request.storage ? `remove ${request.paths.join(',')}` : request.rpc);
-    assert.deepEqual(steps, ['driver_licences_due_for_removal', `remove ${id(34)}/front.jpg`, 'remove_driver_licence', 'remove_driver_licence']);
-    assert.equal(page.$('housekeeping').textContent, "Removed the driver's licence of 2 loads closed more than 90 days ago.");
-    assert.equal(page.server.state.load_driver_licences.find(row => row.load_id === id(34)).licence_number, null);
+    assert.deepEqual(steps, ['driver_licences_due_for_removal', `remove ${id(34)}/front.jpg,${id(34)}/never-attached.jpg`, 'remove_driver_licence', 'remove_driver_licence', 'remove_driver_licence'],
+        'the unattached photo goes too, or 022 would refuse to remove the licence');
+    assert.equal(page.$('housekeeping').textContent, "Removed the driver's licence of 3 loads closed more than 90 days ago.");
+    assert.ok(page.server.state.load_driver_licences.every(row => row.load_id === id(32) || row.licence_number === null));
+    assert.equal(page.card('L-0002').textContent.includes('Licence on file'), true);
+    page.$('showFinished').click();
+    assert.ok(!page.card('L-0004').textContent.includes('Licence on file'), 'not once the licence has been removed');
 
-    // A photo the list doesn't know about blocks L-0004; L-0006 is still removed.
-    const blocked = world();
-    blocked.loads.push({ ...blocked.loads[3], id: id(36), load_number: 'L-0006' });
-    blocked.load_driver_licences.push({ ...blocked.load_driver_licences[1], load_id: id(36) });
-    blocked.licence_objects.push(`${id(34)}/stuck.jpg`);
-    const second = await openPage({ state: blocked });
+    const failing = world();
+    failing.loads.push({ ...failing.loads[3], id: id(37), project_id: 'p2', load_number: 'L-0001' });
+    failing.load_driver_licences.push({ ...failing.load_driver_licences[1], load_id: id(37), project_id: 'p2' });
+    failing.licence_objects.push(`${id(37)}/front.jpg`);
+    const second = await openPage({ state: failing, fail: request => request.storage === 'remove' && request.paths[0].startsWith(id(37)) && { message: 'Storage is unavailable' } });
     assert.equal(second.$('housekeeping').textContent,
-        "Removed the driver's licence of 1 load closed more than 90 days ago. Could not remove the driver's licence of L-0004 (Delete the licence photos from storage first).");
-    assert.equal(second.server.state.load_driver_licences.find(row => row.load_id === id(36)).licence_number, null);
+        "Removed the driver's licence of 1 load closed more than 90 days ago. Could not remove the driver's licence of L-0001 in another project (Storage is unavailable).");
     assert.deepEqual(plain(second.columns())['Planning (1)'], ['L-0001'], 'the board is there regardless');
 
     const third = await openPage({ fail: request => request.rpc === 'driver_licences_due_for_removal' && { code: 'PGRST301', message: 'JWT expired' } });
     assert.equal(third.$('housekeeping').textContent, "Old driver's licences could not be checked (JWT expired).");
     assert.equal(third.server.calls('remove_driver_licence').length, 0);
-    assert.deepEqual(plain(third.columns())['Planning (1)'], ['L-0001']);
+
+    // Office staff whose open project isn't active still clean up and can read licences, but not change them.
+    const onHold = await openPage({ projectStatus: 'on_hold' });
+    assert.equal(onHold.server.calls('remove_driver_licence').length, 1);
+    await onHold.open('L-0002');
+    assert.ok(onHold.section('licence').textContent.includes(`Licence number${LICENCE}`));
+    assert.equal(onHold.input('licenceNumber'), null);
+    assert.equal(onHold.input('licencePhoto'), null);
 });
 
 test('?load= opens that load, as Outside Shops links do', async () => {
@@ -545,4 +582,89 @@ test('a closed load, or any load on a project that is not active, shows its deta
     assert.equal(closedProject.body.querySelectorAll('form').length, 0, 'nothing to edit, and office actions need an active project too');
     assert.ok(closedProject.section('companies').textContent.includes('Fixture Freight · Broker · Ana Gomez · 555-0190'));
     assert.equal(closedProject.find('Mark loaded and depart'), undefined);
+});
+
+test('details send only what changed, so another change stays and a retired origin does not block saving', async () => {
+    const state = world();
+    state.places[0].is_active = false; // L-0001's origin, North Yard, is retired
+    const page = await openPage({ state });
+    await page.open('L-0001');
+    assert.equal(page.input('origin').options.find(option => option.value === id(1)).textContent, 'North Yard (retired)');
+    await page.submit('details');
+    assert.equal(page.status(), 'Nothing has changed.');
+    assert.equal(page.server.ops().length, 0);
+    page.server.state.loads[0].driver_name = 'Replacement Driver'; // someone at the dock changes the driver meanwhile
+    page.set('notes', 'Call before arriving');
+    await page.submit('details');
+    assert.deepEqual(plain(page.server.ops()[0].p_payload), { loadId: id(31), notes: 'Call before arriving' });
+    assert.equal(page.status(), "Saved L-0001's details.");
+    assert.deepEqual([page.server.load('L-0001').driver_name, page.server.load('L-0001').origin_place_id], ['Replacement Driver', id(1)]);
+    assert.equal(page.input('driverName').value, 'Replacement Driver', 'the form now shows the saved load');
+});
+
+test('lists nobody is editing are redrawn from the latest read; an edit the truck leaving makes pointless is dropped', async () => {
+    const page = await openPage();
+    await page.open('L-0001');
+    page.server.state.load_companies[0].name = 'Renamed Freight';
+    page.set('planCode', 'HU-FREE77');
+    await page.submit('manifest');
+    assert.equal(page.status(), 'Planned HU-FREE77 on L-0001.');
+    assert.equal(page.input('companyName0').value, 'Renamed Freight');
+    assert.ok(page.section('stops').textContent.includes('2 pieces planned to come off here'));
+    await page.press('Add stop');
+    assert.equal(page.context.InvenioUnsavedChanges, true);
+    await page.press('Mark loaded and depart');
+    assert.equal(page.find('Save stops'), undefined, 'the stop edit went with the departure');
+    assert.equal(page.section('stops').querySelectorAll('.stop-item').length, 2);
+    assert.equal(page.context.InvenioUnsavedChanges, false);
+});
+
+test('the found form keeps its place and note after a refusal; confirm counts come from the manifest just read', async () => {
+    let refusals = 1;
+    const page = await openPage({ fail: request => request.rpc === 'apply_field_operation' && request.args.p_action === 'line_found' && refusals-- > 0
+        && { code: '22023', message: "T-104 isn't missing" } });
+    await page.open('L-0003');
+    await page.press('Mark T-104 found');
+    page.set('foundPlace', id(3)); page.set('foundNote', 'On the dock by bay 4');
+    await page.section('manifest').querySelector('.found-form').onsubmit({ preventDefault() {} }); await settle();
+    assert.equal(page.status(), "Could not mark T-104 found: T-104 isn't missing");
+    assert.deepEqual([page.input('foundPlace').value, page.input('foundNote').value], [id(3), 'On the dock by bay 4']);
+
+    const state = world();
+    const extra = (n, tag, item, fields) => ({ ...state.load_lines[1], id: id(n), tag, inventory_uid: id(item), ...fields });
+    const board = await openPage({ state });
+    // After the board was read, one more piece is planned, and one more for a pick-up stop (confirmAll leaves those).
+    state.load_lines.push(extra(58, 'T-105', 26, {}), extra(59, 'T-101', 22, { pickup_stop_id: id(42), dropoff_stop_id: id(42) }));
+    await board.open('L-0001');
+    await board.press('Mark loaded and depart');
+    assert.match(board.confirms[0], /^Mark the 3 planned pieces as loaded/);
+});
+
+test('a load created but not read back can be saved again without an error', async () => {
+    const page = await openPage();
+    page.$('newLoad').click(); await settle();
+    page.set('driverName', 'Kim Ito');
+    page.server.fail = request => request.table === 'load_overview' && { code: 'PGRST301', message: 'JWT expired' };
+    await page.submit('details');
+    assert.equal(page.status(), 'Created L-0006. The page could not refresh (JWT expired). Reload it.');
+    page.server.fail = null;
+    page.set('driverPhone', '555-0100');
+    await page.submit('details');
+    const [first, second] = page.server.ops();
+    assert.equal(second.p_payload.loadId, first.p_payload.loadId, 'the same load, not a second one');
+    assert.equal(page.server.state.loads.length, 6);
+    assert.equal(page.drawer.querySelector('h2').textContent, 'L-0006');
+});
+
+test('the drawer is named while it loads, and focus lands on Close once it is drawn', async () => {
+    const page = await openPage();
+    page.server.paused = true;
+    page.card('L-0002').click(); await settle();
+    assert.equal(page.drawer.querySelector('h2').id, 'loadTitle');
+    page.server.paused = false;
+    while (page.server.waiting.length) page.server.step();
+    await settle();
+    assertFocus(page, page.find('Close'));
+    const [table] = page.section('manifest').querySelectorAll('table');
+    assert.equal(table.querySelectorAll('th').at(-1).textContent, 'Actions');
 });

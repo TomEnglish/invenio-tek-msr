@@ -301,9 +301,10 @@
                 theLoad.licence_recorded_at ||= now();
                 return null;
             },
+            // Like 022, every project the user can see, not only the open one.
             driver_licences_due_for_removal() {
                 if (!office()) return [];
-                return state.loads.filter(theLoad => theLoad.project_id === projectId && closedLongAgo(theLoad)).map(theLoad => ({
+                return state.loads.filter(closedLongAgo).map(theLoad => ({
                     load_id: theLoad.id, load_number: theLoad.load_number, licence: state.load_driver_licences.some(row => row.load_id === theLoad.id && !row.removed_at),
                     storage_paths: state.driver_licence_photos.filter(row => row.load_id === theLoad.id && !row.removed_at).map(row => row.storage_path),
                 })).filter(row => row.licence || row.storage_paths.length).map(({ licence, ...row }) => row);
@@ -330,6 +331,8 @@
                 return { error: null };
             },
             canRead: path => office() && state.licence_objects.includes(path),
+            // Names in a load's folder, as Storage lists them; office staff only, like reading.
+            list: prefix => office() ? state.licence_objects.filter(path => path.startsWith(`${prefix}/`)).map(path => ({ name: path.slice(prefix.length + 1) })) : [],
             remove(paths) {
                 const removable = paths.filter(path => office() && closedLongAgo(state.loads.find(row => row.id === path.split('/')[0]) || {}) && state.licence_objects.includes(path));
                 state.licence_objects = state.licence_objects.filter(path => !removable.includes(path));

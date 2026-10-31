@@ -64,6 +64,15 @@
         return { payload };
     }
 
+    /** The keys whose value differs from what the form showed: load_save changes only the keys it is sent. */
+    const changedKeys = (payload, shown) => Object.fromEntries(Object.entries(payload).filter(([key, value]) => value !== shown[key]));
+
+    /**
+     * Whether a licence can still be on file. 022 keeps licence_recorded_at after removing a licence 90 days past the
+     * load's close, so the board stops saying so then.
+     */
+    const licenceOnFile = (load, now = Date.now()) => Boolean(load.licence_recorded_at) && !(load.closed_at && Date.parse(load.closed_at) < now - 90 * DAY);
+
     /** Company rows → load_save companies. Empty rows are dropped; a row with anything in it needs a name. */
     function companiesPayload(rows) {
         const companies = [];
@@ -161,7 +170,7 @@
 
     const api = {
         LOAD_STATUS, BOARD_COLUMNS, LINE_STATUS, LINE_FLAGS, STOP_KINDS, STOP_STATUS, COMPANY_ROLES, LOAD_TEXT, MAX_COMPANIES, MAX_STOPS, MAX_LICENCE_PHOTOS,
-        errorMessage, isFinished, beforeDeparture, isDate, boardGroups, cardCounts, detailsPayload, companiesPayload, stopsPayload, moveItem,
+        errorMessage, isFinished, beforeDeparture, isDate, boardGroups, cardCounts, detailsPayload, changedKeys, licenceOnFile, companiesPayload, stopsPayload, moveItem,
         manifestByStop, printable, licenceValues, licencePhotoPath, daysSince, daysText, shopContents,
     };
     root.InvenioLoads = api;
