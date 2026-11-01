@@ -136,7 +136,7 @@
     <tbody>
       <tr><td>Field worker <span class="who crew">Crew</span></td><td>Field app</td><td>Scan, receive deliveries, count, move and issue stock, pack and move crates, start a load for a truck that turns up, check drivers in, load out, depart once the licence is on file, unload and finish stops at our own yards and sites.</td></tr>
       <tr><td>Office staff <span class="who office">Office</span></td><td>Office site, and the app</td><td>Everything a crew can, plus: places, site maps and crate labels; planning loads; letting a truck leave without the licence (with a reason); confirming deliveries at outside shops and vendors; marking pieces found, writing them off, closing and cancelling loads; driver licences; exceptions and holds; importing the expected list; shipping stock out.</td></tr>
-      <tr><td>Administrator <span class="who admin">Admin</span></td><td>Office site</td><td>Everything office staff can, plus users and access, projects, the Data Browser, the admin audit, correcting material records and undoing a write-off.</td></tr>
+      <tr><td>Administrator <span class="who admin">Admin</span></td><td>Office site</td><td>Everything office staff can, plus users and access, projects, the Data Browser, the admin audit, correcting material records, editing or deleting PO &amp; Installation links, and undoing a write-off.</td></tr>
     </tbody>
   </table>
   <p>The screens only hide buttons a person can't use; the database itself enforces every role (appendix A5). When this guide says <strong>office</strong>, it means office staff and administrators alike.</p>
@@ -412,7 +412,7 @@
     <tbody>
       <tr><td>Top</td><td><span class="ui">Dashboard</span> (project tiles, “Work needing attention”, “Expected arrivals”, <span class="ui">Export PDF</span>) and <span class="ui">Work Inbox</span> (chapter 18).</td></tr>
       <tr><td>Logistics</td><td><span class="ui">Outside Shops</span>, <span class="ui">Places</span>, <span class="ui">Crates</span> and <span class="ui">Loads</span> (chapters 13 to 16, 18). <span class="ui">Shipments</span> and <span class="ui">Yard Inventory</span> are read-only views of older tables.</td></tr>
-      <tr><td>Planning</td><td><span class="ui">PO &amp; Installation</span> links PO items to install tags. <span class="ui">Gap Analysis</span>, <span class="ui">Delivery Dates</span> and <span class="ui">Schedule</span> are older, read-only pages.</td></tr>
+      <tr><td>Planning</td><td><span class="ui">PO &amp; Installation</span> links PO items to install tags; administrators can edit or delete a link. <span class="ui">Gap Analysis</span>, <span class="ui">Delivery Dates</span> and <span class="ui">Schedule</span> are older, read-only pages.</td></tr>
       <tr><td>Field</td><td><span class="ui">Receiving</span> (a six-step receipt for use at a desk), <span class="ui">GPS Tracking</span> (tracker positions, appendix A9). <span class="ui">Site Plan</span> is a demonstration page, not Site Maps.</td></tr>
       <tr><td>Initial Count</td><td><span class="ui">Initial Inventory</span>, <span class="ui">Inventory Categories</span> and <span class="ui">Site Maps</span> (chapters 13 and 17).</td></tr>
       <tr><td>System <span class="who admin">Admin</span></td><td><span class="ui">Data Browser</span>, <span class="ui">Users &amp; Access</span>, <span class="ui">Projects</span>, <span class="ui">Activity &amp; Audit</span> (chapter 19, appendix A7). Hidden from everyone else.</td></tr>
@@ -792,7 +792,7 @@
   <ul>
     <li>Row-level security is on for every table. People read only the projects they are assigned to; places are readable by every active user.</li>
     <li>Writes go through checked functions that test the role and project themselves (<code>is_office_user</code>, <code>has_project_access</code>, <code>can_work_project</code>). The screens hiding a button is a convenience, never the control.</li>
-    <li>History is never deleted: places retire, areas go inactive, loads close; the audit log can't be changed.</li>
+    <li>History is never deleted: places retire, areas go inactive, loads close; the audit log can't be changed. The one exception is an administrator deleting a PO &amp; Installation link, which takes its status history with it after the audit log has recorded both.</li>
     <li>Completed projects are read-only and archived projects are hidden, in the database as well as on screen.</li>
   </ul>
   <h3>Driver licences</h3>
@@ -837,6 +837,7 @@
       <tr><td>Users &amp; Access</td><td>Invite, edit, deactivate; resend or cancel invitations; filter by role, status and project; open a person's history (chapter 19). Backed by the <code>admin-users</code> function.</td></tr>
       <tr><td>Projects</td><td>Create, edit, complete (read-only) or archive (hidden). Completing or archiving is refused while loads are open.</td></tr>
       <tr><td>Data Browser</td><td>Browse any table for the active project, 25 to 100 rows at a time, and export CSV. History tables are read-only and nothing can be deleted. Material records can be corrected with a reason of at least five characters. <span class="ui">Locations</span> is the only table with <span class="ui">Add</span>: it is where racks are made.</td></tr>
+      <tr><td>PO &amp; Installation links</td><td><span class="ui">Edit</span> changes a link's PO and installation details; <span class="ui">Delete</span> removes a link. Each asks why (5 to 500 characters). An edit records the old and new values with the reason, and isn't saved if someone changed the same detail since the form opened. A delete records the link, its status history and any tracker on it, then removes the link and its history and unhooks the tracker. Office staff still change a link's status with <span class="ui">Update</span>.</td></tr>
       <tr><td>Activity &amp; Audit</td><td>Administrator changes (users and projects) with person, time and old and new values, 25 a page. Operational history (counts, crates, loads) is in Data Browser › <span class="ui">Audit Log</span>, and on the app's Activity tab.</td></tr>
       <tr><td>Auth settings</td><td>Held by the sign-in service: email codes last 3,600 seconds; the redirect allowlist has <code>/login.html</code> and <code>/login.html?setup=invite</code>; templates and subjects as in <code>docs/INVITATION_RECOVERY.md</code>.</td></tr>
       <tr><td>Function secrets</td><td>The database address, its public and service-role keys, <code>INVITATION_TTL_SECONDS</code> (default 3600) and <code>INVITATION_EMAIL_ENABLED</code>. With email switched off, invitations are disabled and the page says so.</td></tr>
@@ -902,7 +903,6 @@
     <li>Racks can be added only in Data Browser › Locations.</li>
     <li><span class="ui">Print the last N labels again</span> is lost when the page reloads; reprint from the reserved range before leaving the page.</li>
     <li>The arrival radius has no effect until trackers are connected.</li>
-    <li>On PO &amp; Installation, links can't be deleted, and a link's PO and tag can't be changed; the page says so when you try.</li>
   </ul>
 </section>
 
