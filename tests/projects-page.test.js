@@ -47,3 +47,28 @@ test("completing a project with open loads shows the database's 22023 reason as 
     assert.equal($('projectSave').disabled, false, 'Save works again');
     assert.equal($('projectId').value, 'pr1', 'the form keeps the project being edited');
 });
+
+test('the audit view shows a canceled invitation in US English; the stored status stays cancelled', async () => {
+    const { document } = fakeDocument();
+    const entry = { action: 'cancel_invite', targetName: 'Sam Ortiz', actorName: 'Dana Ruiz', created_at: '2026-11-02T15:00:00Z',
+        details: { before: { invitationStatus: 'pending', isActive: true, fullName: 'Sam' }, after: { invitationStatus: 'cancelled', isActive: false, fullName: 'cancelled' } } };
+    const fetch = async url => {
+        const resource = new URL(url).searchParams.get('resource');
+        return { ok: true, status: 200, json: async () => resource === 'audit' ? { data: [entry], pagination: { page: 1, totalPages: 1 } } : { data: [PROJECT] } };
+    };
+    const context = {
+        document, console, URL, URLSearchParams, location: { search: '' }, fetch, confirm: () => true, InvenioAuthReady: Promise.resolve(true),
+        SUPABASE_CONFIG: { url: 'https://example.test', anonKey: 'anon' }, InvenioCurrentProfile: { role: 'admin' },
+        InvenioUserAccess: { canAccessAdminPages: () => true },
+        supabaseClient: { auth: { getSession: async () => ({ data: { session: { access_token: 'token' } } }) } },
+    };
+    context.window = context;
+    vm.createContext(context);
+    vm.runInContext(client, context);
+    vm.runInContext(page, context);
+    await settle();
+    const text = document.getElementById('auditEntries').textContent;
+    assert.ok(text.includes('Invitation status: pending → canceled'), text);
+    assert.ok(text.includes('Active account: Yes → No'));
+    assert.ok(text.includes('Full name: Sam → cancelled'), 'free text is shown as stored');
+});

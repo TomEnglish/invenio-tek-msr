@@ -164,19 +164,19 @@ async function openPage({ role = 'admin', projectStatus = 'active', search = '',
     return { server, document, context, $, drawer, body, columns, card, open, section, find, press, input, set, submit, status, rows, confirms, opened };
 }
 
-test('the board shows open loads by status, read through the project scope; closed and cancelled are one switch away', async () => {
+test('the board shows open loads by status, read through the project scope; closed and canceled are one switch away', async () => {
     const page = await openPage();
     assert.deepEqual(plain(page.columns()), { 'Planning (1)': ['L-0001'], 'Loading (0)': [], 'In transit (1)': ['L-0002'], 'Delivered (1)': ['L-0003'] });
     const [read] = page.server.log.filter(request => request.table === 'load_overview');
     assert.deepEqual(plain(read.filters), [['project_id', P]]);
     const text = page.card('L-0001').textContent;
     for (const part of ['L-0001', 'From Gulf Valve Supply · Next: Fixture Machine Works', 'Driver Dana Ruiz', 'Planned 2']) assert.ok(text.includes(part), part);
-    assert.ok(page.card('L-0002').textContent.includes('Licence on file'));
+    assert.ok(page.card('L-0002').textContent.includes('License on file'));
     assert.ok(page.card('L-0002').textContent.includes('On board 2'));
     assert.ok(page.card('L-0003').textContent.includes('Delivered 1 · Missing 1'));
     assert.equal(page.$('resultSummary').textContent, '3 open loads');
     page.$('showFinished').click();
-    assert.deepEqual(plain(page.columns()), { 'Closed and cancelled (2)': ['L-0005', 'L-0004'] });
+    assert.deepEqual(plain(page.columns()), { 'Closed and canceled (2)': ['L-0005', 'L-0004'] });
     assert.equal(page.$('showFinished').getAttribute('aria-pressed'), 'true');
 });
 
@@ -310,7 +310,7 @@ test('Mark loaded and depart confirms every planned piece; Cancel load puts crat
     await second.press('Cancel load');
     assert.deepEqual(plain(second.server.ops()[0].p_payload), { loadId: id(31), cancel: true });
     assert.equal(second.server.state.units[0].status, 'sealed', 'the crate is back as it was');
-    assert.equal(second.status(), 'L-0001 is cancelled.');
+    assert.equal(second.status(), 'L-0001 is canceled.');
 });
 
 test('departing with what was scanned leaves the rest behind; the driver is needed first', async () => {
@@ -342,11 +342,11 @@ test('per stop: Mark delivered confirms without scanning; Finish stop warns that
     assert.deepEqual(plain(page.server.ops()[1].p_payload), { loadId: id(32), stopId: id(44) });
     assert.equal(page.status(), 'Finished stop 2 at Coastal Terminal. Every stop of L-0002 is finished.');
     await page.press('Close load');
-    assert.equal(page.confirms[2], "Close L-0002? Nothing on it can change after that. Office staff are warned 30 days before its driver's licence is removed.");
+    assert.equal(page.confirms[2], "Close L-0002? Nothing on it can change after that. Office staff are warned 30 days before its driver's license is removed.");
     assert.equal(page.server.load('L-0002').status, 'closed');
     // The date counts from the close, so the page names it from the load read back (023's licence_due_at).
     const due = new Date(Date.parse(page.server.load('L-0002').closed_at) + 365 * 86400000).toLocaleDateString();
-    assert.equal(page.status(), `L-0002 is closed. Its driver's licence is due for removal on ${due}.`);
+    assert.equal(page.status(), `L-0002 is closed. Its driver's license is due for removal on ${due}.`);
 
     const other = await openPage();
     await other.open('L-0002');
@@ -374,7 +374,7 @@ test('a missing piece is marked found at a place with a note (office only)', asy
     assert.deepEqual([line.status, line.flag, line.note], ['delivered', 'found', 'On the dock']);
 });
 
-test('field workers plan only loads a crew started, finish stops away from shops, and never confirm without scanning, close, cancel, mark found, write off or see licences', async () => {
+test('field workers plan only loads a crew started, finish stops away from shops, and never confirm without scanning, close, cancel, mark found, write off or see licenses', async () => {
     const page = await openPage({ role: 'field_worker' });
     assert.equal(page.$('newLoad').hidden, false);
     assert.equal(page.server.calls('driver_licences_due_for_removal').length, 0, 'no housekeeping');
@@ -383,7 +383,7 @@ test('field workers plan only loads a crew started, finish stops away from shops
     assert.ok(page.section('stops').textContent.includes('The office plans the stops of this load.'));
     assert.ok(page.section('manifest').textContent.includes('The office plans what goes on this load. Crews scan pieces on with the phone.'));
     assert.equal(page.section('licence'), null);
-    assert.equal(page.server.log.filter(request => ['load_driver_licences', 'driver_licence_photos'].includes(request.table)).length, 0, 'licences are never asked for');
+    assert.equal(page.server.log.filter(request => ['load_driver_licences', 'driver_licence_photos'].includes(request.table)).length, 0, 'licenses are never asked for');
     await page.open('L-0002');
     assert.equal(page.find('Mark delivered at stop 1 at Fixture Machine Works'), undefined);
     assert.equal(page.find('Finish stop 1 at Fixture Machine Works'), undefined, 'at an outside shop only office staff finish the stop');
@@ -438,13 +438,13 @@ test('unsaved edits survive another section saving, and closing asks before drop
     assert.equal(page.context.InvenioUnsavedChanges, false);
 });
 
-test('the licence (office only): read, saved with a new operation ID each time, never echoed in full', async () => {
+test('the license (office only): read, saved with a new operation ID each time, never echoed in full', async () => {
     const page = await openPage();
     await page.open('L-0002');
     assert.deepEqual([page.input('licenceNumber').value, page.input('licenceState').value, page.input('licenceExpiry').value], [LICENCE, 'TX', '2028-04-30']);
     page.set('licenceNumber', 'd1');
     await page.submit('licence');
-    assert.equal(page.status(), 'Enter the licence number: 3 to 40 letters, numbers, spaces or dashes.');
+    assert.equal(page.status(), 'Enter the license number: 3 to 40 letters, numbers, spaces or dashes.');
     page.set('licenceNumber', ' d9876  5432 ');
     await page.submit('licence');
     await page.submit('licence');
@@ -452,13 +452,13 @@ test('the licence (office only): read, saved with a new operation ID each time, 
     assert.equal(calls.length, 2);
     assert.notEqual(calls[0].args.p_operation_id, calls[1].args.p_operation_id);
     assert.deepEqual(plain(calls[0].args.p_licence), { number: 'D9876 5432', state: 'TX', expiry: '2028-04-30' });
-    assert.equal(page.status(), 'Saved the licence ending 5432.');
+    assert.equal(page.status(), 'Saved the license ending 5432.');
     assert.equal(page.server.ops().length, 0, 'the number never goes through apply_field_operation');
     assert.ok(!page.$('pageMessage').textContent.includes('9876'));
     assert.ok(!page.card('L-0002').textContent.includes('5432'));
 });
 
-test('licence photos: shown through 5-minute signed links, uploaded without overwriting and attached under the save lock', async () => {
+test('license photos: shown through 5-minute signed links, uploaded without overwriting and attached under the save lock', async () => {
     const page = await openPage();
     await page.open('L-0002');
     const signed = page.server.log.filter(request => request.storage === 'signed');
@@ -492,17 +492,17 @@ test('licence photos: shown through 5-minute signed links, uploaded without over
     assert.ok(page.section('licence').textContent.includes('A load keeps at most 4 photos.'));
 });
 
-test('a photo uploaded but never attached is found in the bucket and attached, so the licence can still be removed later', async () => {
+test('a photo uploaded but never attached is found in the bucket and attached, so the license can still be removed later', async () => {
     const state = world();
     state.licence_objects.push(`${id(32)}/orphan.jpg`);
     let refusals = 1;
     const page = await openPage({ state, fail: request => request.rpc === 'attach_driver_licence_photo' && refusals-- > 0
-        && { code: '22023', message: 'A load keeps at most 4 licence photos' } });
+        && { code: '22023', message: 'A load keeps at most 4 license photos' } });
     await page.open('L-0002');
     assert.ok(page.server.log.some(request => request.storage === 'list' && request.bucket === 'driver-licences' && request.prefix === id(32)), "the load's folder is listed");
     assert.ok(page.section('licence').textContent.includes('1 uploaded photo isn’t attached to this load yet.'));
     await page.press('Attach the uploaded photo');
-    assert.equal(page.status(), 'The photo was uploaded but could not be attached: A load keeps at most 4 licence photos. Attach it again from this section.');
+    assert.equal(page.status(), 'The photo was uploaded but could not be attached: A load keeps at most 4 license photos. Attach it again from this section.');
     assert.ok(page.find('Attach the uploaded photo'), 'still offered after a refusal');
     await page.press('Attach the uploaded photo');
     assert.equal(page.status(), 'Attached the uploaded photos.');
@@ -510,7 +510,7 @@ test('a photo uploaded but never attached is found in the bucket and attached, s
     assert.equal(page.find('Attach the uploaded photo'), undefined);
 });
 
-test('the printed manifest has the load, driver, truck, companies, one section per stop and signature lines, and never the licence', async () => {
+test('the printed manifest has the load, driver, truck, companies, one section per stop and signature lines, and never the license', async () => {
     const page = await openPage();
     await page.open('L-0001');
     page.context.blockPopups = true;
@@ -536,7 +536,7 @@ test('the printed manifest has the load, driver, truck, companies, one section p
     for (const secret of [LICENCE, '5678', 'TX 2028', '2028-04-30']) assert.ok(!second.body.textContent.includes(secret) && !second.title.includes(secret), `no ${secret}`);
 });
 
-test("opening Loads removes licences past their removal date, in every project: the folder first, then the number; failures don't stop the rest", async () => {
+test("opening Loads removes licenses past their removal date, in every project: the folder first, then the number; failures don't stop the rest", async () => {
     const state = world();
     state.loads.push({ ...state.loads[3], id: id(36), load_number: 'L-0006' }, { ...state.loads[3], id: id(37), project_id: 'p2', load_number: 'L-0001' });
     state.load_driver_licences.push({ ...state.load_driver_licences[1], load_id: id(36) }, { ...state.load_driver_licences[1], load_id: id(37), project_id: 'p2' });
@@ -545,13 +545,13 @@ test("opening Loads removes licences past their removal date, in every project: 
     const steps = page.server.log.filter(request => request.rpc === 'driver_licences_due_for_removal' || request.rpc === 'remove_driver_licence' || request.storage === 'remove')
         .map(request => request.storage ? `remove ${request.paths.join(',')}` : request.rpc);
     assert.deepEqual(steps, ['driver_licences_due_for_removal', `remove ${id(34)}/front.jpg,${id(34)}/never-attached.jpg`, 'remove_driver_licence', 'remove_driver_licence', 'remove_driver_licence'],
-        "022 lists every file in the folder, the unattached photo too, or it would refuse to remove the licence");
+        "022 lists every file in the folder, the unattached photo too, or it would refuse to remove the license");
     assert.equal(page.server.log.filter(request => request.storage === 'list').length, 0, "022's list is used as it is");
-    assert.equal(page.$('housekeeping').textContent, "Removed the driver's licence of 3 loads past their removal date.");
+    assert.equal(page.$('housekeeping').textContent, "Removed the driver's license of 3 loads past their removal date.");
     assert.ok(page.server.state.load_driver_licences.every(row => [id(31), id(32)].includes(row.load_id) || row.licence_number === null));
-    assert.equal(page.card('L-0002').textContent.includes('Licence on file'), true);
+    assert.equal(page.card('L-0002').textContent.includes('License on file'), true);
     page.$('showFinished').click();
-    assert.ok(!page.card('L-0004').textContent.includes('Licence on file'), 'not once the licence has been removed');
+    assert.ok(!page.card('L-0004').textContent.includes('License on file'), 'not once the license has been removed');
 
     const failing = world();
     failing.loads.push({ ...failing.loads[3], id: id(37), project_id: 'p2', load_number: 'L-0001' });
@@ -559,18 +559,18 @@ test("opening Loads removes licences past their removal date, in every project: 
     failing.licence_objects.push(`${id(37)}/front.jpg`);
     const second = await openPage({ state: failing, fail: request => request.storage === 'remove' && request.paths[0].startsWith(id(37)) && { message: 'Storage is unavailable' } });
     assert.equal(second.$('housekeeping').textContent,
-        "Removed the driver's licence of 1 load past its removal date. Could not remove the driver's licence of L-0001 in another project (Storage is unavailable).");
+        "Removed the driver's license of 1 load past its removal date. Could not remove the driver's license of L-0001 in another project (Storage is unavailable).");
     assert.deepEqual(plain(second.columns())['Planning (1)'], ['L-0001'], 'the board is there regardless');
 
     const third = await openPage({ fail: request => request.rpc === 'driver_licences_due_for_removal' && { code: 'PGRST301', message: 'JWT expired' } });
-    assert.equal(third.$('housekeeping').textContent, "Old driver's licences could not be checked (JWT expired).");
+    assert.equal(third.$('housekeeping').textContent, "Old driver's licenses could not be checked (JWT expired).");
     assert.equal(third.server.calls('remove_driver_licence').length, 0);
 
     // Office staff whose open project isn't active still clean up and can read licences, but not change them.
     const onHold = await openPage({ projectStatus: 'on_hold' });
     assert.equal(onHold.server.calls('remove_driver_licence').length, 1);
     await onHold.open('L-0002');
-    assert.ok(onHold.section('licence').textContent.includes(`Licence number${LICENCE}`));
+    assert.ok(onHold.section('licence').textContent.includes(`License number${LICENCE}`));
     assert.equal(onHold.input('licenceNumber'), null);
     assert.equal(onHold.input('licencePhoto'), null);
 });
@@ -701,7 +701,7 @@ test('confirming without scanning is offered only where nobody scans: a truck le
     assert.ok(shop.find('Mark delivered at stop 1 at Fixture Machine Works'));
 });
 
-test('the licence section says when a daily job removes it, and each photo has a caption', async () => {
+test('the license section says when a daily job removes it, and each photo has a caption', async () => {
     const page = await openPage();
     await page.open('L-0002');
     assert.ok(page.section('licence').textContent.includes("A daily job removes it on its removal date, unless office staff keep it; the Loads board warns them 30 days ahead. Office staff can also remove it sooner."));
@@ -721,17 +721,17 @@ function noLicence() {
 }
 const submitForm = async (page, section, selector) => { await page.section(section).querySelector(selector).onsubmit({ preventDefault() {} }); await settle(); };
 
-test("the truck needs the driver's licence to leave: a crew is told why; office staff let it leave without it and say why", async () => {
+test("the truck needs the driver's license to leave: a crew is told why; office staff let it leave without it and say why", async () => {
     const crew = await openPage({ role: 'field_worker', state: noLicence() });
     await crew.open('L-0001');
     const depart = crew.find("Depart with what's on board");
     assert.deepEqual([depart.disabled, depart.getAttribute('aria-describedby')], [true, 'licenceNeeded']);
-    assert.equal(crew.$('licenceNeeded').textContent, "No licence yet: the driver's licence number and a photo of it are needed before the truck can leave.");
+    assert.equal(crew.$('licenceNeeded').textContent, "No license yet: the driver's license number and a photo of it are needed before the truck can leave.");
 
     let refusals = 1;
     const page = await openPage({ state: noLicence(), fail: request => request.args?.p_action === 'load_depart' && refusals-- > 0 && { code: '22023', message: 'Nothing is on the truck yet' } });
     await page.open('L-0001');
-    assert.equal(page.$('licenceNeeded').textContent, "No licence yet: record the driver's licence number and add a photo of it below, or let the truck leave without it and say why.");
+    assert.equal(page.$('licenceNeeded').textContent, "No license yet: record the driver's license number and add a photo of it below, or let the truck leave without it and say why.");
     await page.press('Mark loaded and depart');
     assert.equal(page.confirms.length, 0, 'a form asks why instead');
     assertFocus(page, page.input('departReason'));
@@ -740,17 +740,17 @@ test("the truck needs the driver's licence to leave: a crew is told why; office 
     await page.submit('actions');
     assert.equal(page.status(), 'Give a reason of at least 5 characters.');
     assert.equal(page.server.ops().length, 0);
-    const reason = 'Driver left the licence at home; the carrier confirmed by phone';
+    const reason = 'Driver left the license at home; the carrier confirmed by phone';
     page.set('departReason', reason);
     await page.submit('actions');
     assert.equal(page.status(), 'Could not send L-0001 on its way: Nothing is on the truck yet');
     assert.equal(page.input('departReason').value, reason, 'the reason stays to send again');
     await page.submit('actions');
     assert.deepEqual(plain(page.server.ops().at(-1).p_payload), { loadId: id(31), confirmAll: true, overrideReason: reason });
-    assert.equal(page.status(), "L-0001 has left without the driver's licence with 2 pieces on board.");
-    assert.ok(page.section('actions').textContent.includes(`Left without the driver's licence (`));
+    assert.equal(page.status(), "L-0001 has left without the driver's license with 2 pieces on board.");
+    assert.ok(page.section('actions').textContent.includes(`Left without the driver's license (`));
     assert.ok(page.section('actions').textContent.includes(reason));
-    assert.ok(page.card('L-0001').textContent.includes('Left without licence'));
+    assert.ok(page.card('L-0001').textContent.includes('Left without license'));
 
     const cancel = await openPage({ state: noLicence() });
     await cancel.open('L-0001');
@@ -918,12 +918,12 @@ test('office staff write off a missing piece with a reason; the load closes once
     assert.equal(office.find('Undo the write-off of HU-HIGH01'), undefined);
 });
 
-test('office staff delete a wrong photo, or remove the whole licence early with a reason, and can record it again', async () => {
+test('office staff delete a wrong photo, or remove the whole license early with a reason, and can record it again', async () => {
     const page = await openPage();
     await page.open('L-0001');
     page.context.confirmAnswer = false;
     await page.press('Delete photo 1');
-    assert.equal(page.confirms[0], "Delete photo 1? It can't be recovered. The truck can't leave until a new photo is added, unless the office lets it leave without the licence.");
+    assert.equal(page.confirms[0], "Delete photo 1? It can't be recovered. The truck can't leave until a new photo is added, unless the office lets it leave without the license.");
     page.context.confirmAnswer = true;
     await page.open('L-0002');
     await page.press('Delete photo 1');
@@ -947,7 +947,7 @@ test('office staff delete a wrong photo, or remove the whole licence early with 
 
     const early = await openPage();
     await early.open('L-0002');
-    await early.press('Remove the licence');
+    await early.press('Remove the license');
     assertFocus(early, early.input('removeLicenceReason'));
     early.set('removeLicenceReason', 'Wrong driver recorded');
     await submitForm(early, 'licence', '.reason-form');
@@ -955,13 +955,13 @@ test('office staff delete a wrong photo, or remove the whole licence early with 
     const removal = calls.findIndex(request => request.rpc === 'remove_driver_licence');
     const order = calls.slice(removal - 2, removal + 1).map(request => request.storage ? `${request.storage} ${request.paths ?? request.prefix}` : `${request.rpc} ${request.args.p_reason}`);
     assert.deepEqual(order, [`list ${id(32)}`, `remove ${id(32)}/front.jpg`, 'remove_driver_licence Wrong driver recorded']);
-    assert.equal(early.status(), "Removed L-0002's driver's licence.");
+    assert.equal(early.status(), "Removed L-0002's driver's license.");
     assert.ok(early.section('licence').textContent.includes('Removed '));
     assert.equal(early.input('licenceNumber').value, '');
-    assert.ok(!early.card('L-0002').textContent.includes('Licence on file'));
+    assert.ok(!early.card('L-0002').textContent.includes('License on file'));
     early.set('licenceNumber', 'x12');
     await early.submit('licence');
-    assert.equal(early.status(), 'Saved the licence.', '022 repeats no part of a short number');
+    assert.equal(early.status(), 'Saved the license.', '022 repeats no part of a short number');
 });
 
 /**
@@ -982,17 +982,17 @@ function dueSoonWorld() {
 }
 const dayOf = (daysAgo, after = 365) => new Date(Date.parse(ago(daysAgo)) + after * 86400000).toLocaleDateString();
 
-test('office staff see licences due for removal in the next 30 days, after housekeeping, and keep or release them there', async () => {
+test('office staff see licenses due for removal in the next 30 days, after housekeeping, and keep or release them there', async () => {
     const page = await openPage({ state: dueSoonWorld() });
     const order = page.server.log.filter(request => request.rpc).map(request => request.rpc);
     assert.deepEqual(order.slice(0, 2), ['driver_licences_due_for_removal', 'driver_licences_due_soon'], 'the warning is read once housekeeping is done');
     assert.deepEqual(plain(page.server.calls('driver_licences_due_soon')[0].args), { p_days: 30 });
-    assert.equal(page.server.calls('remove_driver_licence').length, 0, 'the kept, overdue licence is left alone');
+    assert.equal(page.server.calls('remove_driver_licence').length, 0, 'the kept, overdue license is left alone');
     const box = page.$('licenceWarning');
     assert.equal(box.hidden, false);
-    assert.equal(box.querySelector('h2').textContent, 'Driver licences due for removal in the next 30 days');
-    assert.ok(box.textContent.includes(`2 licences will be removed, the first (L-0001 in South Yard project) on ${dayOf(360)}. 1 is being kept.`));
-    const toggle = page.find('Show the 3 licences', box);
+    assert.equal(box.querySelector('h2').textContent, 'Driver licenses due for removal in the next 30 days');
+    assert.ok(box.textContent.includes(`2 licenses will be removed, the first (L-0001 in South Yard project) on ${dayOf(360)}. 1 is being kept.`));
+    const toggle = page.find('Show the 3 licenses', box);
     assert.deepEqual([toggle.getAttribute('aria-expanded'), page.$('licenceWarningList').hidden], ['false', true]);
     toggle.click();
     assert.deepEqual([page.find('Hide the list', box).getAttribute('aria-expanded'), page.$('licenceWarningList').hidden], ['true', false]);
@@ -1002,7 +1002,7 @@ test('office staff see licences due for removal in the next 30 days, after house
     const link = page.$('licenceWarningList').querySelector('a');
     assert.deepEqual([link.textContent, link.href], ['L-0006', `loads.html?load=${encodeURIComponent(id(36))}`]);
 
-    await page.press("Keep the driver's licence of L-0004 past its removal date", box);
+    await page.press("Keep the driver's license of L-0004 past its removal date", box);
     assertFocus(page, page.$('warningKeepReason'));
     page.$('warningKeepReason').value = 'Hold'; page.$('warningKeepReason').dispatch('input');
     await box.querySelector('.reason-form').onsubmit({ preventDefault() {} }); await settle();
@@ -1011,20 +1011,20 @@ test('office staff see licences due for removal in the next 30 days, after house
     page.$('warningKeepReason').value = 'Driver kept tracker T-88'; page.$('warningKeepReason').dispatch('input');
     await box.querySelector('.reason-form').onsubmit({ preventDefault() {} }); await settle();
     assert.deepEqual(plain(page.server.calls('keep_driver_licence').map(call => call.args)), [{ p_load_id: id(34), p_reason: 'Driver kept tracker T-88' }]);
-    assert.ok(box.textContent.includes(`Keeping the driver's licence of L-0004 past ${dayOf(350)}.`));
+    assert.ok(box.textContent.includes(`Keeping the driver's license of L-0004 past ${dayOf(350)}.`));
     assert.ok(items()[2].includes('Kept: Driver kept tracker T-88'));
-    assertFocus(page, page.find("Release the driver's licence of L-0004", box));
+    assertFocus(page, page.find("Release the driver's license of L-0004", box));
 
-    await page.press("Release the driver's licence of L-0006", box);
-    assert.equal(page.confirms.at(-1), "Stop keeping the driver's licence of L-0006? It is past its removal date, so the daily job removes it the next time it runs.");
+    await page.press("Release the driver's license of L-0006", box);
+    assert.equal(page.confirms.at(-1), "Stop keeping the driver's license of L-0006? It is past its removal date, so the daily job removes it the next time it runs.");
     assert.deepEqual(plain(page.server.calls('release_driver_licence_hold').map(call => call.args)), [{ p_load_id: id(36) }]);
-    assert.ok(box.textContent.includes("The driver's licence of L-0006 is no longer kept."));
+    assert.ok(box.textContent.includes("The driver's license of L-0006 is no longer kept."));
 
     link.onclick({ preventDefault() {} }); await settle();
     assert.equal(page.drawer.open, true, 'the link opens the load here');
 });
 
-test('crews never see or ask for the licence warning; a failed check says so', async () => {
+test('crews never see or ask for the license warning; a failed check says so', async () => {
     const crew = await openPage({ role: 'field_worker', state: dueSoonWorld() });
     assert.equal(crew.$('licenceWarning').childNodes.length, 0);
     assert.equal(crew.server.calls('driver_licences_due_soon').length, 0);
@@ -1035,24 +1035,24 @@ test('crews never see or ask for the licence warning; a failed check says so', a
     assert.equal(quiet.$('licenceWarning').hidden, true, 'nothing due, nothing shown');
 });
 
-test("a load's licence section gives its removal date, and office staff keep it with a reason or release it", async () => {
+test("a load's license section gives its removal date, and office staff keep it with a reason or release it", async () => {
     const page = await openPage();
     await page.open('L-0002');
     const due = new Date(page.server.model.views.load_overview().find(row => row.id === id(32)).licence_due_at).toLocaleDateString();
     assert.ok(page.section('licence').textContent.includes(`Due for removal on ${due}.`));
-    await page.press("Keep L-0002's driver's licence past its removal date");
+    await page.press("Keep L-0002's driver's license past its removal date");
     assertFocus(page, page.input('keepReason'));
     page.set('keepReason', 'Tracker recovery in progress');
     await submitForm(page, 'licence', '.reason-form');
     assert.deepEqual(plain(page.server.calls('keep_driver_licence').map(call => call.args)), [{ p_load_id: id(32), p_reason: 'Tracker recovery in progress' }]);
-    assert.equal(page.status(), `Keeping L-0002's driver's licence past ${due}.`);
+    assert.equal(page.status(), `Keeping L-0002's driver's license past ${due}.`);
     assert.ok(page.section('licence').textContent.includes(`Kept past its removal date (${due}): Tracker recovery in progress`));
-    assert.equal(page.find('Remove the licence'), undefined, 'a kept licence is released before it can be removed');
-    assertFocus(page, page.find("Release L-0002's driver's licence"));
-    await page.press("Release L-0002's driver's licence");
-    assert.equal(page.confirms.at(-1), `Stop keeping L-0002's driver's licence? It will be removed on ${due}.`);
-    assert.equal(page.status(), "L-0002's driver's licence is no longer kept.");
-    assert.ok(page.find('Remove the licence'));
+    assert.equal(page.find('Remove the license'), undefined, 'a kept license is released before it can be removed');
+    assertFocus(page, page.find("Release L-0002's driver's license"));
+    await page.press("Release L-0002's driver's license");
+    assert.equal(page.confirms.at(-1), `Stop keeping L-0002's driver's license? It will be removed on ${due}.`);
+    assert.equal(page.status(), "L-0002's driver's license is no longer kept.");
+    assert.ok(page.find('Remove the license'));
 
     // Past its date and kept: shown as text, not offered for recording again.
     const kept = await openPage({ state: dueSoonWorld() });
@@ -1060,7 +1060,7 @@ test("a load's licence section gives its removal date, and office staff keep it 
     await kept.open('L-0006');
     assert.ok(kept.section('licence').textContent.includes(`Kept past its removal date (${dayOf(380)}): The driver still has our GPS tracker`));
     assert.equal(kept.input('licenceNumber'), null);
-    assert.ok(kept.section('licence').textContent.includes('Licence numberR9876-5432'));
+    assert.ok(kept.section('licence').textContent.includes('License numberR9876-5432'));
     // Crews read whether the licence is complete from load_overview, not when something was last recorded.
     const state = noLicence();
     state.loads[0].licence_recorded_at = ago(0);
@@ -1082,8 +1082,8 @@ function licenceParts(...parts) {
     return state;
 }
 
-test("'Licence on file' means the number and a photo, as departure needs; either alone, or a deleted photo, is not enough", async () => {
-    const onFile = (page, number) => page.card(number).textContent.includes('Licence on file');
+test("'License on file' means the number and a photo, as departure needs; either alone, or a deleted photo, is not enough", async () => {
+    const onFile = (page, number) => page.card(number).textContent.includes('License on file');
     for (const part of ['number', 'photo']) {
         const page = await openPage({ state: licenceParts(part) });
         assert.equal(onFile(page, 'L-0001'), false, `the ${part} alone`);
@@ -1098,7 +1098,7 @@ test("'Licence on file' means the number and a photo, as departure needs; either
     assert.equal(onFile(page, 'L-0002'), false);
 });
 
-test("a crew can depart only with the number and a photo on file, so 022 never refuses it for the licence; office staff can still let it leave without", async () => {
+test("a crew can depart only with the number and a photo on file, so 022 never refuses it for the license; office staff can still let it leave without", async () => {
     for (const part of ['number', 'photo']) {
         const crew = await openPage({ role: 'field_worker', state: licenceParts(part) });
         await crew.open('L-0001');
@@ -1124,5 +1124,5 @@ test("a crew can depart only with the number and a photo on file, so 022 never r
     office.set('departReason', 'Photo to follow from the carrier');
     await office.submit('actions');
     assert.deepEqual(plain(office.server.ops().at(-1).p_payload), { loadId: id(31), overrideReason: 'Photo to follow from the carrier' });
-    assert.equal(office.status(), "L-0001 has left without the driver's licence with 1 piece on board; 1 piece stayed behind.");
+    assert.equal(office.status(), "L-0001 has left without the driver's license with 1 piece on board; 1 piece stayed behind.");
 });

@@ -35,7 +35,7 @@ function world() {
 function deliver(model, loadN, stopN, placeN, codes, { confirmAll = true } = {}) {
     model.apply('load_save', { loadId: id(loadN), originPlaceId: id(5), driverName: 'Dana', stops: [{ id: id(stopN), placeId: id(placeN) }] });
     model.apply('load_plan', { loadId: id(loadN), add: codes.map(code => ({ code, dropoffStopId: id(stopN) })) });
-    model.apply('load_depart', { loadId: id(loadN), confirmAll: true, overrideReason: 'Fixture load: no licence' });
+    model.apply('load_depart', { loadId: id(loadN), confirmAll: true, overrideReason: 'Fixture load: no license' });
     model.apply('stop_complete', { loadId: id(loadN), stopId: id(stopN), confirmAll });
 }
 

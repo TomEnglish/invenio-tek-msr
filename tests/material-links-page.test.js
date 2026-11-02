@@ -94,7 +94,7 @@ test('Delete asks why, sends the reason to the audited function, and drops the l
     assert.deepEqual(page.listed(), [8]);
 });
 
-test('Delete sends nothing when cancelled or without a reason of 5 characters', async () => {
+test('Delete sends nothing when canceled or without a reason of 5 characters', async () => {
     const cancelled = await openPage({ role: 'admin', answer: null });
     await cancelled.run('deleteLink(7)');
     assert.deepEqual([cancelled.server.rpcs, cancelled.alerts], [[], []]);

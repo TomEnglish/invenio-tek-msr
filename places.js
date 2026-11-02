@@ -251,11 +251,11 @@
         latitude.value = place && logistics.hasPoint(place) ? Number(place.latitude).toFixed(6) : '';
         longitude.value = place && logistics.hasPoint(place) ? Number(place.longitude).toFixed(6) : '';
         // Text, not type="number": a number field turns "1500m" into "" and that would quietly save the 300 m default.
-        const radius = add('geofence_radius_m', 'Arrival radius (metres)', el('input', '', 'form-control'), where);
+        const radius = add('geofence_radius_m', 'Arrival radius (meters)', el('input', '', 'form-control'), where);
         Object.assign(radius, { type: 'text', inputMode: 'numeric', autocomplete: 'off', maxLength: 6, value: String(place?.geofence_radius_m ?? logistics.RADIUS.standard) });
         const clear = button('Clear point', 'btn btn-sm btn-ghost', () => { latitude.value = longitude.value = ''; markDirty(); syncPoint(); });
         const clearWrap = el('div', '', 'mb-3 d-flex align-items-end'); clearWrap.append(clear); where.append(clearWrap);
-        where.append(el('p', `A tracker inside this circle counts as arrived. ${logistics.RADIUS.min} to ${logistics.RADIUS.max.toLocaleString()} metres; ${logistics.RADIUS.standard} if left blank.`, 'small text-muted span-2'));
+        where.append(el('p', `A tracker inside this circle counts as arrived. ${logistics.RADIUS.min} to ${logistics.RADIUS.max.toLocaleString()} meters; ${logistics.RADIUS.standard} if left blank.`, 'small text-muted span-2'));
         node.append(where);
 
         const contacts = el('fieldset', '', 'place-form-grid'); contacts.append(el('legend', 'Contacts', 'h6'));

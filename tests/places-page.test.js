@@ -256,7 +256,7 @@ test('half a point, a bad radius or no name is caught before anything is sent; c
     assertFocus(page, page.input('longitude'));
     page.fill({ longitude: '-95.3612', geofence_radius_m: '10' });
     await page.submit();
-    assert.equal(page.status(), 'Arrival radius must be a whole number of metres from 25 to 20,000.');
+    assert.equal(page.status(), 'Arrival radius must be a whole number of meters from 25 to 20,000.');
     page.fill({ geofence_radius_m: '250', name: ' ' });
     await page.submit();
     assert.equal(page.status(), 'Enter a name.');
@@ -382,7 +382,7 @@ test('a radius that is not a whole number is refused, never saved as the default
     assert.equal(page.input('geofence_radius_m').type, 'text', 'a number field would turn "1500m" into ""');
     page.fill({ geofence_radius_m: '1500m' });
     await page.submit();
-    assert.equal(page.status(), 'Arrival radius must be a whole number of metres from 25 to 20,000.');
+    assert.equal(page.status(), 'Arrival radius must be a whole number of meters from 25 to 20,000.');
     assert.equal(page.server.writes().length, 0);
     assert.equal(page.server.place('North Yard laydown').geofence_radius_m, 400);
 });

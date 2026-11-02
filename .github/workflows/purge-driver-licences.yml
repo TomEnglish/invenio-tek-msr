@@ -1,4 +1,4 @@
-name: Remove expired driver licences
+name: Remove expired driver licenses
 # Daily: removes driver licence numbers and photos 365 days after a load
 # closes, or after its last activity if it never closes, unless the office
 # is keeping one (migrations 022 and 023).
@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Remove licences that are due
+      - name: Remove licenses that are due
         env:
           SUPABASE_URL: ${{ vars.SUPABASE_URL || 'https://lzroduricxyshgyjdkki.supabase.co' }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

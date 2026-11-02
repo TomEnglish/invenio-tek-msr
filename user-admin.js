@@ -121,7 +121,7 @@
             role.appendChild(makeBadge(roleLabel(user.role), 'role-badge'));
 
             const status = document.createElement('td');
-            const statusLabel = user.invitationStatus === 'cancelled' ? 'Cancelled' : !user.isActive ? 'Inactive' : user.invitationStatus === 'pending' ? (user.invitationExpiresAt && new Date(user.invitationExpiresAt) < new Date() ? 'Expired invite' : 'Invitation pending') : 'Active';
+            const statusLabel = user.invitationStatus === 'cancelled' ? 'Canceled' : !user.isActive ? 'Inactive' : user.invitationStatus === 'pending' ? (user.invitationExpiresAt && new Date(user.invitationExpiresAt) < new Date() ? 'Expired invite' : 'Invitation pending') : 'Active';
             status.appendChild(makeBadge(statusLabel, statusLabel === 'Active' ? 'active' : 'inactive'));
 
             const projects = document.createElement('td');
@@ -155,7 +155,7 @@
                         try {
                             await client[method](user.id);
                             await loadUsers();
-                            setMessage(elements.message, method === 'resendInvitation' ? 'Invitation email sent.' : 'Invitation cancelled.', 'success');
+                            setMessage(elements.message, method === 'resendInvitation' ? 'Invitation email sent.' : 'Invitation canceled.', 'success');
                         } catch (error) { setMessage(elements.message, error.message); button.disabled = false; }
                     });
                     actions.appendChild(button);

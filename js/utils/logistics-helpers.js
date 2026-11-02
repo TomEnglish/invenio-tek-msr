@@ -61,7 +61,7 @@
         const radius = text('geofence_radius_m');
         values.geofence_radius_m = radius ? Number(radius) : RADIUS.standard;
         if (!Number.isInteger(values.geofence_radius_m) || values.geofence_radius_m < RADIUS.min || values.geofence_radius_m > RADIUS.max) {
-            return { error: `Arrival radius must be a whole number of metres from ${RADIUS.min} to ${RADIUS.max.toLocaleString('en-US')}.`, field: 'geofence_radius_m' };
+            return { error: `Arrival radius must be a whole number of meters from ${RADIUS.min} to ${RADIUS.max.toLocaleString('en-US')}.`, field: 'geofence_radius_m' };
         }
         return { values };
     }

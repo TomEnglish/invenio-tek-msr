@@ -80,7 +80,7 @@ test('Loads and the rebuilt Outside Shops use the shared shell, and Loads is und
     assert.match(logisticsNav, /label: 'Loads', +icon: '[\w-]+', +href: 'loads\.html'/);
 });
 
-test('Loads never parses HTML, logs nothing, sends every change as an operation and keeps the licence out of URLs and print-outs', () => {
+test('Loads never parses HTML, logs nothing, sends every change as an operation and keeps the license out of URLs and print-outs', () => {
     for (const file of ['loads.js', 'outside-shops.js', 'js/utils/loads-helpers.js']) {
         const js = fs.readFileSync(file, 'utf8');
         assert.doesNotMatch(js, /innerHTML|outerHTML|insertAdjacentHTML|document\.write/, `${file} never parses strings as HTML`);
@@ -97,7 +97,7 @@ test('Loads never parses HTML, logs nothing, sends every change as an operation 
     assert.deepEqual([...(loads + shops).matchAll(/\?load=\$\{[^}]+\}/g)].map(match => match[0]), ['?load=${encodeURIComponent(row.load_id)}', '?load=${encodeURIComponent(piece.line.load_id)}']);
     assert.match(loads, /writeManifest\(printWindow, \{ load: state\.load, companies: state\.companies, stops: state\.stops, lines: state\.lines \}\)/);
     const writer = loads.slice(loads.indexOf('function writeManifest'), loads.indexOf('// ---- Licence housekeeping'));
-    assert.doesNotMatch(writer, /licen[cs]e/i, 'the print-out code never touches the licence');
+    assert.doesNotMatch(writer, /licen[cs]e/i, 'the print-out code never touches the license');
 });
 
 test('the load tables and views are project-scoped', () => {

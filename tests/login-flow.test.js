@@ -88,8 +88,8 @@ test('password sign-in waits for pending invitation completion before navigation
     await work;
     assert.equal(completed, true);
 });
-test('expired, cancelled and failed completion remain blocked instead of redirecting', async () => {
-    for (const message of ['Invitation expired','Invitation cancelled','Unable to connect']) {
+test('expired, canceled and failed completion remain blocked instead of redirecting', async () => {
+    for (const message of ['Invitation expired','Invitation canceled','Unable to connect']) {
         const error = {message};
         await assert.rejects(completeSignIn({rpc:async()=>({error})}), e=>e===error);
     }
