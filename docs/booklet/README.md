@@ -6,4 +6,4 @@
 
 It needs Google Chrome (set `CHROME` to its path if it isn't in `/Applications`) and, for the page numbers in the contents, poppler's `pdftotext`. The PDF is written to `docs/booklet/Invenio-Field-Platform-booklet.pdf`, which is not committed.
 
-When the software changes, update the text, the edition lines on the cover and the revision history (appendix A11), and keep the contents to one page.
+When the software changes, update the text, the edition lines on the cover, the footer's edition in `booklet.css` and the revision history (appendix A11), and keep the contents to one page.

@@ -1,4 +1,4 @@
-<svg viewBox="0 0 680 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A driver's licence over time: recorded at check-in, needed before the truck departs, the 365-day clock starts when the load closes, the office is warned 30 days before, and the daily job removes it at day 365 unless the office is keeping it; a kept licence stays until released" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif">
+<svg viewBox="0 0 680 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A driver's license over time: recorded at check-in, needed before the truck departs, the 365-day clock starts when the load closes, the office is warned 30 days before, and the daily job removes it at day 365 unless the office is keeping it; a kept license stays until released" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif">
   <defs>
     <marker id="ta" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#122c4c"/></marker>
     <marker id="tk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8a5d00"/></marker>
@@ -56,14 +56,14 @@
   <rect x="330" y="178" width="334" height="64" rx="7" fill="#fff4d6" stroke="#c99a1c"/>
   <g font-size="9.4" fill="#1c2533">
     <text x="342" y="196" font-size="10.5" font-weight="700" fill="#6b4e12">Kept</text>
-    <text x="342" y="210">The office keeps a licence with a reason, for example to</text>
+    <text x="342" y="210">The office keeps a license with a reason, for example to</text>
     <text x="342" y="222">recover a tracker the driver kept. The job skips it until</text>
     <text x="342" y="234">someone releases it; then it goes at the next daily run.</text>
   </g>
   <rect x="16" y="178" width="296" height="64" rx="7" fill="#f6f8fb" stroke="#d6dce6"/>
   <g font-size="9.4" fill="#1c2533">
     <text x="28" y="196" font-size="10.5" font-weight="700" fill="#122c4c">Who sees it</text>
-    <text x="28" y="210">Office staff only. Crews can add a licence</text>
+    <text x="28" y="210">Office staff only. Crews can add a license</text>
     <text x="28" y="222">but never read one back. The activity log keeps</text>
     <text x="28" y="234">at most the last 4 characters; printouts, none.</text>
   </g>

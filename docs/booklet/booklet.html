@@ -35,12 +35,12 @@
         <text x="40" y="122">Count</text><text x="176" y="122">Pack</text><text x="317" y="122">Load</text><text x="453" y="122">Depart</text><text x="600" y="122">Deliver</text>
       </g>
       <g font-size="10.5" fill="#8fb0dc" text-anchor="middle">
-        <text x="40" y="140">tag by tag</text><text x="176" y="140">crates, sealed</text><text x="317" y="140">scanned on</text><text x="453" y="140">licence on file</text><text x="600" y="140">scanned off</text>
+        <text x="40" y="140">tag by tag</text><text x="176" y="140">crates, sealed</text><text x="317" y="140">scanned on</text><text x="453" y="140">license on file</text><text x="600" y="140">scanned off</text>
       </g>
     </svg>
   </div>
   <div class="edition">
-    <span>Edition</span><b>1 · 31 October 2026</b>
+    <span>Edition</span><b>2 · November 2, 2026</b>
     <span>Field app</span><b>1.1.0 (build 5), over-the-air update 56cc444c</b>
     <span>Office site</span><b>release 8bb6abd</b>
     <span>Database</span><b>migration 024</b>
@@ -77,7 +77,7 @@
         <li class="e"><span class="t"><i>13</i>Places, site maps, areas and racks</span><span class="toc-page" data-for="c-places"></span></li>
         <li class="e"><span class="t"><i>14</i>Crate labels and the crates list</span><span class="toc-page" data-for="c-labels"></span></li>
         <li class="e"><span class="t"><i>15</i>The Loads board</span><span class="toc-page" data-for="c-board"></span></li>
-        <li class="e"><span class="t"><i>16</i>Driver licences</span><span class="toc-page" data-for="c-licences"></span></li>
+        <li class="e"><span class="t"><i>16</i>Driver licenses</span><span class="toc-page" data-for="c-licences"></span></li>
         <li class="e"><span class="t"><i>17</i>Importing the expected list</span><span class="toc-page" data-for="c-import"></span></li>
         <li class="e"><span class="t"><i>18</i>Exceptions, holds and outside shops</span><span class="toc-page" data-for="c-exceptions"></span></li>
         <li class="e"><span class="t"><i>19</i>Users, projects and access</span><span class="toc-page" data-for="c-admin"></span></li>
@@ -127,15 +127,15 @@
   <p class="lede">Two tools share one set of records. Crews use the <strong>field app</strong> on their phones in the yard, on site and at the truck. The office uses the <strong>office site</strong> in a web browser. What one does, the other sees as soon as the phone has synced.</p>
   <figure>
     <!-- svg:platform -->
-    <figcaption><b>The platform.</b> The field app and the office site read the same database and send every change to it as a step. The database checks each step against the rules before saving it. Photos, site plans and driver licences are kept in private storage.</figcaption>
+    <figcaption><b>The platform.</b> The field app and the office site read the same database and send every change to it as a step. The database checks each step against the rules before saving it. Photos, site plans and driver licenses are kept in private storage.</figcaption>
   </figure>
 
   <h3>Who does what</h3>
   <table>
     <thead><tr><th style="width:24%">Role</th><th style="width:20%">Works in</th><th>Can</th></tr></thead>
     <tbody>
-      <tr><td>Field worker <span class="who crew">Crew</span></td><td>Field app</td><td>Scan, receive deliveries, count, move and issue stock, pack and move crates, start a load for a truck that turns up, check drivers in, load out, depart once the licence is on file, unload and finish stops at our own yards and sites.</td></tr>
-      <tr><td>Office staff <span class="who office">Office</span></td><td>Office site, and the app</td><td>Everything a crew can, plus: places, site maps and crate labels; planning loads; letting a truck leave without the licence (with a reason); confirming deliveries at outside shops and vendors; marking pieces found, writing them off, closing and cancelling loads; driver licences; exceptions and holds; importing the expected list; shipping stock out.</td></tr>
+      <tr><td>Field worker <span class="who crew">Crew</span></td><td>Field app</td><td>Scan, receive deliveries, count, move and issue stock, pack and move crates, start a load for a truck that turns up, check drivers in, load out, depart once the license is on file, unload and finish stops at our own yards and sites.</td></tr>
+      <tr><td>Office staff <span class="who office">Office</span></td><td>Office site, and the app</td><td>Everything a crew can, plus: places, site maps and crate labels; planning loads; letting a truck leave without the license (with a reason); confirming deliveries at outside shops and vendors; marking pieces found, writing them off, closing and canceling loads; driver licenses; exceptions and holds; importing the expected list; shipping stock out.</td></tr>
       <tr><td>Administrator <span class="who admin">Admin</span></td><td>Office site</td><td>Everything office staff can, plus users and access, projects, the Data Browser, the admin audit, correcting material records, editing or deleting PO &amp; Installation links, and undoing a write-off.</td></tr>
     </tbody>
   </table>
@@ -148,7 +148,7 @@
     <li><strong>Completed</strong>: read only. Pages say “This project is read-only.”</li>
     <li><strong>Archived</strong>: hidden from everyone; its records are kept.</li>
   </ul>
-  <div class="warn"><span class="callout-title">Practise in Training Yard</span>Training Yard is a practice project with its own place, site plan, racks and crate labels. Practise there, and never in Main Yard, North Site or South Site: practice scans in a real project become real records.</div>
+  <div class="warn"><span class="callout-title">Practice in Training Yard</span>Training Yard is a practice project with its own place, site plan, racks and crate labels. Practice there, and never in Main Yard, North Site or South Site: practice scans in a real project become real records.</div>
 </section>
 
 <section class="chapter">
@@ -158,7 +158,7 @@
   <div class="outcome"><h3>Better reconstruction planning</h3><p>Counts and receipts record what each item is, its category (for example Gas Turbine 2 › Lube Oil › Cooler), its condition with photos, and the area of the site plan it sits in. Before a work package starts, the office can see what is on hand for it and where, instead of sending crews to look.</p></div>
   <div class="outcome"><h3>Clearer priorities for loads and refurbishment</h3><p>Outside Shops lists what is at each shop, since when, and which load took it there. The Loads board shows what is planned, loading, in transit and delivered. Items that have sat at a shop longest, and pieces still waiting for a truck, are in plain view when deciding what moves next.</p></div>
   <div class="outcome"><h3>Planned receiving laydowns</h3><p>Site plans divide each yard and site into named areas, nested as deep as needed (Laydown A › Bay 3), with racks linked to areas. Deliveries, counts and sealed crates all land in a named area, so the office can see what each laydown holds and plan where the next deliveries go.</p></div>
-  <div class="outcome"><h3>Fewer logistics delays</h3><p>A truck can't leave until the driver is checked in with the licence on file, or the office records why it may leave without. Stops run in order, the printed manifest travels with the driver, and the crew at each of our yards and sites can see what is coming before the truck arrives, then scan it off on arrival.</p></div>
+  <div class="outcome"><h3>Fewer logistics delays</h3><p>A truck can't leave until the driver is checked in with the license on file, or the office records why it may leave without. Stops run in order, the printed manifest travels with the driver, and the crew at each of our yards and sites can see what is coming before the truck arrives, then scan it off on arrival.</p></div>
   <div class="outcome"><h3>Accountable records</h3><p>Every change records who made it and when, and corrections, write-offs and holds record why. Crews see their own activity; the office sees everyone's.</p></div>
   <div class="note"><span class="callout-title">The deal</span>Each of these depends on two habits: crews scan at the moment things happen (on the truck, off the truck, into a crate, into an area), and the office keeps places, site plans and racks up to date. Part IV sets out both.</div>
 </section>
@@ -174,7 +174,7 @@
   <p>The first sign-in on a phone needs a connection. After that, someone who signed in online on that phone can reopen the app offline on “previously verified access”; uploads wait until access can be checked again.</p>
   <p><strong>Choosing a project.</strong> The app opens the project last used on that phone, or else the first one assigned. The project name is at the top right; with several projects it is a button that opens <span class="ui">Select project</span>. Drafts and saved work are kept separately for each account and project. With no project at all the app shows “Project access pending”; ask an administrator, then tap <span class="ui">Check access again</span>.</p>
   <p><strong>Tabs.</strong> Crews have <span class="ui">Scan</span>, <span class="ui">Count</span>, <span class="ui">Loads</span>, <span class="ui">Inventory</span> and <span class="ui">Activity</span>. Office users have <span class="ui">Dashboard</span>, <span class="ui">Materials</span>, <span class="ui">Exceptions</span>, <span class="ui">Locations</span>, <span class="ui">Scan</span>, <span class="ui">QR Codes</span>, <span class="ui">Activity</span>, <span class="ui">Reports</span> and, for administrators, <span class="ui">Data Browser</span>; they reach Count and Loads from the Dashboard cards <span class="ui">Initial field count</span> and <span class="ui">Loads</span>.</p>
-  <p><strong>Signing out.</strong> Tap the sign-out icon at the top right and confirm <span class="ui">Sign Out</span>. Read chapter 4 first: signing out deletes any driver licence that hasn't uploaded yet.</p>
+  <p><strong>Signing out.</strong> Tap the sign-out icon at the top right and confirm <span class="ui">Sign Out</span>. Read chapter 4 first: signing out deletes any driver license that hasn't uploaded yet.</p>
 
   <h3>The office site</h3>
   <p>New people are invited by an administrator (chapter 19).</p>
@@ -204,15 +204,15 @@
       <tr><td>Saved on device</td><td>Waiting for signal. Nothing to do.</td></tr>
       <tr><td>Upload interrupted</td><td>The connection dropped mid-upload. It retries by itself, or tap <span class="ui">Upload now</span>.</td></tr>
       <tr><td>Needs attention</td><td>Five tries failed. Tap <span class="ui">Retry upload</span> when the signal is good, or discard it; ask the office if it keeps failing.</td></tr>
-      <tr><td>Refused: needs a decision</td><td>The database said no and gave a reason. It is never retried by itself. Fix it (<span class="ui">Fix in Count</span>, <span class="ui">Move it to this load</span>), or discard it. A refused driver licence can only be discarded and recorded again in Driver check-in.</td></tr>
+      <tr><td>Refused: needs a decision</td><td>The database said no and gave a reason. It is never retried by itself. Fix it (<span class="ui">Fix in Count</span>, <span class="ui">Move it to this load</span>), or discard it. A refused driver license can only be discarded and recorded again in Driver check-in.</td></tr>
     </tbody>
   </table>
   <p>A discard can't be undone. <span class="ui">Support details</span> shows the submission ID, tries and last error to pass to the office.</p>
   <h3>Loads upload in order</h3>
   <p>A load's steps upload strictly in the order they were made. One refused or stuck step holds back the later steps of that load, and <span class="ui">Depart</span> and <span class="ui">Finish stop</span> stay blocked, with a <span class="ui">View Sync</span> link, until it is retried or discarded. Steps that are only waiting for signal don't block, so a truck can be loaded and sent off with no signal at all. Tap <span class="ui">Done</span> on a load-out or unload screen before switching project, or the last few scans can be lost.</p>
-  <h3>The driver's licence on the phone</h3>
-  <p>The licence number, issuing state and expiry are kept only in the app's memory until they upload: if the app closes first, they must be typed again. The photos are temporary files, deleted after upload, after a discard, and at sign-out. Sync never shows the licence number or the driver's phone number.</p>
-  <div class="never"><span class="callout-title">Before you sign out</span>Signing out deletes every driver licence and licence photo that hasn't uploaded. Other saved work stays on the phone for that account and project and uploads at the next sign-in. Check Sync first.</div>
+  <h3>The driver's license on the phone</h3>
+  <p>The license number, issuing state and expiration date are kept only in the app's memory until they upload: if the app closes first, they must be typed again. The photos are temporary files, deleted after upload, after a discard, and at sign-out. Sync never shows the license number or the driver's phone number.</p>
+  <div class="never"><span class="callout-title">Before you sign out</span>Signing out deletes every driver license and license photo that hasn't uploaded. Other saved work stays on the phone for that account and project and uploads at the next sign-in. Check Sync first.</div>
 </section>
 
 <!-- ============================================================ Part II -->
@@ -310,7 +310,7 @@
       <tr><td>Correct where it is</td><td>Records where an item really is, without counting it again: choose the <span class="ui">Place</span>, then an area, an optional reason, and <span class="ui">Save the location</span>. For items in the yard that aren't packed.</td></tr>
     </tbody>
   </table>
-  <p>Each action goes to Sync, and the app says “Saved”. A greyed-out action says why in a yellow box, for example “… is packed in HU-…; take it out of the crate first.” or “… is on load L-0003; it can be moved, issued or shipped when it comes off.”</p>
+  <p>Each action goes to Sync, and the app says “Saved”. A grayed-out action says why in a yellow box, for example “… is packed in HU-…; take it out of the crate first.” or “… is on load L-0003; it can be moved, issued or shipped when it comes off.”</p>
   <h3>Holds and returns</h3>
   <p>When the office puts stock on hold or returns it to the vendor (chapter 18), crews see “… is on hold; the office releases it before it can be issued.” Until it is released it can't be packed, loaded or issued, and it can only be transferred to a hold area; the location list then shows hold racks only.</p>
 </section>
@@ -348,27 +348,27 @@
 
   <h3>The Loads tab</h3>
   <p>The tab lists open loads (planning, loading, in transit). Each card shows the route, progress such as “4 of 10 on board” or “3 delivered, 5 on board, 1 missing”, the driver and the date. <span class="ui">New load</span> starts one for a truck that turns up unplanned: fill <span class="ui">Starts at</span>, the date, the stops (each <span class="ui">Drop-off</span>, <span class="ui">Pick-up</span> or <span class="ui">Both</span>) and the truck details, then <span class="ui">Save load</span>. It works offline; the load gets its number (L-0001…) when it uploads.</p>
-  <p>The load screen shows <span class="ui">Pieces</span>, the <span class="ui">Route</span> (each stop Done, Arrived or To come) and <span class="ui">Truck and driver</span>, with the licence state: “Licence on file”, “Licence saved on this device”, “Licence incomplete”, “No licence recorded yet” or “Left without a licence (the office gave a reason)”.</p>
+  <p>The load screen shows <span class="ui">Pieces</span>, the <span class="ui">Route</span> (each stop Done, Arrived or To come) and <span class="ui">Truck and driver</span>, with the license state: “License on file”, “License saved on this device”, “License incomplete”, “No license recorded yet” or “Left without a license (the office gave a reason)”.</p>
 
   <h3>Driver check-in</h3>
   <ol class="steps">
     <li><strong>Driver.</strong> <span class="ui">Driver’s name</span> and <span class="ui">Driver’s phone</span>.</li>
     <li><strong>Companies.</strong> Up to three, “from the one we hired to the one whose truck it is”: name, role (Broker, Carrier, Dispatcher, Other), contact and phone.</li>
-    <li><strong>Licence.</strong> <span class="ui">Licence number</span>, <span class="ui">Issuing state</span>, <span class="ui">Expiry</span>, a photo of the <span class="ui">Front of the licence</span> and, if useful, the back.</li>
-    <li><strong>Review</strong> and <span class="ui">Save check-in</span>. From then on the licence shows only as “Licence on file”; nobody in the field can read it back.</li>
+    <li><strong>License.</strong> <span class="ui">License number</span>, <span class="ui">Issuing state</span>, <span class="ui">Expiration date</span>, a photo of the <span class="ui">Front of the license</span> and, if useful, the back.</li>
+    <li><strong>Review</strong> and <span class="ui">Save check-in</span>. From then on the license shows only as “License on file”; nobody in the field can read it back.</li>
   </ol>
 
   <h3>Loading out</h3>
   <ol class="steps">
-    <li>Tap <span class="ui">Load out</span> and scan each piece as it goes on the truck. The counter reads “12 of 14 on board” and the list ticks each piece.</li>
+    <li>Tap <span class="ui">Load out</span> and scan each piece as it goes on the truck. The counter reads “12 of 14 on board” and the list checks off each piece.</li>
     <li>A piece that isn't planned asks where it comes off: tap a stop, or <span class="ui">Leave it off</span>. A piece planned on another load that hasn't left can be moved to this one.</li>
-    <li>Tap a ticked row to take a piece off again. Scan the crate, not the items packed inside it.</li>
+    <li>Tap a checked-off row to take a piece off again. Scan the crate, not the items packed inside it.</li>
     <li>Tap <span class="ui">Depart…</span> when the truck is ready.</li>
   </ol>
 
   <h3>Departing</h3>
-  <p>The screen asks “Ready to leave?” and lists any planned pieces that will stay behind. It won't let the truck go until the driver's name is in, the licence (number and a photo of the front) is on file or waiting to upload, something is on board, and no earlier step of this load is stuck in Sync.</p>
-  <div class="never"><span class="callout-title">No licence, no departure</span>Crews can't send a truck without the licence. Only the office can let it leave without, and has to give a reason (5 to 500 characters), which is recorded on the load with their name.</div>
+  <p>The screen asks “Ready to leave?” and lists any planned pieces that will stay behind. It won't let the truck go until the driver's name is in, the license (number and a photo of the front) is on file or waiting to upload, something is on board, and no earlier step of this load is stuck in Sync.</p>
+  <div class="never"><span class="callout-title">No license, no departure</span>Crews can't send a truck without the license. Only the office can let it leave without, and has to give a reason (5 to 500 characters), which is recorded on the load with their name.</div>
 
   <h3>Unloading at a stop</h3>
   <ol class="steps">
@@ -377,26 +377,26 @@
     <li>Tap <span class="ui">Finish stop…</span>. The app lists any pieces due here that haven't been scanned off: they will be marked <strong>missing</strong>. Tap <span class="ui">Finish stop</span>, or <span class="ui">Keep scanning</span>.</li>
   </ol>
   <p>At outside shops and vendors, crews scan off what they hand over but don't finish the stop: “… is an outside shop or vendor: scan off what you hand over, and the office confirms the stop.” A piece scanned off after its stop was finished is still recorded; a missing one is then found.</p>
-  <p><strong>What only the office does</strong>: let a truck leave without the licence, finish stops at shops and vendors, change stops after the truck leaves, ship stock out; and, on the website only, plan pieces, confirm pieces without scanning, mark pieces found, write them off, and close or cancel loads.</p>
+  <p><strong>What only the office does</strong>: let a truck leave without the license, finish stops at shops and vendors, change stops after the truck leaves, ship stock out; and, on the website only, plan pieces, confirm pieces without scanning, mark pieces found, write them off, and close or cancel loads.</p>
 </section>
 
 <section class="chapter cont">
   <h2 data-toc="c-activity"><span class="n">11</span>Activity</h2>
   <p class="for"><span class="who crew">Crew</span><span class="who office">Office</span></p>
-  <p>The <span class="ui">Activity</span> tab lists recent work, newest first: crews see their own, the office sees everyone's. Entries read like “Received …”, “Counted …”, “Transferred …”, “Packed new crate HU-…”, “Loaded L-0003”, “L-0003 left” or “Finished a stop on L-0003”, with who and when. <span class="ui">Load More</span> fetches older entries. Activity needs signal, and never lists anything about driver licences.</p>
+  <p>The <span class="ui">Activity</span> tab lists recent work, newest first: crews see their own, the office sees everyone's. Entries read like “Received …”, “Counted …”, “Transferred …”, “Packed new crate HU-…”, “Loaded L-0003”, “L-0003 left” or “Finished a stop on L-0003”, with who and when. <span class="ui">Load More</span> fetches older entries. Activity needs signal, and never lists anything about driver licenses.</p>
 </section>
 
 <!-- ============================================================ Part III -->
 <section class="part">
   <div class="num">Part III</div>
   <h1>Office: the website</h1>
-  <p>Setting up places and site plans, printing crate labels, planning and following loads, looking after driver licences, and running users and projects.</p>
+  <p>Setting up places and site plans, printing crate labels, planning and following loads, looking after driver licenses, and running users and projects.</p>
   <ul>
     <li>Finding your way on the office site</li>
     <li>Places, site maps, areas and racks</li>
     <li>Crate labels and the crates list</li>
     <li>The Loads board</li>
-    <li>Driver licences</li>
+    <li>Driver licenses</li>
     <li>Importing the expected list</li>
     <li>Exceptions, holds and outside shops</li>
     <li>Users, projects and access</li>
@@ -431,14 +431,14 @@
   <ol class="steps">
     <li>On <span class="ui">Places</span>, press <span class="ui">Add place</span>. Choose the <span class="ui">Kind</span> (Yard, Site, Outside shop, Vendor, Other) and a <span class="ui">Name</span>. A yard or site can belong to one project, or be shared by every project.</li>
     <li>Fill the <span class="ui">Address</span>, <span class="ui">Contacts</span> and <span class="ui">Notes</span>.</li>
-    <li>Under <span class="ui">Map point</span>, click the map, drag the pin or type coordinates. Set the <span class="ui">Arrival radius (metres)</span> (25 to 20,000; 300 if left blank) for trackers later.</li>
+    <li>Under <span class="ui">Map point</span>, click the map, drag the pin or type coordinates. Set the <span class="ui">Arrival radius (meters)</span> (25 to 20,000; 300 if left blank) for trackers later.</li>
     <li>Press <span class="ui">Add place</span>, or <span class="ui">Save changes</span> when editing.</li>
   </ol>
   <p><span class="ui">Retire</span> takes a place out of use for new crates and loads; it stays on record and <span class="ui">Restore</span> brings it back. If someone else edits the same place while your form is open, the page tells you to reopen it rather than overwrite their change.</p>
   <h3>Site maps and areas</h3>
   <ol class="steps">
     <li>On <span class="ui">Site Maps</span>, press <span class="ui">New map</span>. Give it a name, choose the <span class="ui">Place</span> it draws, and upload the <span class="ui">Plan image</span> (PNG, JPG or WEBP). Press <span class="ui">Create map</span>.</li>
-    <li>Press <span class="ui">Draw area</span> and click each corner, then <span class="ui">Finish area</span>. Name it, pick a colour, choose what it sits <span class="ui">Inside</span> (another area, or the top level) and its <span class="ui">Rack</span>, and <span class="ui">Save area</span>.</li>
+    <li>Press <span class="ui">Draw area</span> and click each corner, then <span class="ui">Finish area</span>. Name it, pick a color, choose what it sits <span class="ui">Inside</span> (another area, or the top level) and its <span class="ui">Rack</span>, and <span class="ui">Save area</span>.</li>
     <li>Use <span class="ui">Add area inside…</span> on a row to nest areas, for example Laydown A › Bay 3.</li>
   </ol>
   <p>Areas are never deleted. <span class="ui">Make inactive</span> hides an area, and everything inside it, from crews. A plan tied to a place supplies the areas used at that place; a plan tied to no place can be used at any of the project's yards and sites.</p>
@@ -462,22 +462,22 @@
 <section class="chapter">
   <h2 data-toc="c-board"><span class="n">15</span>The Loads board</h2>
   <p class="for"><span class="who office">Office</span></p>
-  <p class="lede">The <span class="ui">Loads</span> page is where the office plans trucks and follows them: columns for <span class="ui">Planning</span>, <span class="ui">Loading</span>, <span class="ui">In transit</span> and <span class="ui">Delivered</span>, then <span class="ui">Closed and cancelled</span>.</p>
-  <p>Each card shows the load number and date, “From … · Next: …”, the driver, piece counts, and chips such as “N flags”, “Started in the field”, “Left without licence” and “Licence on file”. Loads that crews started appear in <span class="ui">Started in the field</span> so the office can check them.</p>
+  <p class="lede">The <span class="ui">Loads</span> page is where the office plans trucks and follows them: columns for <span class="ui">Planning</span>, <span class="ui">Loading</span>, <span class="ui">In transit</span> and <span class="ui">Delivered</span>, then <span class="ui">Closed and canceled</span>.</p>
+  <p>Each card shows the load number and date, “From … · Next: …”, the driver, piece counts, and chips such as “N flags”, “Started in the field”, “Left without license” and “License on file”. Loads that crews started appear in <span class="ui">Started in the field</span> so the office can check them.</p>
   <h3>Planning a load</h3>
   <ol class="steps">
-    <li>Press <span class="ui">New load</span>, fill the details and press <span class="ui">Create load</span>. The drawer opens with its sections: <span class="ui">Status</span>, <span class="ui">Details</span>, <span class="ui">Companies</span>, <span class="ui">Stops</span>, <span class="ui">Manifest</span> and <span class="ui">Driver's licence</span>.</li>
+    <li>Press <span class="ui">New load</span>, fill the details and press <span class="ui">Create load</span>. The drawer opens with its sections: <span class="ui">Status</span>, <span class="ui">Details</span>, <span class="ui">Companies</span>, <span class="ui">Stops</span>, <span class="ui">Manifest</span> and <span class="ui">Driver's license</span>.</li>
     <li><strong>Details:</strong> origin, planned date, truck type and numbers, bill of lading, driver name and phone, notes. <span class="ui">Save details</span>.</li>
     <li><strong>Companies:</strong> up to three, from the one we hired to the one whose truck it is. <span class="ui">Save companies</span>.</li>
     <li><strong>Stops:</strong> <span class="ui">Add stop</span> for each place, with its kind (Drop-off, Pick-up, Drop-off and pick-up) and date; reorder with the arrows; <span class="ui">Save stops</span>. Up to 20 stops.</li>
-    <li><strong>Manifest:</strong> enter a crate code or item tag, choose where it <span class="ui">Comes off at</span> (and, for a pick-up, where it is <span class="ui">Picked up at</span>), and press <span class="ui">Add to the plan</span>. Tick the box to move a piece from another load that hasn't left.</li>
+    <li><strong>Manifest:</strong> enter a crate code or item tag, choose where it <span class="ui">Comes off at</span> (and, for a pick-up, where it is <span class="ui">Picked up at</span>), and press <span class="ui">Add to the plan</span>. Check the box to move a piece from another load that hasn't left.</li>
   </ol>
   <p>Each section saves on its own and keeps unsaved edits in the others. On a load a crew started, that crew plans the stops until the truck leaves.</p>
   <h3>Departure</h3>
   <ul>
     <li><span class="ui">Depart with what's on board</span>: once pieces have been scanned on. Planned pieces that weren't scanned on stay behind.</li>
     <li><span class="ui">Mark loaded and depart</span>: only when the truck starts at an outside shop or vendor, where nobody scans; it marks every planned piece loaded.</li>
-    <li>Without the licence, either button opens <span class="ui">Let it leave without the licence</span>: write why (5 to 500 characters) and press <span class="ui">Leave without the licence</span>. The reason, your name and the time show on the load.</li>
+    <li>Without the license, either button opens <span class="ui">Let it leave without the license</span>: write why (5 to 500 characters) and press <span class="ui">Leave without the license</span>. The reason, your name and the time show on the load.</li>
   </ul>
   <h3>On the road</h3>
   <p>Each stop shows “Due · Delivered · Missing · To pick up” and its state (Pending, Arrived, Done). <span class="ui">Change stops</span> changes, moves or removes stops the truck hasn't reached; removing the last one left delivers the load.</p>
@@ -489,35 +489,35 @@
     <li><span class="ui">Write off</span>: say why. Writing off a crate writes off everything inside it.</li>
     <li><span class="ui">Undo write-off</span> <span class="who admin">Admin</span>: say why it is put back. The piece is missing again, and a closed load reopens.</li>
   </ul>
-  <h3>Closing and cancelling</h3>
+  <h3>Closing and canceling</h3>
   <p><span class="ui">Close load</span> is offered once every stop is finished and nothing is missing. <span class="ui">Cancel load</span> is offered only before the truck leaves; crates already on it go back to how they were. Neither can be undone, except that undoing a write-off reopens a closed load.</p>
-  <p><span class="ui">Print manifest</span> prints the load, driver and phone, truck, bill of lading and companies, one table per stop (tag, piece, high value, checked) and signature lines for shipper, driver and receiver. It never includes licence details.</p>
+  <p><span class="ui">Print manifest</span> prints the load, driver and phone, truck, bill of lading and companies, one table per stop (tag, piece, high value, checked) and signature lines for shipper, driver and receiver. It never includes license details.</p>
 </section>
 
 <section class="chapter">
-  <h2 data-toc="c-licences"><span class="n">16</span>Driver licences</h2>
+  <h2 data-toc="c-licences"><span class="n">16</span>Driver licenses</h2>
   <p class="for"><span class="who office">Office</span></p>
-  <p class="lede">We record the driver's licence for every load so that, if something goes missing, we know who drove the truck. It is the most sensitive data on the platform: only office staff can see it, it is never printed, and it is removed automatically when it is no longer needed.</p>
+  <p class="lede">We record the driver's license for every load so that, if something goes missing, we know who drove the truck. It is the most sensitive data on the platform: only office staff can see it, it is never printed, and it is removed automatically when it is no longer needed.</p>
   <h3>Recording and checking it</h3>
-  <p>Crews record the licence at check-in (chapter 10). In the load drawer, office staff see the <span class="ui">Driver's licence</span> section and can also enter it themselves:</p>
+  <p>Crews record the license at check-in (chapter 10). In the load drawer, office staff see the <span class="ui">Driver's license</span> section and can also enter it themselves:</p>
   <ul>
-    <li><strong>Number:</strong> <span class="ui">Licence number</span>, <span class="ui">Issuing state</span> and <span class="ui">Expiry date</span>, then <span class="ui">Save licence</span>. The page repeats only the last four characters (“…ending 1234”), and only for numbers longer than six characters.</li>
+    <li><strong>Number:</strong> <span class="ui">License number</span>, <span class="ui">Issuing state</span> and <span class="ui">Expiration date</span>, then <span class="ui">Save license</span>. The page repeats only the last four characters (“…ending 1234”), and only for numbers longer than six characters.</li>
     <li><strong>Photos:</strong> <span class="ui">Add a photo</span> (JPEG or PNG, up to 10 MB), up to four per load; <span class="ui">Delete photo</span> removes one.</li>
-    <li><strong>Remove it early:</strong> <span class="ui">Remove the licence</span> asks why, for example a wrong licence.</li>
+    <li><strong>Remove it early:</strong> <span class="ui">Remove the license</span> asks why, for example a wrong license.</li>
   </ul>
-  <p><strong>Never</strong> print, export, photograph or copy a licence outside the platform, or send its number by email or message. Crews can add a licence but can't read one back, by design.</p>
+  <p><strong>Never</strong> print, export, photograph or copy a license outside the platform, or send its number by email or message. Crews can add a license but can't read one back, by design.</p>
   <h3>How long it is kept</h3>
   <figure>
     <!-- svg:licence -->
-    <figcaption><b>A licence over time.</b> Kept 365 days after the load closes, with a warning 30 days before. The office can keep one longer, with a reason, until it releases it.</figcaption>
+    <figcaption><b>A license over time.</b> Kept 365 days after the load closes, with a warning 30 days before. The office can keep one longer, with a reason, until it releases it.</figcaption>
   </figure>
-  <p>A daily job removes each licence, its number and its photos, <strong>365 days after the load closes</strong> (for a load that never closes, 365 days after the last activity on it). Thirty days before that, the Loads page shows office staff a panel, <span class="ui">Driver licences due for removal in the next 30 days</span>, covering all their projects.</p>
+  <p>A daily job removes each license, its number and its photos, <strong>365 days after the load closes</strong> (for a load that never closes, 365 days after the last activity on it). Thirty days before that, the Loads page shows office staff a panel, <span class="ui">Driver licenses due for removal in the next 30 days</span>, covering all their projects.</p>
   <ol class="steps">
-    <li>Press <span class="ui">Show the N licences</span> to see each load and its date.</li>
-    <li>To keep one, press <span class="ui">Keep</span>, write why (for example “the driver still has our GPS tracker”) and press <span class="ui">Keep the licence</span>. It won't be removed until office staff release it.</li>
+    <li>Press <span class="ui">Show the N licenses</span> to see each load and its date.</li>
+    <li>To keep one, press <span class="ui">Keep</span>, write why (for example “the driver still has our GPS tracker”) and press <span class="ui">Keep the license</span>. It won't be removed until office staff release it.</li>
     <li>When the reason is resolved, press <span class="ui">Release</span>. If the date has passed, the next daily run removes it.</li>
   </ol>
-  <p>The same <span class="ui">Keep</span> and <span class="ui">Release</span> buttons, and the removal date, are in the load drawer. A kept licence can't be removed early until it is released. When office staff open Loads, the page also removes any licence that is due and not kept, as a backup to the daily job.</p>
+  <p>The same <span class="ui">Keep</span> and <span class="ui">Release</span> buttons, and the removal date, are in the load drawer. A kept license can't be removed early until it is released. When office staff open Loads, the page also removes any license that is due and not kept, as a backup to the daily job.</p>
 </section>
 
 <section class="chapter">
@@ -566,7 +566,7 @@
     <li><strong>Edit:</strong> <span class="ui">Edit</span> changes the role and projects. Untick <span class="ui">Active account</span> to deactivate someone; they lose access at once.</li>
     <li><strong>Pending invitations:</strong> <span class="ui">Resend</span> sends a new code (only the newest works); <span class="ui">Cancel invite</span> also removes the person's project access.</li>
   </ol>
-  <p>Filters cover role, status (active, inactive, invitation pending, expired, cancelled) and project. <span class="ui">History</span> opens that person's entries in Activity &amp; Audit. The last active administrator can't be removed.</p>
+  <p>Filters cover role, status (active, inactive, invitation pending, expired, canceled) and project. <span class="ui">History</span> opens that person's entries in Activity &amp; Audit. The last active administrator can't be removed.</p>
   <h3>Projects</h3>
   <p><span class="ui">New project</span> opens the form: name, description and status (<span class="ui">Active</span>, <span class="ui">Completed — read only</span>, <span class="ui">Archived — unavailable</span>), then <span class="ui">Save project</span>. A new project is assigned to the administrator who creates it; reload a working page to see it in the project selector. A project can't be completed or archived while any of its loads is open.</p>
   <h3>Who can open what</h3>
@@ -600,17 +600,17 @@
       <tr><td>Crates nest at most five deep</td><td>“Crates can be nested at most 5 levels deep.”</td><td>Use fewer layers.</td></tr>
       <tr><td>A sealed crate has contents and an area</td><td>“Choose a location: pick the area where this crate is before sealing it.”</td><td>Choose the area, or save it open.</td></tr>
       <tr><td>A piece is on one open load at a time</td><td>“… is planned on load L-0002. Choose where it comes off to move it to L-0003.”</td><td>Move it, or leave it on its load.</td></tr>
-      <tr><td>No licence, no departure</td><td>“Record the driver's licence … in Driver check-in before L-0003 leaves.”</td><td>Check the driver in. Only the office can let the truck leave without, with a reason.</td></tr>
+      <tr><td>No license, no departure</td><td>“Record the driver's license … in Driver check-in before L-0003 leaves.”</td><td>Check the driver in. Only the office can let the truck leave without, with a reason.</td></tr>
       <tr><td>A load's steps go in order</td><td>“An earlier step for L-0003 hasn't uploaded. Retry or discard it in Sync…”</td><td>Open Sync; retry or discard the stuck step.</td></tr>
       <tr><td>Pieces not scanned off become missing</td><td>“… pieces due here haven't been scanned off and will be marked missing.”</td><td><span class="ui">Keep scanning</span> until everything due is off.</td></tr>
       <tr><td>The office confirms shops and vendors</td><td>“… is an outside shop or vendor: scan off what you hand over, and the office confirms the stop.”</td><td>Scan off, then call the office.</td></tr>
       <tr><td>A load closes only when nothing is missing</td><td>“Load L-… still has missing pieces (N); scan them, mark them found or write them off first.”</td><td>Resolve each missing piece.</td></tr>
-      <tr><td>Only a load that hasn't left can be cancelled</td><td>“Only a load that hasn't left can be cancelled.”</td><td>Change its stops instead.</td></tr>
+      <tr><td>Only a load that hasn't left can be canceled</td><td>“Only a load that hasn't left can be canceled.”</td><td>Change its stops instead.</td></tr>
       <tr><td>Held stock stays put</td><td>“… is on hold; the office releases it before it can be issued.”</td><td>Move it only to a hold area; ask the office to decide.</td></tr>
       <tr><td>Written-off pieces are out of stock</td><td>“… was written off on a load; an administrator can undo that.”</td><td>Tell the office where it turned up.</td></tr>
       <tr><td>Finished projects are read-only</td><td>“This project is read-only.”</td><td>Switch to the right project.</td></tr>
-      <tr><td>Reasons are required</td><td>Leaving without a licence, keeping a licence, corrections: at least 5 characters. Nothing is deleted; records are corrected with a reason.</td><td>Write a reason someone will understand in a year.</td></tr>
-      <tr><td>Limits</td><td>Up to 3 companies and 20 stops a load; up to 4 licence photos; one rack per area.</td><td>Ask the office if a real case doesn't fit.</td></tr>
+      <tr><td>Reasons are required</td><td>Leaving without a license, keeping a license, corrections: at least 5 characters. Nothing is deleted; records are corrected with a reason.</td><td>Write a reason someone will understand in a year.</td></tr>
+      <tr><td>Limits</td><td>Up to 3 companies and 20 stops a load; up to 4 license photos; one rack per area.</td><td>Ask the office if a real case doesn't fit.</td></tr>
     </tbody>
   </table>
 </section>
@@ -624,14 +624,14 @@
     <li><strong>Seal it where it stands.</strong> Seal a crate when it is closed up, where it stands, and move it in the app when you move it in the yard.</li>
     <li><strong>A crate goes whole.</strong> Take items out only through the app. A crate goes to one stop; if its pieces go to different places, unpack first.</li>
     <li><strong>Nothing on the truck without a scan.</strong> Scan every piece on. If one comes back off before the truck leaves, take it off in the app too.</li>
-    <li><strong>No licence, no departure.</strong> Check the driver in with the licence number and a photo of the front. If the driver won't, call the office; never wave the truck off.</li>
+    <li><strong>No license, no departure.</strong> Check the driver in with the license number and a photo of the front. If the driver won't, call the office; never wave the truck off.</li>
     <li><strong>Finish a stop only when it is done.</strong> Scan everything off first. Anything not scanned becomes missing, and someone has to go and find it.</li>
     <li><strong>At shops and vendors, the office confirms.</strong> Scan off what you hand over and tell the office; don't try to finish the stop.</li>
     <li><strong>Hold means hold.</strong> Stock on hold or going back to the vendor stays in a hold area. Never pack, load or issue it.</li>
-    <li><strong>Clear Sync every day.</strong> Before the end of each shift, open Sync: retry what failed, fix or discard what was refused, and ask the office when unsure. Never sign out with a licence still waiting.</li>
-    <li><strong>Licences stay in the app.</strong> Never photograph a licence with the phone's own camera, write its number down or send it on.</li>
+    <li><strong>Clear Sync every day.</strong> Before the end of each shift, open Sync: retry what failed, fix or discard what was refused, and ask the office when unsure. Never sign out with a license still waiting.</li>
+    <li><strong>Licenses stay in the app.</strong> Never photograph a license with the phone's own camera, write its number down or send it on.</li>
     <li><strong>Your own account only.</strong> Sign in as yourself, never share a login, and sign out of a shared phone.</li>
-    <li><strong>Practise in Training Yard.</strong> Never practise in a real project: practice scans become real records.</li>
+    <li><strong>Practice in Training Yard.</strong> Never practice in a real project: practice scans become real records.</li>
   </ol>
 </section>
 
@@ -640,15 +640,15 @@
   <ol class="rules">
     <li><strong>Set up before the work starts.</strong> Places with map points, a site plan for each yard and site, areas named the way crews talk about them, every rack linked to an area, and crate labels printed.</li>
     <li><strong>Plan the load before the truck arrives.</strong> Stops in order, every crate and loose piece planned to the stop where it comes off, and companies recorded.</li>
-    <li><strong>Leaving without the licence is the exception.</strong> Use it only when there is no other way, write a reason that will make sense in a year, and get the licence afterwards if you can.</li>
+    <li><strong>Leaving without the license is the exception.</strong> Use it only when there is no other way, write a reason that will make sense in a year, and get the license afterward if you can.</li>
     <li><strong>Confirm shop and vendor stops the same day.</strong> Your confirmation is the only record of what was handed over there.</li>
     <li><strong>Resolve missing pieces quickly.</strong> Scan, mark found (with where) or write off (with why) within the week, while people still remember.</li>
-    <li><strong>Close loads when they are done.</strong> A delivered load with nothing missing should be closed; closing starts the licence's 365-day clock.</li>
-    <li><strong>Keep a licence only for a reason.</strong> For example to recover a tracker the driver kept. Release it when the reason is resolved.</li>
+    <li><strong>Close loads when they are done.</strong> A delivered load with nothing missing should be closed; closing starts the license's 365-day clock.</li>
+    <li><strong>Keep a license only for a reason.</strong> For example to recover a tracker the driver kept. Release it when the reason is resolved.</li>
     <li><strong>Every exception gets an owner and a date.</strong> Decide holds and returns promptly, and release stock as soon as it is cleared.</li>
     <li><strong>Keep access tidy.</strong> Invite people with the right role and projects, deactivate leavers the day they leave, and review project access when a project ends.</li>
     <li><strong>Change production only through a release.</strong> Never edit the live database by hand (appendix A8).</li>
-    <li><strong>Never print or export licence data.</strong> The manifest leaves it out on purpose.</li>
+    <li><strong>Never print or export license data.</strong> The manifest leaves it out on purpose.</li>
   </ol>
 </section>
 
@@ -665,7 +665,7 @@
     <dt>High value</dt><dd>A crate marked so that everyone who scans it sees it; shown on the manifest.</dd>
     <dt>Hold area</dt><dd>A rack marked as a hold area. Stock on hold can be moved only there.</dd>
     <dt>HU- label</dt><dd>A crate label code, such as HU-7K3QX9; unique across every project.</dd>
-    <dt>Keep (a licence)</dt><dd>Office staff stop a licence being removed on its date, with a reason, until they release it.</dd>
+    <dt>Keep (a license)</dt><dd>Office staff stop a license being removed on its date, with a reason, until they release it.</dd>
     <dt>Load</dt><dd>One trip by an outside carrier's truck, numbered L-0001 per project.</dd>
     <dt>Manifest line</dt><dd>One crate or loose piece on a load, with the stop it comes off at.</dd>
     <dt>Material</dt><dd>A received item, with quantity, rack and area.</dd>
@@ -679,7 +679,7 @@
     <dt>Stop</dt><dd>A place on a load's route, for drop-off, pick-up or both.</dd>
     <dt>Sync</dt><dd>The screen, and the process, that uploads saved work and shows anything waiting or refused.</dd>
     <dt>Tag</dt><dd>An item's code, unique within its project whatever the capitals.</dd>
-    <dt>Training Yard</dt><dd>The practice project. Practise only there.</dd>
+    <dt>Training Yard</dt><dd>The practice project. Practice only there.</dd>
     <dt>Write-off</dt><dd>The office records that a missing piece is lost, with a reason. An administrator can undo it.</dd>
   </dl>
 </section>
@@ -711,11 +711,11 @@
       <tr><td>Private storage</td><td>Buckets <code>inspection-photos</code>; <code>site-plans</code> (15 MB; PNG, JPEG, WEBP); <code>inventory-photos</code> (10 MB); <code>driver-licences</code> (10 MB; JPEG, PNG; at most 4 files a load).</td><td>Read only through short-lived signed links.</td></tr>
       <tr><td>Admin function</td><td>A server function, <code>admin-users</code>, that checks each caller's sign-in token.</td><td>Invitations, users, projects and the admin audit.</td></tr>
       <tr><td>Email</td><td>The sign-in service, sending through an email delivery provider.</td><td>Templates in the office repository.</td></tr>
-      <tr><td>Licence job</td><td>A scheduled job in the office repository, daily at 09:17 UTC.</td><td>Removes licences that are due and not kept.</td></tr>
+      <tr><td>License job</td><td>A scheduled job in the office repository, daily at 09:17 UTC.</td><td>Removes licenses that are due and not kept.</td></tr>
       <tr><td>Trackers</td><td>GPS trackers from an outside provider. The live sync still runs from the legacy repository.</td><td>See A9.</td></tr>
     </tbody>
   </table>
-  <p>Both clients sign in through the database's sign-in service and talk to the database directly with its public key; what each person may read or change is decided inside the database by row-level security and checked functions (A4, A5). The service-role key, which bypasses those rules, is used only by the admin function, the licence job and the purchase-order import (A9), and lives only in their secret stores.</p>
+  <p>Both clients sign in through the database's sign-in service and talk to the database directly with its public key; what each person may read or change is decided inside the database by row-level security and checked functions (A4, A5). The service-role key, which bypasses those rules, is used only by the admin function, the license job and the purchase-order import (A9), and lives only in their secret stores.</p>
 </section>
 
 <section class="chapter">
@@ -732,7 +732,7 @@
       <tr><td>What</td><td><code>qr_codes</code> (every tag and label, unique per project ignoring capitals); <code>inventory_categories</code>; <code>inventory_records</code> (count records: expected, counted, received) and <code>inventory_photos</code>; <code>receiving_records</code> and <code>inspection_photos</code>; <code>materials</code> (in yard, issued, shipped, depleted, written off); <code>material_movements</code>, <code>material_issues</code>, <code>shipments_out</code>.</td></tr>
       <tr><td>Crates</td><td><code>handling_units</code> (code, kind, status, place and area, parent crate); <code>handling_unit_contents</code>; views <code>handling_unit_items</code>, <code>handling_unit_overview</code>.</td></tr>
       <tr><td>Loads</td><td><code>loads</code>, <code>load_companies</code> (up to 3), <code>load_stops</code> (up to 20), <code>load_lines</code> (the manifest), <code>load_write_offs</code>; views <code>load_overview</code>, <code>load_stop_overview</code>, <code>load_line_overview</code>.</td></tr>
-      <tr><td>Licences <span class="who office">Office</span></td><td><code>load_driver_licences</code>, <code>driver_licence_photos</code>, <code>load_licence_operations</code>, <code>driver_licence_holds</code> (from 023). Office staff only; see A5.</td></tr>
+      <tr><td>Licenses <span class="who office">Office</span></td><td><code>load_driver_licences</code>, <code>driver_licence_photos</code>, <code>load_licence_operations</code>, <code>driver_licence_holds</code> (from 023). Office staff only; see A5.</td></tr>
       <tr><td>Changes and history</td><td><code>field_operations</code> (one row per step, with its result); <code>audit_log</code> (who did what, when, to what).</td></tr>
       <tr><td>Position</td><td>View <code>item_positions</code>: the one answer to “where is it?” for every item and crate (A3).</td></tr>
     </tbody>
@@ -749,12 +749,12 @@
   <table class="tight">
     <thead><tr><th style="width:18%">Record</th><th style="width:44%">Statuses</th><th>Notes</th></tr></thead>
     <tbody>
-      <tr><td>Crate</td><td>open › sealed › on a load › delivered › unpacked; or missing, written off</td><td>A crate on a load can't be packed, unpacked or moved. Cancelling a load puts its crates back as they were.</td></tr>
-      <tr><td>Stop</td><td>pending › arrived › done; or cancelled</td><td>Arrival is recorded by scan, by the office, or (later) by tracker.</td></tr>
+      <tr><td>Crate</td><td>open › sealed › on a load › delivered › unpacked; or missing, written off</td><td>A crate on a load can't be packed, unpacked or moved. Canceling a load puts its crates back as they were.</td></tr>
+      <tr><td>Stop</td><td>pending › arrived › done; or canceled</td><td>Arrival is recorded by scan, by the office, or (later) by tracker.</td></tr>
       <tr><td>Manifest line</td><td>planned › on board › delivered; not loaded, missing, written off, removed</td><td>Delivered lines may be flagged wrong stop, extra or found.</td></tr>
       <tr><td>Material</td><td>in yard › issued, shipped, depleted, written off</td><td>On hold and return to vendor come from the receipt's exception decision.</td></tr>
       <tr><td>Count record</td><td>expected › counted › received</td><td>Receiving a counted tag links the receipt to the count.</td></tr>
-      <tr><td>Load</td><td>planning › loading › in transit › delivered › closed; or cancelled</td><td>Closed and cancelled loads can't change, except that undoing a write-off reopens a closed load.</td></tr>
+      <tr><td>Load</td><td>planning › loading › in transit › delivered › closed; or canceled</td><td>Closed and canceled loads can't change, except that undoing a write-off reopens a closed load.</td></tr>
     </tbody>
   </table>
 </section>
@@ -773,7 +773,7 @@
   <table class="tight">
     <thead><tr><th style="width:14%">Code</th><th style="width:30%">Meaning</th><th>Examples</th></tr></thead>
     <tbody>
-      <tr><td><code>22023</code></td><td>The step breaks a rule</td><td>The message names the rule: a crate that would be split, a load leaving without a licence, a tag that is already received.</td></tr>
+      <tr><td><code>22023</code></td><td>The step breaks a rule</td><td>The message names the rule: a crate that would be split, a load leaving without a license, a tag that is already received.</td></tr>
       <tr><td><code>42501</code></td><td>No access</td><td>An inactive account, a project the person isn't on, or an office-only action from a crew.</td></tr>
       <tr><td><code>23505</code></td><td>Conflict</td><td>An operation ID reused for a different request, or a duplicate tag.</td></tr>
     </tbody>
@@ -781,8 +781,8 @@
   <p>The app shows these as “Refused: needs a decision” and never retries them by itself. Network errors and time-outs are retried.</p>
   <h3>Separate calls</h3>
   <ul>
-    <li><strong>Licences</strong> never pass through <code>field_operations</code> or the audit log in full: <code>record_driver_licence</code>, <code>attach_driver_licence_photo</code>, <code>remove_driver_licence_photo</code>, <code>remove_driver_licence</code>, <code>keep_driver_licence</code>, <code>release_driver_licence_hold</code> and <code>driver_licences_due_soon</code>. <code>driver_licence_purge_queue</code> and <code>purge_driver_licence</code> are for the service role only.</li>
-    <li><strong>Reading</strong>: <code>lookup_tag</code> (what Scan should open), <code>list_project_activity</code> (the Activity tab), <code>load_licence_complete</code> and <code>load_licence_due_at</code> (licence state without the licence itself), and the views in A2.</li>
+    <li><strong>Licenses</strong> never pass through <code>field_operations</code> or the audit log in full: <code>record_driver_licence</code>, <code>attach_driver_licence_photo</code>, <code>remove_driver_licence_photo</code>, <code>remove_driver_licence</code>, <code>keep_driver_licence</code>, <code>release_driver_licence_hold</code> and <code>driver_licences_due_soon</code>. <code>driver_licence_purge_queue</code> and <code>purge_driver_licence</code> are for the service role only.</li>
+    <li><strong>Reading</strong>: <code>lookup_tag</code> (what Scan should open), <code>list_project_activity</code> (the Activity tab), <code>load_licence_complete</code> and <code>load_licence_due_at</code> (license state without the license itself), and the views in A2.</li>
   </ul>
 </section>
 
@@ -795,13 +795,13 @@
     <li>History is never deleted: places retire, areas go inactive, loads close; the audit log can't be changed. The one exception is an administrator deleting a PO &amp; Installation link, which takes its status history with it after the audit log has recorded both.</li>
     <li>Completed projects are read-only and archived projects are hidden, in the database as well as on screen.</li>
   </ul>
-  <h3>Driver licences</h3>
+  <h3>Driver licenses</h3>
   <ul>
-    <li>Licence tables and the <code>driver-licences</code> bucket are readable by office staff only. Crews can upload a licence but can never read one back, in the app or by any other route.</li>
-    <li>Office staff see photos through signed links that expire after five minutes. Licences are never printed; the manifest leaves them out.</li>
+    <li>License tables and the <code>driver-licences</code> bucket are readable by office staff only. Crews can upload a license but can never read one back, in the app or by any other route.</li>
+    <li>Office staff see photos through signed links that expire after five minutes. Licenses are never printed; the manifest leaves them out.</li>
     <li>The audit log keeps at most the last four characters, and only for numbers longer than six.</li>
     <li>On the phone the number stays in memory only, and the photos are deleted after upload, after a discard and at sign-out.</li>
-    <li>Each licence is removed 365 days after its load closes unless office staff keep it with a reason. The daily job removes it with the service-role key; opening the Loads page does the same as a backup.</li>
+    <li>Each license is removed 365 days after its load closes unless office staff keep it with a reason. The daily job removes it with the service-role key; opening the Loads page does the same as a backup.</li>
   </ul>
   <h3>Accounts</h3>
   <ul>
@@ -816,14 +816,14 @@
   <h2 data-toc="a-setup"><span class="n">A6</span>Setting up a new project</h2>
   <ol class="steps">
     <li><strong>Projects:</strong> press <span class="ui">New project</span>; leave the status Active.</li>
-    <li><strong>Users &amp; Access:</strong> invite people, or tick the new project on existing users.</li>
+    <li><strong>Users &amp; Access:</strong> invite people, or check the new project for existing users.</li>
     <li><strong>Places:</strong> add or confirm the yard or site (tied to the project, or shared), plus the outside shops and vendors it works with, each with a map point and arrival radius.</li>
     <li><strong>Racks:</strong> in <span class="ui">Data Browser</span> › <span class="ui">Locations</span>, press <span class="ui">Add</span> for each rack (zone, row, rack, hold area, capacity). Include at least one hold-area rack.</li>
     <li><strong>Site Maps:</strong> press <span class="ui">New map</span>, tie it to the yard or site, upload the plan, draw the areas (nested as crews name them), set each area's rack, and work through <span class="ui">Racks without an area</span> until it is empty.</li>
     <li><strong>Counting</strong> (if there is an initial count): set up <span class="ui">Inventory Categories</span> and <span class="ui">Import expected tags</span>.</li>
     <li><strong>Crates:</strong> <span class="ui">Print crate labels</span> for the first weeks of packing.</li>
-    <li><strong>Licence job:</strong> confirm the job's service-role secret is set and its last run passed before loads start carrying licences.</li>
-    <li><strong>Training:</strong> have crews practise in Training Yard (below) before they work in the new project.</li>
+    <li><strong>License job:</strong> confirm the job's service-role secret is set and its last run passed before loads start carrying licenses.</li>
+    <li><strong>Training:</strong> have crews practice in Training Yard (below) before they work in the new project.</li>
   </ol>
   <h3>Training Yard</h3>
   <p>A separate practice project that testers choose in the project selector. The practice kit expects a “Training Yard” place and plan with the areas T1 Pipe Racks › Rack 2, Equipment Staging › Bay A to C and T-Hold; a rack “T2 - Row 1, Rack 1”; expected tags <code>&lt;prefix&gt;-CV-101</code>, <code>-LOP-201</code> and <code>-FL-702</code> for each tester; and crate labels reserved for each tester. No script creates it; set it up by hand with the steps above.</p>
@@ -872,8 +872,8 @@
   <p>The web host runs the site build, which copies the pages and scripts, checks that the required pages exist and writes <code>release.json</code> with the commit and SHA-256 hashes of the key assets. The <code>production-smoke</code> job then waits for that commit to go live, checks the asset hashes and confirms private paths return 404. To roll back, restore the last verified deploy on the web host.</p>
   <h3>Field app</h3>
   <p>App updates carry new screens to every phone on the same runtime (1.1.0). A phone downloads an update when the app opens and switches to it the next time the app is fully closed and reopened. The current production update is 56cc444c on build 5.</p>
-  <h3>Licence job</h3>
-  <p>A scheduled job in the office repository runs the licence removal script every day at 09:17 UTC, and can be run by hand. It needs the service-role key as a repository secret, which an administrator sets; the database address is optional. If a run fails, the Loads page's backup still removes due licences when office staff open it; fix the job the same week.</p>
+  <h3>License job</h3>
+  <p>A scheduled job in the office repository runs the license removal script every day at 09:17 UTC, and can be run by hand. It needs the service-role key as a repository secret, which an administrator sets; the database address is optional. If a run fails, the Loads page's backup still removes due licenses when office staff open it; fix the job the same week.</p>
 </section>
 
 <section class="chapter cont">
@@ -894,7 +894,7 @@
     <li>Count has no high-value switch and no place picker.</li>
     <li>Delivered loads aren't on the Loads tab; open them from an item's or crate's “Delivered to … on L-…” line.</li>
     <li>Moving a crate, correcting a location, departing, finishing a stop and editing a load close the screen without a confirmation message; Sync shows the step.</li>
-    <li>A planned date or licence expiry can't be cleared once set.</li>
+    <li>A planned date or a license's expiration date can't be cleared once set.</li>
     <li>The app can put a receipt on hold but not release it; release it on the office site.</li>
   </ul>
   <h3>Office site</h3>
@@ -911,11 +911,12 @@
   <table>
     <thead><tr><th style="width:13%">Edition</th><th style="width:16%">Date</th><th style="width:36%">Software covered</th><th>Changes</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td>31 Oct 2026</td><td>Field app 1.1.0 (build 5, update 56cc444c); office site release 8bb6abd; database migration 024</td><td>First edition.</td></tr>
+      <tr><td>1</td><td>Oct 31, 2026</td><td>Field app 1.1.0 (build 5, update 56cc444c); office site release 8bb6abd; database migration 024</td><td>First edition.</td></tr>
+      <tr><td>2</td><td>Nov 2, 2026</td><td>Same as edition 1</td><td>US English spelling, words and dates throughout. Screen labels are quoted in US spelling; where a screen still spells a word differently, it means the same thing. No rules changed.</td></tr>
     </tbody>
   </table>
   <h3>Updating this guide</h3>
-  <p>The guide is built from <code>docs/booklet/</code> in the MSR repository: <code>booklet.html</code> (the text), <code>booklet.css</code> (the print style) and <code>diagrams/</code>. When the software changes, edit the text, add a row above, update the edition lines on the cover, and run the booklet build (the command is in <code>docs/booklet/README.md</code>).</p>
+  <p>The guide is built from <code>docs/booklet/</code> in the MSR repository: <code>booklet.html</code> (the text), <code>booklet.css</code> (the print style) and <code>diagrams/</code>. When the software changes, edit the text, add a row above, update the edition lines on the cover and the footer's edition in <code>booklet.css</code>, and run the booklet build (the command is in <code>docs/booklet/README.md</code>).</p>
   <p>It prints the guide to <code>docs/booklet/Invenio-Field-Platform-booklet.pdf</code> and numbers the contents. Keep the contents to one page.</p>
 </section>
 
