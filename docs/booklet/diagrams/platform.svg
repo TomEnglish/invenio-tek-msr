@@ -1,4 +1,4 @@
-<svg viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The platform: the field app on phones and the office website both work through one shared database, with over-the-air app updates, a daily licence job and planned tracker feeds" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif">
+<svg viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The platform: the field app on phones and the office website both work through one shared database, with over-the-air app updates, a daily license job and planned tracker feeds" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif">
   <defs>
     <marker id="pa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#122c4c"/></marker>
     <marker id="pb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8a96a8"/></marker>
@@ -26,7 +26,7 @@
   </g>
   <rect x="250" y="128" width="180" height="36" rx="5" fill="#fff" stroke="#9db5f2"/>
   <text x="258" y="143" font-size="10" font-weight="600" fill="#1b3f9e">Private storage</text>
-  <text x="258" y="157" font-size="9.5" fill="#3b4a60">photos · site plans · licences</text>
+  <text x="258" y="157" font-size="9.5" fill="#3b4a60">photos · site plans · licenses</text>
   <rect x="250" y="170" width="180" height="36" rx="5" fill="#fff" stroke="#9db5f2"/>
   <text x="258" y="185" font-size="10" font-weight="600" fill="#1b3f9e">Rules in the database</text>
   <text x="258" y="199" font-size="9.5" fill="#3b4a60">every change checked, per project</text>
@@ -40,7 +40,7 @@
     <text x="502" y="132">Loads board · Outside Shops</text>
     <text x="502" y="150">Inventory import · Exceptions</text>
     <text x="502" y="168">Users and projects (admin)</text>
-    <text x="502" y="186" fill="#0d294a" font-weight="600">Driver licences (office only)</text>
+    <text x="502" y="186" fill="#0d294a" font-weight="600">Driver licenses (office only)</text>
   </g>
   <!-- arrows -->
   <line x1="190" y1="100" x2="234" y2="100" stroke="#122c4c" stroke-width="1.6" marker-end="url(#pa)" marker-start="url(#pa)"/>
@@ -55,8 +55,8 @@
   <text x="20" y="280" font-size="9.5" fill="#5b6676">new screens reach phones over the air</text>
   <line x1="99" y1="246" x2="99" y2="204" stroke="#8a96a8" stroke-width="1.4" marker-end="url(#pb)"/>
   <rect x="236" y="248" width="208" height="40" rx="6" fill="#fff" stroke="#8a96a8"/>
-  <text x="248" y="265" font-size="10.5" font-weight="600" fill="#122c4c">Daily licence job</text>
-  <text x="248" y="280" font-size="9.5" fill="#5b6676">removes licences 365 days on, unless kept</text>
+  <text x="248" y="265" font-size="10.5" font-weight="600" fill="#122c4c">Daily license job</text>
+  <text x="248" y="280" font-size="9.5" fill="#5b6676">removes licenses 365 days on, unless kept</text>
   <line x1="340" y1="246" x2="340" y2="218" stroke="#8a96a8" stroke-width="1.4" marker-end="url(#pb)"/>
   <rect x="490" y="248" width="182" height="40" rx="6" fill="#fff" stroke="#8a96a8" stroke-dasharray="4 3"/>
   <text x="502" y="265" font-size="10.5" font-weight="600" fill="#122c4c">GPS trackers</text>

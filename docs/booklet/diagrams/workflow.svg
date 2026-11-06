@@ -48,12 +48,12 @@
     <text x="238" y="266">or start a load for a</text><text x="238" y="279">truck that turns up</text>
 
     <rect x="231" y="310" width="133" height="52" rx="5" fill="#fff" stroke="#157347"/>
-    <text x="238" y="326">Driver check-in: name,</text><text x="238" y="339">phone, licence + photo;</text><text x="238" y="352">scan each piece on</text>
+    <text x="238" y="326">Driver check-in: name,</text><text x="238" y="339">phone, license + photo;</text><text x="238" y="352">scan each piece on</text>
     <rect x="380" y="316" width="133" height="40" rx="5" fill="#fff" stroke="#9a6b00"/>
     <text x="387" y="332">Outside carrier's truck</text><text x="387" y="345">at our yard</text>
 
     <rect x="231" y="378" width="133" height="52" rx="5" fill="#fff" stroke="#157347"/>
-    <text x="238" y="394">Depart: licence on file,</text><text x="238" y="407">or the office records</text><text x="238" y="420">why it left without</text>
+    <text x="238" y="394">Depart: license on file,</text><text x="238" y="407">or the office records</text><text x="238" y="420">why it left without</text>
     <rect x="380" y="384" width="133" height="40" rx="5" fill="#fff" stroke="#9a6b00"/>
     <text x="387" y="400">On the road: stops in</text><text x="387" y="413">order; office can reroute</text>
 
@@ -63,7 +63,7 @@
     <text x="89" y="462">Shops and vendors: the</text><text x="89" y="475">office confirms delivery</text><text x="89" y="488">and pick-ups there</text>
 
     <rect x="82" y="514" width="133" height="66" rx="5" fill="#fff" stroke="#174fda"/>
-    <text x="89" y="530">Missing pieces: scan,</text><text x="89" y="543">mark found or write off;</text><text x="89" y="556">close the load; licence</text><text x="89" y="569">kept 365 days</text>
+    <text x="89" y="530">Missing pieces: scan,</text><text x="89" y="543">mark found or write off;</text><text x="89" y="556">close the load; license</text><text x="89" y="569">kept 365 days</text>
     <rect x="231" y="514" width="133" height="52" rx="5" fill="#fff" stroke="#157347"/>
     <text x="238" y="530">Back at the yard:</text><text x="238" y="543">unpack crates into</text><text x="238" y="556">areas; count, correct</text>
   </g>
