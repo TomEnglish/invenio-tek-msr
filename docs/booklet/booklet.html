@@ -40,10 +40,10 @@
     </svg>
   </div>
   <div class="edition">
-    <span>Edition</span><b>2 · November 2, 2026</b>
-    <span>Field app</span><b>1.1.0 (build 5), over-the-air update 56cc444c</b>
-    <span>Office site</span><b>release 8bb6abd</b>
-    <span>Database</span><b>migration 024</b>
+    <span>Edition</span><b>3 · November 6, 2026</b>
+    <span>Field app</span><b>1.1.0 (build 5), over-the-air update 63ed2c22</b>
+    <span>Office site</span><b>release 835fb3a</b>
+    <span>Database</span><b>migration 025</b>
     <span>Covers</span><b>initial count, receiving, stock, crates, loads and driver check-in</b>
   </div>
 </section>
@@ -276,7 +276,7 @@
   <p class="for"><span class="who crew">Crew</span><span class="who office">Office</span></p>
   <p class="lede">The initial count records what is already in a yard or on a site, tag by tag: what it is, its category, where it is on the site plan, and a photo. The office can import the list of tags it expects first (chapter 17), so the count shows what is still to find.</p>
   <h3>Count home</h3>
-  <p>The top line shows when the data was last updated, for example “Updated Oct 30 14:05 · saved for offline use”. Tiles show <span class="ui">Expected</span>, <span class="ui">Counted</span>, <span class="ui">Received</span> and “N of M tags found”, which adds “· 1 needs attention in Sync” when a count was refused or stopped retrying. A refused count isn't counted as found, and its tag goes back to <span class="ui">Not found yet</span>. <span class="ui">Not found yet</span> lists expected tags still to find, with a search box; tapping one counts it without scanning. <span class="ui">Recent counts</span> shows each count's state.</p>
+  <p>The top line shows when the data was last updated, for example “Updated Oct 30, 2:05 PM · saved for offline use”. Tiles show <span class="ui">Expected</span>, <span class="ui">Counted</span>, <span class="ui">Received</span> and “N of M tags found”, which adds “· 1 needs attention in Sync” when a count was refused or stopped retrying. A refused count isn't counted as found, and its tag goes back to <span class="ui">Not found yet</span>. <span class="ui">Not found yet</span> lists expected tags still to find, with a search box; tapping one counts it without scanning. <span class="ui">Recent counts</span> shows each count's state.</p>
   <h3>Counting a tag</h3>
   <ol class="steps">
     <li><strong>Scan</strong> the item's tag. The QR value is the tag number. The banner says whether it is an <em>expected item</em>, a <em>new tag</em> (added to the list) or <em>already counted</em> (saving updates that count).</li>
@@ -871,7 +871,7 @@
   <h3>Office site</h3>
   <p>The web host runs the site build, which copies the pages and scripts, checks that the required pages exist and writes <code>release.json</code> with the commit and SHA-256 hashes of the key assets. The <code>production-smoke</code> job then waits for that commit to go live, checks the asset hashes and confirms private paths return 404. To roll back, restore the last verified deploy on the web host.</p>
   <h3>Field app</h3>
-  <p>App updates carry new screens to every phone on the same runtime (1.1.0). A phone downloads an update when the app opens and switches to it the next time the app is fully closed and reopened. The current production update is 56cc444c on build 5.</p>
+  <p>App updates carry new screens to every phone on the same runtime (1.1.0). A phone downloads an update when the app opens and switches to it the next time the app is fully closed and reopened. The current production update is 63ed2c22 on build 5.</p>
   <h3>License job</h3>
   <p>A scheduled job in the office repository runs the license removal script every day at 09:17 UTC, and can be run by hand. It needs the service-role key as a repository secret, which an administrator sets; the database address is optional. If a run fails, the Loads page's backup still removes due licenses when office staff open it; fix the job the same week.</p>
 </section>
@@ -913,6 +913,7 @@
     <tbody>
       <tr><td>1</td><td>Oct 31, 2026</td><td>Field app 1.1.0 (build 5, update 56cc444c); office site release 8bb6abd; database migration 024</td><td>First edition.</td></tr>
       <tr><td>2</td><td>Nov 2, 2026</td><td>Same as edition 1</td><td>US English spelling, words and dates throughout. Screen labels are quoted in US spelling; where a screen still spells a word differently, it means the same thing. No rules changed.</td></tr>
+      <tr><td>3</td><td>Nov 6, 2026</td><td>Field app 1.1.0 (build 5, update 63ed2c22); office site release 835fb3a; database migration 025</td><td>The app, the office site and database messages now use US spelling too, so the screens match the labels quoted here. Count home shows a 12-hour time, for example “Updated Oct 30, 2:05 PM”. No rules changed.</td></tr>
     </tbody>
   </table>
   <h3>Updating this guide</h3>
