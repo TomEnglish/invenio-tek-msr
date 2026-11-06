@@ -18,7 +18,7 @@ function fakeSupabase({ queue, failStorageFor = [] }) {
     return { calls, fetchImpl };
 }
 
-test('each due load has its files deleted before its licence is cleared, and nothing private is printed', async () => {
+test('each due load has its files deleted before its license is cleared, and nothing private is printed', async () => {
     const { purgeDriverLicences } = await import('../scripts/purge-driver-licences.mjs');
     const queue = [
         { load_id: 'a1', load_number: 'L-0001', storage_paths: ['a1/front.jpg', 'a1/stray.jpg'] },
@@ -37,7 +37,7 @@ test('each due load has its files deleted before its licence is cleared, and not
     assert.ok(lines.every(line => !line.includes('.jpg')), 'file names are never printed');
 });
 
-test('a load whose files could not be deleted keeps its licence and fails the run, after the others are done', async () => {
+test('a load whose files could not be deleted keeps its license and fails the run, after the others are done', async () => {
     const { purgeDriverLicences } = await import('../scripts/purge-driver-licences.mjs');
     const queue = [
         { load_id: 'a1', load_number: 'L-0001', storage_paths: ['a1/front.jpg'] },

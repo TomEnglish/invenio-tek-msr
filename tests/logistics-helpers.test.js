@@ -28,10 +28,10 @@ test('place values: a point needs both coordinates, in range, rounded to 6 place
     assert.deepEqual(logistics.placeValues(form({ latitude: '-90', longitude: '180' })).values.latitude, -90);
 });
 
-test('place values: the radius is a whole number of metres from 25 to 20,000', () => {
+test('place values: the radius is a whole number of meters from 25 to 20,000', () => {
     for (const ok of ['25', '20000', ' 800 ']) assert.equal(logistics.placeValues(form({ geofence_radius_m: ok })).values.geofence_radius_m, Number(ok), ok);
     for (const bad of ['24', '20001', '12.5', 'wide', '-300']) {
-        assert.deepEqual(logistics.placeValues(form({ geofence_radius_m: bad })), { error: 'Arrival radius must be a whole number of metres from 25 to 20,000.', field: 'geofence_radius_m' }, bad);
+        assert.deepEqual(logistics.placeValues(form({ geofence_radius_m: bad })), { error: 'Arrival radius must be a whole number of meters from 25 to 20,000.', field: 'geofence_radius_m' }, bad);
     }
 });
 

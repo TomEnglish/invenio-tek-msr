@@ -56,7 +56,7 @@ test('the Materials status list has every status the database allows, so a writt
     await page.open('materials');
     assert.match(page.document.getElementById('tableBody').innerHTML, />written off</);
     const colour = status => vm.runInContext(`statusColor(${JSON.stringify(status)})`, page.context);
-    assert.notEqual(colour('written_off'), colour('not_a_status'), 'its own colour, not the one for values the list does not know');
+    assert.notEqual(colour('written_off'), colour('not_a_status'), 'its own color, not the one for values the list does not know');
     // The edit form shows the status but doesn't offer it: correct_material takes only the descriptive fields.
     vm.runInContext('openEditModal(0)', page.context);
     const form = page.document.getElementById('editModalBody').innerHTML;

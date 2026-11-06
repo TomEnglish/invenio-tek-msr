@@ -21,6 +21,19 @@ $$;
 CREATE FUNCTION pg_temp.as_user(uid text) RETURNS text LANGUAGE sql AS $$
  SELECT set_config('request.jwt.claim.sub',uid,true);
 $$;
+-- Like expect_error, for a message the field app recognizes by its words.
+CREATE FUNCTION pg_temp.expect_message(statement text,expected text,label text) RETURNS void LANGUAGE plpgsql AS $$
+DECLARE actual text;
+BEGIN
+ BEGIN
+  EXECUTE statement;
+ EXCEPTION WHEN OTHERS THEN
+  GET STACKED DIAGNOSTICS actual=MESSAGE_TEXT;
+ END;
+ IF actual IS DISTINCT FROM expected THEN
+  RAISE EXCEPTION 'Assertion failed: %; expected "%", received "%"',label,expected,coalesce(actual,'success');
+ END IF;
+END $$;
 
 -- Pieces: counted items, received pipes and crates. HU-C0001 sits inside
 -- HU-B0001, and HU-E0001 inside HU-D0001.
@@ -191,6 +204,9 @@ SELECT pg_temp.assert_true((SELECT position='on_load' AND load_number='L-0001' F
 SELECT pg_temp.expect_error($q$SELECT pg_temp.op('load_depart','{"loadId":"1d000000-0000-4000-8000-000000000001"}')$q$,'22023','The driver''s name comes first');
 SELECT pg_temp.op('load_save','{"loadId":"1d000000-0000-4000-8000-000000000001","driverName":"Rosa Ortiz","driverPhone":"555-0199","truckNumber":"TX-4410","trailerNumber":"TR-88"}');
 SELECT pg_temp.expect_error($q$SELECT pg_temp.op('load_depart','{"loadId":"1d000000-0000-4000-8000-000000000001"}')$q$,'22023','The licence comes before the truck leaves');
+-- The field app knows a departure held back for the licence by this message (US English since 025).
+SELECT pg_temp.expect_message($q$SELECT pg_temp.op('load_depart','{"loadId":"1d000000-0000-4000-8000-000000000001"}')$q$,
+ 'Record the driver''s license number and a photo of it before load L-0001 leaves','The held-back departure names the license');
 SELECT pg_temp.expect_error($q$SELECT pg_temp.op('load_depart','{"loadId":"1d000000-0000-4000-8000-000000000001","overrideReason":"Driver forgot it"}')$q$,
  '42501','Only office staff let a truck leave without the licence');
 SELECT pg_temp.expect_error($q$SELECT pg_temp.op('load_depart','{"loadId":"1d000000-0000-4000-8000-000000000001","confirmAll":true}')$q$,
@@ -428,6 +444,11 @@ SELECT pg_temp.as_user('01111111-1111-4111-8111-111111111111');
 SELECT pg_temp.op('load_close','{"loadId":"1d000000-0000-4000-8000-000000000003","cancel":true}');
 SELECT pg_temp.assert_true((SELECT status='delivered' FROM public.handling_units WHERE code='HU-A0001')
  AND (SELECT status='cancelled' FROM public.loads WHERE id='1d000000-0000-4000-8000-000000000003'),'Cancelling puts the crate back');
+-- The status stays 'cancelled'; messages say canceled (025).
+SELECT pg_temp.expect_message($q$SELECT pg_temp.op('load_save','{"loadId":"1d000000-0000-4000-8000-000000000003","notes":"Late change"}')$q$,
+ (SELECT 'Load '||load_number||' is canceled; it can''t change' FROM public.loads WHERE id='1d000000-0000-4000-8000-000000000003'),'A canceled load can''t change, in US English');
+SELECT pg_temp.expect_message($q$SELECT pg_temp.op('load_off','{"loadId":"1d000000-0000-4000-8000-000000000003","stopId":"5d000000-0000-4000-8000-000000000031","pieces":["HU-A0001"]}')$q$,
+ (SELECT 'Load '||load_number||' is canceled' FROM public.loads WHERE id='1d000000-0000-4000-8000-000000000003'),'Nothing comes off a canceled load, in US English');
 
 -- The return trip again, loaded by the office with nobody to scan at the
 -- shop, then unloaded into an area at our yard.

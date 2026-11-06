@@ -4,7 +4,7 @@ const loads = require('../js/utils/loads-helpers');
 
 const load = (number, status, extra = {}) => ({ load_number: number, status, planned_date: null, planned_count: 0, on_board_count: 0, delivered_count: 0, missing_count: 0, ...extra });
 
-test('the board has a column per open status, newest planned first; closed and cancelled are a separate list', () => {
+test('the board has a column per open status, newest planned first; closed and canceled are a separate list', () => {
     const rows = [load('L-0001', 'planning', { planned_date: '2026-11-01' }), load('L-0002', 'planning', { planned_date: '2026-11-05' }), load('L-0003', 'in_transit'),
         load('L-0004', 'closed'), load('L-0005', 'cancelled'), load('L-0006', 'delivered'), load('L-0007', 'planning')];
     const board = loads.boardGroups(rows);
@@ -54,7 +54,7 @@ test('stops keep their own IDs, need a place, and have a kind and an optional da
     assert.deepEqual(loads.moveItem(['a', 'b', 'c'], 2, 1), ['a', 'b', 'c']);
 });
 
-test('the manifest groups lines by drop-off stop in stop order, leaves out removed pieces, and keeps lines of cancelled stops', () => {
+test('the manifest groups lines by drop-off stop in stop order, leaves out removed pieces, and keeps lines of canceled stops', () => {
     const stops = [{ id: 's2', seq: 2 }, { id: 's1', seq: 1 }];
     const lines = [{ tag: 'B-10', dropoff_stop_id: 's1', status: 'planned' }, { tag: 'B-9', dropoff_stop_id: 's1', status: 'missing' }, { tag: 'A', dropoff_stop_id: 's2', status: 'removed' },
         { tag: 'C', dropoff_stop_id: 'gone', status: 'not_loaded' }];
@@ -62,16 +62,16 @@ test('the manifest groups lines by drop-off stop in stop order, leaves out remov
     assert.deepEqual(lines.filter(loads.printable).map(line => line.tag), ['B-10', 'B-9']);
 });
 
-test('licence values are normalised and checked as 022 stores them', () => {
+test('license values are normalised and checked as 022 stores them', () => {
     assert.deepEqual(loads.licenceValues({ number: ' d123  4567 ', state: ' TX ', expiry: '2028-04-30' }), { licence: { number: 'D123 4567', state: 'TX', expiry: '2028-04-30' } });
-    assert.deepEqual(loads.licenceValues({ number: 'D1' }), { error: 'Enter the licence number: 3 to 40 letters, numbers, spaces or dashes.', field: 'number' });
+    assert.deepEqual(loads.licenceValues({ number: 'D1' }), { error: 'Enter the license number: 3 to 40 letters, numbers, spaces or dashes.', field: 'number' });
     for (const bad of ['-D123', 'D12/34', 'x'.repeat(41)]) assert.equal(loads.licenceValues({ number: bad }).field, 'number', bad);
     assert.equal(loads.licenceValues({ number: 'D123', state: 'x'.repeat(41) }).field, 'state');
     assert.equal(loads.licenceValues({ number: 'D123', expiry: '2028-13-01' }).field, 'expiry');
     assert.deepEqual(loads.licenceValues({ number: 'D123' }).licence, { number: 'D123', state: null, expiry: null });
 });
 
-test('a licence photo goes to <load id>/<new id>.jpg or .png, up to 10 MB', () => {
+test('a license photo goes to <load id>/<new id>.jpg or .png, up to 10 MB', () => {
     assert.deepEqual(loads.licencePhotoPath('L1', { type: 'image/jpeg', size: 10 }, 'n1'), { path: 'L1/n1.jpg' });
     assert.deepEqual(loads.licencePhotoPath('L1', { type: 'image/png', size: 10 }, 'n1'), { path: 'L1/n1.png' });
     assert.deepEqual(loads.licencePhotoPath('L1', { type: 'image/heic', size: 10 }, 'n1'), { error: 'Choose a JPEG or PNG photo.' });
@@ -107,7 +107,7 @@ test('only outside shops and vendors are places nobody scans', () => {
     assert.deepEqual(['outside_shop', 'vendor', 'yard', 'site', 'other', undefined].map(loads.unscannedPlace), [true, true, false, false, false, false]);
 });
 
-test("only changed details are sent; a licence is ready for departure with a number and a photo, and can be recorded until its removal date", () => {
+test("only changed details are sent; a license is ready for departure with a number and a photo, and can be recorded until its removal date", () => {
     assert.deepEqual(loads.changedKeys({ originPlaceId: 'p1', notes: 'New', driverName: 'Dana' }, { originPlaceId: 'p1', notes: '', driverName: 'Dana' }), { notes: 'New' });
     assert.deepEqual(loads.changedKeys({ notes: '' }, { notes: 'Old' }), { notes: '' }, 'clearing a field is a change');
     assert.equal(loads.licenceReady({ licence_number: 'D123' }, [{ id: 'f' }]), true);

@@ -4,7 +4,7 @@
 (function (root) {
     const LOAD_STATUS = {
         planning: { label: 'Planning', chip: 'chip-muted' }, loading: { label: 'Loading', chip: 'chip-info' }, in_transit: { label: 'In transit', chip: 'chip-warn' },
-        delivered: { label: 'Delivered', chip: 'chip-success' }, closed: { label: 'Closed', chip: 'chip-primary' }, cancelled: { label: 'Cancelled', chip: 'chip-muted' },
+        delivered: { label: 'Delivered', chip: 'chip-success' }, closed: { label: 'Closed', chip: 'chip-primary' }, cancelled: { label: 'Canceled', chip: 'chip-muted' },
     };
     const BOARD_COLUMNS = ['planning', 'loading', 'in_transit', 'delivered'];
     const FINISHED = new Set(['closed', 'cancelled']);
@@ -61,7 +61,7 @@
      */
     function boardGroups(loads, { view = 'open' } = {}) {
         const order = (a, b) => String(b.planned_date || '').localeCompare(String(a.planned_date || '')) || collator.compare(b.load_number, a.load_number);
-        if (view === 'finished') return [{ status: 'finished', label: 'Closed and cancelled', loads: loads.filter(isFinished).sort(order) }];
+        if (view === 'finished') return [{ status: 'finished', label: 'Closed and canceled', loads: loads.filter(isFinished).sort(order) }];
         const shown = view === 'field' ? loads.filter(startedInField) : loads;
         return BOARD_COLUMNS.map(status => ({ status, label: LOAD_STATUS[status].label, loads: shown.filter(load => load.status === status).sort(order) }));
     }
@@ -161,10 +161,10 @@
     /** The licence form → record_driver_licence's p_licence, normalised as 022 stores it, or { error, field }. */
     function licenceValues(input) {
         const number = String(input.number || '').trim().replace(/\s+/g, ' ').toUpperCase();
-        if (!/^[A-Z0-9][A-Z0-9 -]{2,39}$/.test(number)) return { error: 'Enter the licence number: 3 to 40 letters, numbers, spaces or dashes.', field: 'number' };
+        if (!/^[A-Z0-9][A-Z0-9 -]{2,39}$/.test(number)) return { error: 'Enter the license number: 3 to 40 letters, numbers, spaces or dashes.', field: 'number' };
         const state = String(input.state || '').trim(), expiry = String(input.expiry || '').trim();
         if (state.length > 40) return { error: 'Issuing state is too long (at most 40 characters).', field: 'state' };
-        if (expiry && !isDate(expiry)) return { error: 'Expiry date must be a date like 2026-11-30.', field: 'expiry' };
+        if (expiry && !isDate(expiry)) return { error: 'Expiration date must be a date like 2026-11-30.', field: 'expiry' };
         return { licence: { number, state: state || null, expiry: expiry || null } };
     }
 

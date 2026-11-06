@@ -26,7 +26,7 @@
             window.fixture.calls.push(name);
             if(!signedIn) return {error:{message:'Sign in first'}};
             if(scenario==='expired') return {error:{message:'Invitation expired'}};
-            if(scenario==='cancelled') return {error:{message:'Invitation cancelled'}};
+            if(scenario==='cancelled') return {error:{message:'Invitation canceled'}};
             if(scenario==='completion-error') return {error:{message:'Unable to connect'}};
             return success(null);
         },

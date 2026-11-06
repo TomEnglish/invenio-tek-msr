@@ -255,7 +255,7 @@ for (const action of ['resend_invite', 'cancel_invite']) {
   }
 }
 
-Deno.test('cancelling a pending invitation atomically removes project access and deactivates profile', async () => {
+Deno.test('canceling a pending invitation atomically removes project access and deactivates profile', async () => {
   const { clients, calls } = setup({ target: { invitation_status: 'pending', invitation_expires_at: '2020-01-01T00:00:00Z' } });
   const response = await handle(request('POST', { action: 'cancel_invite', userId: TARGET }), clients);
   equal(response.status, 200);

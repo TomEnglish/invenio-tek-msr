@@ -25,21 +25,21 @@ export async function purgeDriverLicences({ url, key, fetchImpl = fetch, log = c
             if (load.storage_paths?.length) await call('/storage/v1/object/driver-licences', 'DELETE', { prefixes: load.storage_paths });
             await call('/rest/v1/rpc/purge_driver_licence', 'POST', { p_load_id: load.load_id });
             removed += 1;
-            log(`Removed the driver licence for load ${load.load_number}`);
+            log(`Removed the driver license for load ${load.load_number}`);
         } catch (error) {
             failed.push(load.load_number);
-            log(`Could not remove the driver licence for load ${load.load_number}: ${error.message}`);
+            log(`Could not remove the driver license for load ${load.load_number}: ${error.message}`);
         }
     }
-    log(`${removed} of ${due.length} due driver licences removed`);
-    if (failed.length) throw new Error(`Driver licences not removed for ${failed.join(', ')}`);
+    log(`${removed} of ${due.length} due driver licenses removed`);
+    if (failed.length) throw new Error(`Driver licenses not removed for ${failed.join(', ')}`);
     return { due: due.length, removed };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
     const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!url || !key) {
-        console.error('::error::Add the SUPABASE_SERVICE_ROLE_KEY repository secret (and SUPABASE_URL, if the project moves) so expired driver licences are removed.');
+        console.error('::error::Add the SUPABASE_SERVICE_ROLE_KEY repository secret (and SUPABASE_URL, if the project moves) so expired driver licenses are removed.');
         process.exitCode = 1;
     } else {
         purgeDriverLicences({ url, key }).catch(error => { console.error(`::error::${error.message}`); process.exitCode = 1; });

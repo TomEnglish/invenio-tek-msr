@@ -55,7 +55,7 @@
     if ($('auditEntries')) {
         let page = 1, totalPages = 1;
         let projects = [];
-        const labels = { fullName: 'Full name', role: 'Role', isActive: 'Active account', projectIds: 'Projects', invitationStatus: 'Invitation status', invitationExpiresAt: 'Invitation expiry', name: 'Project name', description: 'Description', status: 'Status' };
+        const labels = { fullName: 'Full name', role: 'Role', isActive: 'Active account', projectIds: 'Projects', invitationStatus: 'Invitation status', invitationExpiresAt: 'Invitation expires', name: 'Project name', description: 'Description', status: 'Status' };
         const userId = new URLSearchParams(location.search).get('userId') || undefined;
         async function load() {
             $('auditEntries').textContent = 'Loading history...';
@@ -75,7 +75,8 @@
                     const before = entry.details.before || {}, after = entry.details.after || {};
                     for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
                         if (JSON.stringify(before[key]) === JSON.stringify(after[key])) continue;
-                        const value = v => Array.isArray(v) ? v.map(id => projects.find(p => p.id === id)?.name || 'Removed project').join(', ') || 'None' : v === null || v === undefined ? 'None' : typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v).replaceAll('_', ' ');
+                        // An invitation's stored status is a code name: 'cancelled' reads "canceled".
+                        const value = v => Array.isArray(v) ? v.map(id => projects.find(p => p.id === id)?.name || 'Removed project').join(', ') || 'None' : v === null || v === undefined ? 'None' : typeof v === 'boolean' ? (v ? 'Yes' : 'No') : key === 'invitationStatus' && v === 'cancelled' ? 'canceled' : String(v).replaceAll('_', ' ');
                         row.append(element('div', `${labels[key] || key}: ${value(before[key])} → ${value(after[key])}`, 'small text-break'));
                     }
                     $('auditEntries').append(row);

@@ -421,7 +421,7 @@
         form.append(el('h3', zone ? `Edit ${zone.name}` : 'New area', 'h6'));
         const name = field(form, 'Area name', el('input', '', 'form-control'), 'zoneName');
         name.required = true; name.maxLength = 120; name.autocomplete = 'off'; name.value = zone?.name || '';
-        const color = field(form, 'Colour', el('input', '', 'form-control form-control-color'), 'zoneColor');
+        const color = field(form, 'Color', el('input', '', 'form-control form-control-color'), 'zoneColor');
         color.type = 'color'; color.value = editor.color;
         color.oninput = () => { editor.color = color.value; editor.shape.setStyle({ color: color.value, fillColor: color.value }); markDirty(); };
         const parent = field(form, 'Inside', el('select', '', 'form-select'), 'zoneParent');
@@ -562,7 +562,7 @@
                     prepared = await prepareImage(file.files[0]);
                     if (map?.image_width && zones.length) {
                         const before = map.image_width / map.image_height, after = prepared.width / prepared.height;
-                        if (Math.abs(after - before) / before > 0.01 && !confirm('This image has a different shape from the current plan, so existing zones will stretch. Upload it anyway?')) throw new Error('Upload cancelled.');
+                        if (Math.abs(after - before) / before > 0.01 && !confirm('This image has a different shape from the current plan, so existing zones will stretch. Upload it anyway?')) throw new Error('Upload canceled.');
                     }
                 }
                 status.textContent = 'Saving…';
@@ -578,7 +578,7 @@
                 }
                 if (prepared) { status.textContent = 'Uploading image…'; await uploadPlan(target, prepared); }
             } catch (error) {
-                reason = error.message === 'Upload cancelled.' ? error.message : `Could not save: ${inv.errorMessage(error)}`;
+                reason = error.message === 'Upload canceled.' ? error.message : `Could not save: ${inv.errorMessage(error)}`;
             } finally { lock.busy = false; save.disabled = false; }
             // A new map whose image failed still exists; show it so a retry uploads to it rather than creating another map.
             if (reason && !(mode === 'new' && target)) { status.textContent = reason; return; }
@@ -633,8 +633,8 @@
     $('drawZone').onclick = () => startDraw();
     $('finishZone').onclick = finishDraw;
     $('undoPoint').onclick = () => { if (editor?.drawing) { editor.points.pop(); drawEditor(); } };
-    $('cancelDraw').onclick = () => { closeEditor(); message('Drawing cancelled.'); };
-    document.addEventListener('keydown', event => { if (event.key === 'Escape' && editor?.drawing && !dialog.open) { closeEditor(); message('Drawing cancelled.'); } });
+    $('cancelDraw').onclick = () => { closeEditor(); message('Drawing canceled.'); };
+    document.addEventListener('keydown', event => { if (event.key === 'Escape' && editor?.drawing && !dialog.open) { closeEditor(); message('Drawing canceled.'); } });
     window.addEventListener('beforeunload', event => { if (editor?.dirty || lock.busy) { event.preventDefault(); event.returnValue = ''; } });
     if (!office) message(InvenioProjectScope.activeProject.status === 'active' ? 'Office staff manage site maps. You can view plans and zones.' : 'This project is read-only.');
     try {
