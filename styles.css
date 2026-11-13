@@ -1390,6 +1390,7 @@ button.category-toggle:hover { background:var(--primary-soft); color:var(--prima
 .crate-tree-toggle .fas { width:.625rem; color:var(--text-muted); }
 .crate-tree-nested { margin:.5rem 0 0 .375rem; padding-left:1rem; border-left:2px solid var(--border); }
 .crate-tree-level .table { margin:.5rem 0 0; }
+.crate-tree-items td.mono { white-space:nowrap; }
 .crate-contents-row > td { padding:.75rem 1rem; background:var(--raised); }
 @media (max-width:1024px) { .places-layout { grid-template-columns:1fr; } }
 @media (max-width:600px) { .place-form-grid { grid-template-columns:1fr; } }
