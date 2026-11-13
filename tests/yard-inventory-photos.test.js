@@ -67,7 +67,7 @@ const photos = {
     inspection_photos: [{ receiving_record_id: 'r9', storage_path: 'r9/op-0-damage.jpg', photo_type: 'damage', created_at: '2026-10-27T09:00:00Z' }],
 };
 
-test('each item shows how many photos it has, from its count and its receipt, asked for a page at a time for the whole project', async () => {
+test('each item shows how many photos it has, from its count and its receipt; requests grow with the items, not the project\'s photos', async () => {
     const inventory = await openInventory({ inventory_records: records, ...photos });
     const rows = inventory.tbody.innerHTML.split('</tr>').filter(row => row.includes('<tr>'));
     assert.equal(rows.length, 2);
@@ -77,9 +77,8 @@ test('each item shows how many photos it has, from its count and its receipt, as
     const counts = inventory.query('inventory_photos');
     assert.deepEqual(counts.map(request => plain(request.calls.find(([name]) => name === 'range').slice(1))), [[0, 999], [1, 1000]]);
     const receipts = inventory.query('inspection_photos');
-    assert.equal(receipts.length, 2);
-    assert.deepEqual(plain(receipts[0].calls.find(([name]) => name === 'eq')), ['eq', 'receiving_records.project_id', 'project-1'], 'receiving photos through their receipt\'s project');
-    assert.equal(receipts[0].calls.some(([name]) => name === 'in'), false, 'not item by item');
+    assert.equal(receipts.length, 1);
+    assert.deepEqual(plain(receipts[0].calls.find(([name]) => name === 'in')), ['in', 'receiving_record_id', ['r9']], 'receiving photos only for the items listed that were received');
 });
 
 test('the button opens that item\'s photos, oldest first', async () => {

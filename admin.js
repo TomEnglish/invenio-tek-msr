@@ -268,8 +268,9 @@ const TABLE_CONFIG = {
             { key: 'created_at', label: 'Date', editable: false, type: 'datetime' },
         ],
         searchColumns: ['action', 'entity_type'],
-        // Driver-license entries keep the last four digits and load snapshots keep license fields: hidden here.
-        clean: row => { row.details = withoutLicense(row.details); },
+        // Driver-license entries (their reasons, digits and photo names) are hidden whole; load
+        // snapshots keep license fields, which are hidden by name.
+        clean: row => { row.details = /licen[cs]e/i.test(row.action || '') ? '(hidden: driver license entry)' : withoutLicense(row.details); },
     },
     project_schedule: {
         label: 'Project Schedule',

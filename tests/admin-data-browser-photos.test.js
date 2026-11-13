@@ -199,17 +199,21 @@ test('a table replaced before it loads is not shown, and values are escaped in c
 test('the audit log hides license details and shows logged values as text, in the table and the export', async () => {
     const page = openBrowser({ audit_log: [
         { id: 'a1', action: 'driver_licence_recorded', entity_type: 'load', details: { last4: '4821', operation_id: 'op-1' }, created_at: '2026-11-01T12:00:00Z' },
+        { id: 'a4', action: 'driver_licence_kept', entity_type: 'load', details: { reason: 'Keep for the damage claim; DL ends 7730' }, created_at: '2026-11-01T12:03:00Z' },
+        { id: 'a5', action: 'driver_licence_photo_added', entity_type: 'load', details: { photo: 'op-7f3a-1.jpg' }, created_at: '2026-11-01T12:04:00Z' },
         { id: 'a2', action: 'load_saved', entity_type: 'load', details: { load: { load_number: 'L-0001', licence_override_reason: 'Driver forgot it', driver_name: 'Pat Example' } }, created_at: '2026-11-01T12:01:00Z' },
         { id: 'a3', action: 'receiving_created', entity_type: 'receiving_record', details: { tag: '<img src=x onerror=alert(1)>' }, created_at: '2026-11-01T12:02:00Z' },
     ] });
     await page.open('audit_log');
     const body = page.html('tableBody');
-    assert.doesNotMatch(body, /4821|Driver forgot it/, 'license details never reach the page');
-    assert.match(body, /&quot;last4&quot;:&quot;\(hidden\)&quot;/);
+    assert.doesNotMatch(body, /4821|7730|op-7f3a|Driver forgot it/, 'license details never reach the page');
+    assert.equal(body.match(/\(hidden: driver license entry\)/g).length, 3, 'a license entry is hidden whole');
+
     assert.doesNotMatch(body, /<img/, 'a logged tag is text');
     assert.match(body, /&lt;img src=x onerror=alert\(1\)&gt;/);
     page.run('exportCSV()');
-    assert.doesNotMatch(page.downloads.at(-1), /4821|Driver forgot it/);
+    assert.doesNotMatch(page.downloads.at(-1), /4821|7730|op-7f3a|Driver forgot it/);
+    assert.match(page.downloads.at(-1), /""licence_override_reason"":""\(hidden\)""/, 'license fields in a load snapshot are hidden by name');
     assert.match(page.downloads.at(-1), /Pat Example/, 'other details stay');
 });
 
