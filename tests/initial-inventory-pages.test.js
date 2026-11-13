@@ -65,7 +65,7 @@ test('new inventory tables are project scoped for reads and writes', () => {
     }
 });
 
-test('Yard Inventory builds item checkboxes without markup', () => {
+test('Inventory builds item checkboxes without markup', () => {
     const page = fs.readFileSync('inventory.html', 'utf8');
     assert.doesNotMatch(page, /value="' \+ item \+ '"/);
     assert.match(page, /input\.value = item;/);

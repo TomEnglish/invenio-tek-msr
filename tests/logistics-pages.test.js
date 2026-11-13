@@ -106,3 +106,13 @@ test('the load tables and views are project-scoped', () => {
         assert.equal(isProjectScopedTable(table), true, table);
     }
 });
+
+test('the yard stock page is called Inventory in the sidebar, the header bar and the browser tab', () => {
+    const logisticsNav = sidebar.slice(sidebar.indexOf("section: 'Logistics'"), sidebar.indexOf("section: 'Planning'"));
+    assert.match(logisticsNav, /label: 'Inventory', +icon: 'fa-warehouse', +href: 'inventory\.html'/);
+    assert.match(sidebar, /'inventory\.html': +'Inventory',/);
+    assert.match(fs.readFileSync('inventory.html', 'utf8'), /<title>Inventory - Invenio Field MSR<\/title>/);
+    for (const file of [...fs.readdirSync('.').filter(name => name.endsWith('.html')), 'js/utils/sidebar.js']) {
+        assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /Yard Inventory/i, `${file} no longer says Yard Inventory`);
+    }
+});

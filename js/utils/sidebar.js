@@ -8,7 +8,7 @@
         { label: 'Dashboard',       icon: 'fa-tachometer-alt',    href: 'index.html' },
         { label: 'Work Inbox', icon: 'fa-inbox', href: 'work-inbox.html' },
         { label: 'Shipments',       icon: 'fa-shipping-fast',     href: 'shipment-visibility.html', section: 'Logistics' },
-        { label: 'Yard Inventory',       icon: 'fa-warehouse',         href: 'inventory.html' },
+        { label: 'Inventory',       icon: 'fa-warehouse',         href: 'inventory.html' },
         { label: 'Outside Shops',   icon: 'fa-store',             href: 'outside-shop-inventory.html' },
         { label: 'Places',          icon: 'fa-map-pin',           href: 'places.html' },
         { label: 'Crates',          icon: 'fa-box',               href: 'handling-units.html' },
@@ -33,7 +33,7 @@
     const PAGE_TITLES = {
         'index.html':                   'Dashboard',
         'shipment-visibility.html':     'Shipment Visibility',
-        'inventory.html':               'Yard Inventory',
+        'inventory.html':               'Inventory',
         'outside-shop-inventory.html':  'Outside Shops',
         'shop-contacts.html':           'Shop Contacts',
         'gap-analysis.html':            'Gap Analysis',
