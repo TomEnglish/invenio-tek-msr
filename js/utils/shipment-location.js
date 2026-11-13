@@ -86,14 +86,15 @@
         const none = (label, caption = '') => ({ stage, kind: 'none', label, href: null, external: false, caption, tone: 'muted', title: '' });
         if (stage === 'loading' || stage === 'delivered') {
             const loading = stage === 'loading';
-            const where = fixedLocation(loading ? shipment.origin || shipment.ship_from : shipment.destination || shipment.ship_to, byName);
+            // A blank origin or destination falls back to ship_from or ship_to.
+            const where = fixedLocation(loading ? clean(shipment.origin) || shipment.ship_from : clean(shipment.destination) || shipment.ship_to, byName);
             if (!where) return none(loading ? 'No loading location recorded' : 'No delivery location recorded');
             const area = loading ? '' : clean(shipment.storage_location);
             return { stage, kind: 'place', label: where.label, href: where.href, external: true, exact: where.exact,
                 caption: [loading ? 'Loading location' : 'Delivery location', area].filter(Boolean).join(' · '), tone: '', title: where.title };
         }
         if (stage === 'transit') {
-            const heading = clean(shipment.destination || shipment.ship_to);
+            const heading = clean(shipment.destination) || clean(shipment.ship_to);
             if (!link) return none('No tracker linked', heading ? `On the way to ${heading}` : '');
             const name = clean(tracker?.name) || link.tracker_id;
             const gps = { stage, kind: 'gps', label: name, href: gpsHref(link.tracker_id), external: false, trackerId: link.tracker_id,
@@ -130,12 +131,13 @@
     function errorMessage(error) {
         const code = error?.code, text = error?.message || String(error ?? 'Unknown error');
         if (['42P01', '42883', 'PGRST202', 'PGRST205'].includes(code)) return 'Tracker links are not set up in this database yet (migration 026).';
+        if (code === '40P01') return 'Someone else changed these trackers at the same moment. Try again.';
         // A policy or grant refusal means "no permission"; the database's own checks say why.
         if (code === '42501') return !error?.message || /row-level security|permission denied/i.test(text) ? 'You do not have permission to make this change.' : text;
         return text;
     }
 
-    const api = { STAGES, stageOf, linkable, mapUrl, placesByName, fixedLocation, ageText, gpsHref, shipmentLocation, trackerChoices, errorMessage };
+    const api = { STAGES, statusKey: nameKey, stageOf, linkable, mapUrl, placesByName, fixedLocation, ageText, gpsHref, shipmentLocation, trackerChoices, errorMessage };
     root.InvenioShipmentLocation = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

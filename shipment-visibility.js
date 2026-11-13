@@ -35,6 +35,7 @@
         const year = date.getFullYear() === new Date().getFullYear() ? undefined : 'numeric';
         return date.toLocaleString('en-US', { month: 'short', day: 'numeric', year, hour: 'numeric', minute: '2-digit' });
     }
+    const numberOf = shipment => shipment.shipment_number || `#${shipment.id}`;
 
     async function fetchAll(client, table, columns, filter = query => query) {
         const rows = [];
@@ -46,7 +47,7 @@
         }
     }
 
-    const data = { shipments: [], byName: new Map(), trackers: [], trackerById: new Map(), links: [], linkByShipment: new Map(), linksReady: false };
+    const data = { shipments: [], byName: new Map(), trackers: [], trackerById: new Map(), trackersReady: false, links: [], linkByShipment: new Map(), linksReady: false };
     const fetchLinks = () => fetchAll(projectSupabaseClient, 'shipment_trackers', 'id,shipment_id,tracker_id,linked_at', query => query.is('ended_at', null));
     function setLinks(links) {
         data.links = links; data.linkByShipment = new Map(links.map(link => [link.shipment_id, link])); data.linksReady = true;
@@ -67,36 +68,40 @@
         }
         data.shipments = shipments.value;
         if (places.status === 'fulfilled') data.byName = where.placesByName(places.value, projectId);
-        if (trackers.status === 'fulfilled') { data.trackers = trackers.value; data.trackerById = new Map(trackers.value.map(tracker => [tracker.id, tracker])); }
+        if (trackers.status === 'fulfilled') {
+            data.trackers = trackers.value; data.trackerById = new Map(trackers.value.map(tracker => [tracker.id, tracker])); data.trackersReady = true;
+        }
         if (links.status === 'fulfilled') setLinks(links.value);
         const notes = [];
         if (links.status === 'rejected') notes.push(`Tracker links couldn't be loaded: ${where.errorMessage(links.reason)}`);
-        if (trackers.status === 'rejected') notes.push('Tracker positions couldn’t be loaded; GPS links still open the GPS Tracking map.');
+        if (trackers.status === 'rejected') notes.push("Tracker positions couldn't be loaded; GPS links still open the GPS Tracking map.");
+        if (places.status === 'rejected') notes.push("Saved places couldn't be loaded, so every location opens as a map search.");
         message(notes.join(' '));
         applyFilters();
     }
 
+    // Statuses come from the shipment log as typed: the totals, badges, filter and location all ignore capitals and spacing.
     function applyFilters() {
         const search = $('filterSearch').value.toLowerCase().trim();
-        const shipType = $('filterShipType').value, mode = $('filterMode').value, status = $('filterStatus').value;
+        const shipType = $('filterShipType').value, mode = $('filterMode').value, status = where.statusKey($('filterStatus').value);
         const filtered = data.shipments.filter(row => (!search || (row.cargo_description || '').toLowerCase().includes(search))
-            && (!shipType || row.ship_type === shipType) && (!mode || row.mode === mode) && (!status || row.status === status));
+            && (!shipType || row.ship_type === shipType) && (!mode || row.mode === mode) && (!status || where.statusKey(row.status) === status));
         updateKPIs(filtered);
         renderTable(filtered);
     }
 
     function updateKPIs(rows) {
-        const count = test => rows.filter(test).length.toLocaleString('en-US');
+        const count = stage => rows.filter(row => where.stageOf(row.status) === stage).length.toLocaleString('en-US');
         $('kpiTotal').textContent = rows.length.toLocaleString('en-US');
-        $('kpiNotShipped').textContent = count(row => row.status === 'Not RTS' || row.status === 'RTS');
-        $('kpiInTransit').textContent = count(row => row.status === 'In Transit');
-        $('kpiDelivered').textContent = count(row => row.status === 'Delivered');
+        $('kpiNotShipped').textContent = count('loading');
+        $('kpiInTransit').textContent = count('transit');
+        $('kpiDelivered').textContent = count('delivered');
     }
 
-    const BADGES = { Delivered: 'bg-success', 'In Transit': 'bg-warning text-dark', 'Not RTS': 'bg-secondary', RTS: 'bg-info text-dark' };
+    const BADGES = { delivered: 'bg-success', 'in transit': 'bg-warning text-dark', 'not rts': 'bg-secondary', rts: 'bg-info text-dark' };
     function statusCell(status) {
         const cell = el('td');
-        cell.append(el('span', status || '—', `badge ${BADGES[status] || 'bg-secondary'}`));
+        cell.append(el('span', status || '—', `badge ${BADGES[where.statusKey(status)] || 'bg-secondary'}`));
         return cell;
     }
 
@@ -123,10 +128,11 @@
         // A tracker still on a shipment that isn't on its way: say which, so it can be taken off for reuse.
         if (link && stage !== 'transit') cell.append(el('div', `Tracker: ${trackerName(link)}`, 'small text-muted'));
         if (office && data.linksReady && (link || where.linkable(shipment.status))) {
-            const number = shipment.shipment_number || `#${shipment.id}`;
-            const action = button(link ? 'Change tracker' : 'Link tracker', 'btn btn-link btn-sm p-0 shipment-tracker-action', () => openTrackerDialog(shipment));
+            const text = link ? 'Change tracker' : 'Link tracker';
+            const action = button(text, 'btn btn-link btn-sm p-0 shipment-tracker-action', () => openTrackerDialog(shipment));
             action.dataset.shipmentId = String(shipment.id);
-            action.setAttribute('aria-label', link ? `Change or unlink the tracker on shipment ${number}` : `Link a tracker to shipment ${number}`);
+            // The accessible name starts with the words on the button.
+            action.setAttribute('aria-label', `${text} ${link ? 'on' : 'to'} shipment ${numberOf(shipment)}`);
             cell.append(action);
         }
         return cell;
@@ -149,34 +155,42 @@
 
     // ---- Linking a tracker (office staff) ---------------------------------------------------------
     const dialog = $('trackerDialog'), dialogStatus = $('trackerStatus');
-    let current = null; // { shipment, choice }
+    // shipment: the one being changed; choice: the tracker chosen; move: a tracker the database said is on another
+    // shipment, so the next try moves it.
+    let current = null;
     dialog.addEventListener('cancel', event => {
         if (lock.busy && event.cancelable) { event.preventDefault(); dialogStatus.textContent = STILL_SAVING; }
     });
     dialog.addEventListener('close', () => {
-        // A second Escape closes the dialog whatever the page does; keep it open until the save finishes.
+        // A second Escape closes the dialog whatever the page does; keep it open until the save and the re-read finish.
         if (lock.busy) { dialog.showModal(); dialogStatus.textContent = STILL_SAVING; return; }
         const shipmentId = current?.shipment.id;
         current = null;
         const opener = $('cargoTableBody').querySelector(`button[data-shipment-id="${shipmentId}"]`);
         (opener || $('pageMessage')).focus();
     });
+    const focusDialog = () => ($('trackerChoice') || $('trackerTitle')).focus();
 
     function openTrackerDialog(shipment) {
         if (lock.busy) return;
-        current = { shipment, choice: '' };
+        current = { shipment, choice: '', move: null };
         dialogStatus.textContent = '';
         renderDialog();
         dialog.showModal();
-        ($('trackerChoice') || $('trackerTitle')).focus();
+        focusDialog();
     }
+
+    function choicesFor(shipment) {
+        const numbers = new Map(data.shipments.map(row => [row.id, numberOf(row)]));
+        return where.trackerChoices(data.trackers, data.links, numbers, shipment.id, Date.now());
+    }
+    const moving = choice => Boolean(choice && (choice.elsewhere || current.move === choice.id));
 
     function renderDialog() {
         const { shipment } = current;
         const linked = data.linkByShipment.get(shipment.id) || null;
-        const numbers = new Map(data.shipments.map(row => [row.id, row.shipment_number || `#${row.id}`]));
-        const choices = where.trackerChoices(data.trackers, data.links, numbers, shipment.id, Date.now());
-        const title = el('h2', `Tracker for shipment ${shipment.shipment_number || `#${shipment.id}`}`, 'h5');
+        const choices = choicesFor(shipment);
+        const title = el('h2', `Tracker for shipment ${numberOf(shipment)}`, 'h5');
         title.id = 'trackerTitle'; title.tabIndex = -1;
         const parts = [title, el('p', [shipment.cargo_description, shipment.status].filter(Boolean).join(' · '), 'text-muted'),
             el('p', linked ? `Linked now: ${trackerName(linked)}, since ${timeText(linked.linked_at)}.` : 'No tracker is linked to this shipment.')];
@@ -192,9 +206,9 @@
             const update = () => {
                 const choice = choices.find(item => item.id === select.value);
                 current.choice = select.value;
-                note.textContent = choice?.elsewhere ? `${choice.name} is on ${choice.elsewhere}. Linking it here takes it off that shipment.` : '';
+                note.textContent = !moving(choice) ? '' : `${choice.name} is on ${choice.elsewhere || 'another shipment'}. Linking it here takes it off that shipment.`;
                 note.hidden = !note.textContent;
-                save.textContent = choice?.elsewhere ? 'Move tracker here' : 'Link tracker';
+                save.textContent = moving(choice) ? 'Move tracker here' : 'Link tracker';
                 save.disabled = !choice || choice.here;
             };
             select.addEventListener('change', update);
@@ -202,7 +216,7 @@
             actions.append(save);
             update();
         } else {
-            parts.push(el('p', 'This project has no trackers yet.', 'text-muted'));
+            parts.push(el('p', data.trackersReady ? 'This project has no trackers yet.' : "The trackers couldn't be loaded, so none can be linked right now.", 'text-muted'));
         }
         if (linked) actions.append(button('Unlink tracker', 'btn btn-outline-danger', () => unlinkTracker(linked)));
         actions.append(button('Cancel', 'btn btn-outline-secondary', () => dialog.close()));
@@ -216,29 +230,43 @@
         if (select) select.disabled = busy;
     }
 
-    // After a change, or a refusal that means the links changed meanwhile: read them again and redraw.
+    // After a change, or a refusal that means the links changed meanwhile: read them again and redraw. Says whether it could.
     async function refreshLinks() {
-        try { setLinks(await fetchLinks()); } catch (error) { message(`Tracker links couldn't be reloaded: ${where.errorMessage(error)}`); }
+        let read = true;
+        try { setLinks(await fetchLinks()); } catch (error) { read = false; }
         applyFilters();
+        return read;
+    }
+    const NOT_REFRESHED = " The list couldn't be refreshed, so other recent changes may not show; reload the page to see them.";
+
+    // A refused change: re-read the links, then show the dialog again with the reason. The dialog stays busy until then.
+    async function refused(error) {
+        const read = await refreshLinks();
+        setBusy(false);
+        renderDialog();
+        dialogStatus.textContent = where.errorMessage(error) + (read ? '' : NOT_REFRESHED);
+        focusDialog();
     }
 
     async function linkTracker() {
         if (lock.busy || !current) return;
         const { shipment } = current;
-        const numbers = new Map(data.shipments.map(row => [row.id, row.shipment_number || `#${row.id}`]));
-        const choice = where.trackerChoices(data.trackers, data.links, numbers, shipment.id).find(item => item.id === current.choice);
+        const choice = choicesFor(shipment).find(item => item.id === current.choice);
         if (!choice || choice.here) return;
+        const move = moving(choice);
         setBusy(true);
         dialogStatus.textContent = 'Saving…';
-        const { error } = await supabaseClient.rpc('link_shipment_tracker', { p_shipment_id: shipment.id, p_tracker_id: choice.id, p_move: Boolean(choice.elsewhere) });
-        setBusy(false);
+        const { data: link, error } = await supabaseClient.rpc('link_shipment_tracker', { p_shipment_id: shipment.id, p_tracker_id: choice.id, p_move: move });
         if (error) {
-            await refreshLinks();
-            if (current) { renderDialog(); dialogStatus.textContent = where.errorMessage(error); $('trackerChoice')?.focus(); }
+            // The database says the tracker is on another shipment this page didn't know of: offer to move it.
+            if (error.code === '23505') current.move = choice.id;
+            await refused(error);
             return;
         }
-        await refreshLinks();
-        message(`${choice.name} is linked to shipment ${shipment.shipment_number || `#${shipment.id}`}${choice.elsewhere ? `, and no longer to ${choice.elsewhere}` : ''}.`);
+        const read = await refreshLinks();
+        if (!read && link) { setLinks([...data.links.filter(row => row.shipment_id !== shipment.id && row.tracker_id !== choice.id), link]); applyFilters(); }
+        setBusy(false);
+        message(`${choice.name} is linked to shipment ${numberOf(shipment)}${choice.elsewhere ? `, and no longer to ${choice.elsewhere}` : ''}.${read ? '' : NOT_REFRESHED}`);
         dialog.close();
     }
 
@@ -248,14 +276,11 @@
         setBusy(true);
         dialogStatus.textContent = 'Saving…';
         const { error } = await supabaseClient.rpc('unlink_shipment_tracker', { p_shipment_id: shipment.id, p_tracker_id: linked.tracker_id });
+        if (error) { await refused(error); return; }
+        const read = await refreshLinks();
+        if (!read) { setLinks(data.links.filter(row => row.shipment_id !== shipment.id)); applyFilters(); }
         setBusy(false);
-        if (error) {
-            await refreshLinks();
-            if (current) { renderDialog(); dialogStatus.textContent = where.errorMessage(error); }
-            return;
-        }
-        await refreshLinks();
-        message(`${name} is no longer linked to shipment ${shipment.shipment_number || `#${shipment.id}`}.`);
+        message(`${name} is no longer linked to shipment ${numberOf(shipment)}.${read ? '' : NOT_REFRESHED}`);
         dialog.close();
     }
 

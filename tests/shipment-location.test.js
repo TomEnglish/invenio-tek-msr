@@ -57,6 +57,10 @@ test('before a shipment leaves, it is at its loading location; once delivered, a
         caption: '', tone: 'muted', title: '' });
     assert.equal(at({ status: 'Not RTS' }).label, 'No loading location recorded');
     assert.equal(at({ status: 'On hold', origin: 'Tulsa, OK' }).label, '—', 'a status the page doesn\'t know claims no location');
+    assert.equal(at({ status: 'Not RTS', origin: '  ', ship_from: 'Fixture Machine Works' }).href, search('29.7521,-95.3612'), 'a blank origin falls back to ship_from');
+    assert.equal(at({ status: 'Delivered', destination: ' ', ship_to: 'Freeport, TX' }).label, 'Freeport, TX', 'a blank destination falls back to ship_to');
+    assert.equal(where.shipmentLocation({ status: 'In Transit', destination: ' ', ship_to: 'Freeport, TX' }).caption, 'On the way to Freeport, TX');
+    assert.equal(where.statusKey('  In   Transit '), 'in transit');
 });
 
 test('on the way, it is where its linked tracker last reported', () => {
@@ -104,5 +108,6 @@ test('errors say what to do', () => {
     assert.equal(where.errorMessage({ code: '42501', message: 'permission denied for table shipment_trackers' }), 'You do not have permission to make this change.');
     assert.equal(where.errorMessage({ code: '42501', message: 'Only office staff can link a tracker to a shipment' }), 'Only office staff can link a tracker to a shipment');
     assert.equal(where.errorMessage({ code: '23505', message: 'Tracker Two is on shipment SHP-1. Move it to this shipment?' }), 'Tracker Two is on shipment SHP-1. Move it to this shipment?');
+    assert.equal(where.errorMessage({ code: '40P01', message: 'deadlock detected' }), 'Someone else changed these trackers at the same moment. Try again.');
     assert.equal(where.errorMessage(new Error('Network down')), 'Network down');
 });

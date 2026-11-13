@@ -168,7 +168,8 @@ test('office staff link a tracker to a shipment that is ready or on its way, and
     assert.equal(page.location('SHP-5').button, null, 'delivered with no tracker: nothing to change');
     assert.equal(page.location('SHP-6').button.textContent, 'Change tracker', 'a tracker still on a delivered shipment can be taken off');
     const opener = page.location('SHP-4').button;
-    assert.equal(opener.getAttribute('aria-label'), 'Link a tracker to shipment SHP-4');
+    assert.equal(opener.getAttribute('aria-label'), 'Link tracker to shipment SHP-4', 'the accessible name starts with the words on the button');
+    assert.equal(page.location('SHP-3').button.getAttribute('aria-label'), 'Change tracker on shipment SHP-3');
     opener.click();
     await settle();
     const dialog = page.$('trackerDialog'), choice = page.$('trackerChoice');
@@ -259,6 +260,7 @@ test('a refused unlink says why and shows the tracker now on the shipment', asyn
     await settle();
     assert.equal(page.$('trackerStatus').textContent, 'The tracker on shipment SHP-3 has changed since you opened it; open it again');
     assert.match(page.$('trackerContent').querySelectorAll('p')[1].textContent, /^Linked now: Tracker Three, since /);
+    assertFocus(page, page.$('trackerChoice'), 'focus stays in the dialog, on the tracker list');
 });
 
 test('without migration 026 the locations still work, and no one is offered a tracker link', async () => {
@@ -273,7 +275,7 @@ test('without migration 026 the locations still work, and no one is offered a tr
 
 test('a failed read of tracker positions still links to the GPS map; a failed read of shipments says so', async () => {
     const page = await openPage({ prepare: server => { server.fail = request => request.table === 'vw_active_samsara_trackers' ? { message: 'Fixture source unavailable' } : null; } });
-    assert.equal(page.$('pageMessage').textContent, 'Tracker positions couldn’t be loaded; GPS links still open the GPS Tracking map.');
+    assert.equal(page.$('pageMessage').textContent, "Tracker positions couldn't be loaded; GPS links still open the GPS Tracking map.");
     assert.deepEqual(page.location('SHP-3').link, ['trk-1', 'samsara-tracking.html?tracker=trk-1', '_blank', 'noopener noreferrer']);
     const broken = await openPage({ prepare: server => { server.fail = request => request.table === 'shipments' ? { message: 'Fixture source unavailable' } : null; } });
     assert.deepEqual(broken.rows(), [['Failed to load shipment data.']]);
@@ -299,8 +301,87 @@ test('the page loads its helper first, scopes tracker links to the project and n
     }
     const js = fs.readFileSync('shipment-visibility.js', 'utf8');
     assert.doesNotMatch(js, /\.(insert|update|upsert|delete)\(/, 'links change only through the two functions');
-    assert.match(js, /rpc\('link_shipment_tracker', \{ p_shipment_id: shipment\.id, p_tracker_id: choice\.id, p_move: Boolean\(choice\.elsewhere\) \}\)/);
+    assert.match(js, /rpc\('link_shipment_tracker', \{ p_shipment_id: shipment\.id, p_tracker_id: choice\.id, p_move: move \}\)/);
     assert.match(js, /rpc\('unlink_shipment_tracker', \{ p_shipment_id: shipment\.id, p_tracker_id: linked\.tracker_id \}\)/);
     assert.equal(isProjectScopedTable('shipment_trackers'), true);
     assert.doesNotMatch(fs.readFileSync('js/utils/shipment-location.js', 'utf8').replace(/^.*MAP_SEARCH = .*$/m, ''), /google/i, 'the map is named in one place only');
+});
+
+test('when the database says a tracker is on a shipment the page didn\'t know of, the move is offered', async () => {
+    const page = await openPage({ prepare: server => {
+        // A link this page doesn't read (the fake keeps it in another project), so the page thinks Tracker Three is free.
+        server.state.links.push({ id: 'lp2', project_id: 'p2', shipment_id: 9, tracker_id: 'trk-3', linked_at: hoursAgo(1), ended_at: null });
+    } });
+    page.location('SHP-4').button.click();
+    await settle();
+    page.$('trackerChoice').value = 'trk-3'; page.$('trackerChoice').dispatch('change');
+    assert.equal(page.$('trackerSave').textContent, 'Link tracker');
+    page.$('trackerSave').click();
+    await settle();
+    assert.equal(page.$('trackerStatus').textContent, 'Tracker Tracker Three is on shipment SHP-9. Move it to this shipment?');
+    assert.deepEqual([page.$('trackerSave').textContent, page.$('trackerMoveNote').textContent],
+        ['Move tracker here', 'Tracker Three is on another shipment. Linking it here takes it off that shipment.']);
+    page.$('trackerSave').click();
+    await settle();
+    assert.deepEqual(page.server.calls.map(call => call[1].p_move), [false, true], 'the second try moves it');
+    assert.equal(page.$('pageMessage').textContent, 'Tracker Three is linked to shipment SHP-4.');
+});
+
+test('the dialog stays busy until the change and the re-read are both done', async () => {
+    const page = await openPage();
+    page.location('SHP-6').button.click();
+    await settle();
+    const unlink = () => page.$('trackerContent').querySelectorAll('button').find(node => node.textContent === 'Unlink tracker');
+    page.server.paused = true;
+    unlink().click();
+    await settle();
+    page.server.step();
+    await settle();
+    assert.equal(page.server.waiting.length, 1, 'the change is saved and the links are being read again');
+    unlink().onclick();
+    await settle();
+    assert.equal(page.server.calls.length, 1, 'a second unlink sends nothing meanwhile');
+    page.$('trackerDialog').escape();
+    page.$('trackerDialog').escape({ activated: false });
+    assert.deepEqual([page.$('trackerDialog').open, page.$('trackerStatus').textContent], [true, 'Still saving. Try again in a moment.']);
+    page.server.paused = false;
+    page.server.step();
+    await settle();
+    assert.equal(page.$('trackerDialog').open, false);
+    assert.equal(page.$('pageMessage').textContent, 'Tracker Two is no longer linked to shipment SHP-6.');
+});
+
+test('failed reads say what they mean', async () => {
+    const noTrackers = await openPage({ prepare: server => { server.fail = request => request.table === 'vw_active_samsara_trackers' ? { message: 'down' } : null; } });
+    noTrackers.location('SHP-4').button.click();
+    await settle();
+    assert.equal(noTrackers.$('trackerContent').querySelectorAll('p')[2].textContent, "The trackers couldn't be loaded, so none can be linked right now.");
+    const noPlaces = await openPage({ prepare: server => { server.fail = request => request.table === 'places' ? { message: 'down' } : null; } });
+    assert.equal(noPlaces.$('pageMessage').textContent, "Saved places couldn't be loaded, so every location opens as a map search.");
+    assert.deepEqual(noPlaces.location('SHP-2').link[1], search('IMTT BAYONNE'), 'without places, the text is searched');
+    // A link saved, then the re-read fails: the table shows the change and the message says the rest may be stale.
+    const page = await openPage();
+    page.location('SHP-4').button.click();
+    await settle();
+    page.$('trackerChoice').value = 'trk-3'; page.$('trackerChoice').dispatch('change');
+    page.server.fail = request => request.table === 'shipment_trackers' ? { message: 'down' } : null;
+    page.$('trackerSave').click();
+    await settle();
+    assert.equal(page.$('pageMessage').textContent,
+        "Tracker Three is linked to shipment SHP-4. The list couldn't be refreshed, so other recent changes may not show; reload the page to see them.");
+    assert.deepEqual([page.location('SHP-4').text, page.location('SHP-4').notes], ['Tracker Three', ['No GPS position yet']]);
+});
+
+test('statuses typed with other capitals or spacing are counted, filtered and badged like the rest', async () => {
+    const page = await openPage({ prepare: server => {
+        const row = (id, status) => ({ id, project_id: P, shipment_number: `SHP-${id}`, cargo_description: `Cargo ${id}`, mode: 'ROAD', ship_type: 'DIRECT SHIP',
+            origin: 'Mobile, AL', destination: 'Freeport, TX', ship_from: null, ship_to: null, storage_location: null, status, rts_date: null, delivery_date: null });
+        server.state.shipments.push(row(10, 'In transit'), row(11, 'RTS '));
+    } });
+    assert.deepEqual(['kpiTotal', 'kpiNotShipped', 'kpiInTransit', 'kpiDelivered'].map(id => page.$(id).textContent), ['8', '3', '3', '2']);
+    const badge = number => page.$('cargoTableBody').childNodes.find(node => node.childNodes[0].textContent === `Cargo ${number}`).childNodes[6].childNodes[0].className;
+    assert.deepEqual([badge(10), badge(11)], ['badge bg-warning text-dark', 'badge bg-info text-dark']);
+    page.$('filterStatus').value = 'RTS'; page.$('filterStatus').dispatch('change');
+    assert.deepEqual(page.rows().map(row => row[0]), ['<img src=x onerror=alert(1)> crate', 'Cargo 11']);
+    assert.match(fs.readFileSync('shipment-visibility.html', 'utf8'), /<option value="Not RTS">Not RTS<\/option>\s*<option value="RTS">RTS<\/option>/, 'RTS can be chosen');
 });

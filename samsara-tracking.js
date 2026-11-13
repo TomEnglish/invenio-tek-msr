@@ -18,8 +18,13 @@ let state = {
     map: null,
     markers: {},
     markerCluster: null,
-    siteMarker: null
+    siteMarker: null,
+    // 026: the shipment each tracker rides with, by tracker id.
+    shipmentByTracker: new Map()
 };
+
+// Shipment numbers come from the imported shipment log: escape them, and other linked text, before it goes into HTML.
+const escapeText = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
 
 // ============================================================================
@@ -105,6 +110,7 @@ async function loadTrackers() {
 
         state.trackers = data || [];
         state.filteredTrackers = state.trackers;
+        state.shipmentByTracker = await loadShipmentLinks();
 
         console.log(`Loaded ${state.trackers.length} trackers`);
 
@@ -127,6 +133,27 @@ async function loadTrackers() {
         console.error('Error loading trackers:', error);
         showError('Failed to load tracker data. Please refresh the page.');
     }
+}
+
+// Which shipment each tracker rides with (026). Before 026, or if this read fails, the page shows material links only.
+async function loadShipmentLinks() {
+    const byTracker = new Map();
+    try {
+        const { data: links, error } = await projectSupabaseClient.from('shipment_trackers').select('tracker_id,shipment_id').is('ended_at', null);
+        if (error || !links || !links.length) return byTracker;
+        const { data: shipments, error: shipmentError } = await projectSupabaseClient.from('shipments').select('id,shipment_number')
+            .in('id', links.map(link => link.shipment_id));
+        if (shipmentError) return byTracker;
+        const numbers = new Map((shipments || []).map(row => [row.id, row.shipment_number]));
+        for (const link of links) byTracker.set(link.tracker_id, numbers.get(link.shipment_id) || `#${link.shipment_id}`);
+    } catch (_) { /* the trackers still show */ }
+    return byTracker;
+}
+
+// What a tracker is linked to: its shipment (026) and its PO line.
+function linkedTo(tracker) {
+    const shipment = state.shipmentByTracker.get(tracker.id);
+    return [shipment ? `Shipment ${shipment}` : '', tracker.po_id ? `PO: ${tracker.po_id}${tracker.install_tag ? ` → ${tracker.install_tag}` : ''}` : ''].filter(Boolean);
 }
 
 // ============================================================================
@@ -214,7 +241,8 @@ function addTrackerMarker(tracker) {
                 <strong>Status:</strong> <span class="badge badge-${tracker.status.toLowerCase().replace(' ', '-')}">${tracker.status}</span><br>
                 <strong>Distance:</strong> ${tracker.distance_from_site_km ? tracker.distance_from_site_km.toFixed(2) + ' km' : 'N/A'}<br>
                 <strong>Last Seen:</strong> ${tracker.last_seen_at ? getTimeAgo(new Date(tracker.last_seen_at)) : 'Never'}<br>
-                <strong>Accuracy:</strong> ${tracker.last_accuracy_meters ? tracker.last_accuracy_meters.toFixed(1) + 'm' : 'N/A'}
+                <strong>Accuracy:</strong> ${tracker.last_accuracy_meters ? tracker.last_accuracy_meters.toFixed(1) + 'm' : 'N/A'}${state.shipmentByTracker.has(tracker.id) ? `<br>
+                <strong>Shipment:</strong> ${escapeText(state.shipmentByTracker.get(tracker.id))}` : ''}
             </div>
         </div>
     `;
@@ -250,9 +278,8 @@ function renderTrackers() {
             ? `<span title="${new Date(tracker.last_seen_at).toLocaleString()}">${getTimeAgo(new Date(tracker.last_seen_at))}</span>`
             : '<span class="text-muted">Never</span>';
 
-        const linkedMaterial = tracker.po_id
-            ? `PO: ${tracker.po_id}${tracker.install_tag ? ` → ${tracker.install_tag}` : ''}`
-            : '<span class="text-muted">Not linked</span>';
+        const links = linkedTo(tracker);
+        const linkedMaterial = links.length ? links.map(escapeText).join('<br>') : '<span class="text-muted">Not linked</span>';
 
         const zoomButton = tracker.last_latitude && tracker.last_longitude
             ? `<button class="btn btn-sm btn-outline-lime" onclick="zoomToTracker('${tracker.id}')"><i class="fas fa-map-marker-alt"></i></button>`
@@ -302,7 +329,8 @@ function applyFilters() {
                 (tracker.name || '').toLowerCase().includes(searchTerm) ||
                 (tracker.id || '').toLowerCase().includes(searchTerm) ||
                 (tracker.po_id || '').toLowerCase().includes(searchTerm) ||
-                (tracker.install_tag || '').toLowerCase().includes(searchTerm);
+                (tracker.install_tag || '').toLowerCase().includes(searchTerm) ||
+                (state.shipmentByTracker.get(tracker.id) || '').toLowerCase().includes(searchTerm);
 
             if (!matchesSearch) return false;
         }
@@ -312,11 +340,12 @@ function applyFilters() {
             return false;
         }
 
-        // Linked filter
-        if (linkedFilter === 'linked' && !tracker.linked_material_id) {
+        // Linked filter: to a shipment (026) or a material
+        const linked = Boolean(tracker.linked_material_id) || state.shipmentByTracker.has(tracker.id);
+        if (linkedFilter === 'linked' && !linked) {
             return false;
         }
-        if (linkedFilter === 'unlinked' && tracker.linked_material_id) {
+        if (linkedFilter === 'unlinked' && linked) {
             return false;
         }
 
@@ -376,8 +405,10 @@ function focusLinkedTracker() {
         say(`${name} hasn't reported a GPS position yet.`);
         return;
     }
-    const seen = tracker.last_seen_at ? `last seen ${getTimeAgo(new Date(tracker.last_seen_at)).toLowerCase()}` : 'last seen at an unknown time';
-    say(`Showing ${name}, ${seen}.`);
+    // The Shipments page's words for age ("3 hours ago", "9 days ago"), which don't depend on the browser's locale.
+    const seen = tracker.last_seen_at ? `last seen ${InvenioShipmentLocation.ageText(tracker.last_seen_at)}` : 'last seen at an unknown time';
+    const shipment = state.shipmentByTracker.get(tracker.id);
+    say(`Showing ${name}${shipment ? `, on shipment ${shipment}` : ''}, ${seen}.`);
     state.markerCluster.zoomToShowLayer(marker, () => marker.openPopup());
 }
 
@@ -418,7 +449,7 @@ function setupRealtimeSubscriptions() {
 // EXPORT
 // ============================================================================
 function exportToCSV() {
-    const headers = ['Name', 'Status', 'Latitude', 'Longitude', 'Distance (km)', 'Last Seen', 'Linked Material'];
+    const headers = ['Name', 'Status', 'Latitude', 'Longitude', 'Distance (km)', 'Last Seen', 'Linked To'];
     const rows = state.filteredTrackers.map(t => [
         t.name,
         t.status,
@@ -426,7 +457,7 @@ function exportToCSV() {
         t.last_longitude || '',
         t.distance_from_site_km ? t.distance_from_site_km.toFixed(2) : '',
         t.last_seen_at || '',
-        t.po_id ? `PO: ${t.po_id}${t.install_tag ? ` -> ${t.install_tag}` : ''}` : ''
+        linkedTo(t).join('; ').replace(/ → /g, ' -> ')
     ]);
 
     const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');

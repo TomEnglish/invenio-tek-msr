@@ -10,7 +10,8 @@ INSERT INTO public.shipments(id,shipment_number,status,cargo_description,origin,
  (802,'SHP-802','RTS','Cable drums','Baytown, TX','Freeport, TX','b1111111-1111-4111-8111-111111111111'),
  (803,'SHP-803','Delivered','Valve crate','Mobile, AL','Freeport, TX','b1111111-1111-4111-8111-111111111111'),
  (804,'SHP-804','In Transit','Other project','Tulsa, OK','Freeport, TX','b2222222-2222-4222-8222-222222222222'),
- (805,'SHP-805','In Transit','Finished job','Victoria, TX','Freeport, TX','b3333333-3333-4333-8333-333333333333');
+ (805,'SHP-805','In Transit','Finished job','Victoria, TX','Freeport, TX','b3333333-3333-4333-8333-333333333333'),
+ (806,'SHP-806-SECRET','In Transit','Other project, second','Tulsa, OK','Freeport, TX','b2222222-2222-4222-8222-222222222222');
 INSERT INTO public.samsara_trackers(id,name,last_latitude,last_longitude,last_seen_at,project_id) VALUES
  ('trk-1','Tracker One',29.88,-93.94,now(),'b1111111-1111-4111-8111-111111111111'),
  ('trk-2','Tracker Two',29.73,-94.98,now(),'b1111111-1111-4111-8111-111111111111'),
@@ -125,4 +126,66 @@ SELECT pg_temp.expect_error($q$INSERT INTO public.shipment_trackers(project_id,s
  '23505','a tracker on two shipments is refused even outside the functions');
 SELECT pg_temp.expect_error($q$INSERT INTO public.shipment_trackers(project_id,shipment_id,tracker_id,ended_at) VALUES ('b1111111-1111-4111-8111-111111111111',801,'trk-1',now())$q$,
  '23514','an ended link says why it ended');
+
+-- Crews read tracker changes in the project activity feed: the shipment is named and the tracker's name passed on.
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','f1111111-1111-4111-8111-111111111111',true);
+DO $$ DECLARE d jsonb; BEGIN
+ SELECT details INTO d FROM public.list_project_activity('b1111111-1111-4111-8111-111111111111') WHERE action='shipment_tracker_linked' AND subject='SHP-802';
+ PERFORM pg_temp.assert_true(d='{"tracker_name":"Tracker Two","moved_from_shipment_number":"SHP-801"}'::jsonb,'a move names the tracker and where it came from');
+ PERFORM pg_temp.assert_true((SELECT count(*) FROM public.list_project_activity('b1111111-1111-4111-8111-111111111111') WHERE action LIKE 'shipment_tracker_%')=5
+  AND NOT EXISTS(SELECT 1 FROM public.list_project_activity('b1111111-1111-4111-8111-111111111111') WHERE action LIKE 'shipment_tracker_%' AND subject IS NULL),
+  'every tracker change names its shipment');
+ PERFORM pg_temp.assert_true(NOT EXISTS(SELECT 1 FROM public.list_project_activity('b1111111-1111-4111-8111-111111111111') WHERE details ? 'tracker_id' OR details ? 'shipment_id'),
+  'only the listed details are passed on');
+END $$;
+RESET ROLE;
+
+-- A tracker the sync moves to another project leaves its shipment: the link ends as reassigned, recorded in its project.
+SELECT set_config('request.jwt.claim.sub','',true);
+UPDATE public.samsara_trackers SET project_id='b2222222-2222-4222-8222-222222222222' WHERE id='trk-3';
+DO $$ DECLARE d jsonb; BEGIN
+ PERFORM pg_temp.assert_true(EXISTS(SELECT 1 FROM public.shipment_trackers WHERE shipment_id=803 AND tracker_id='trk-3' AND ended_reason='reassigned' AND ended_by IS NULL),
+  'the link ends when its tracker moves to another project');
+ SELECT details INTO d FROM public.audit_log WHERE action='shipment_tracker_unlinked' AND details->>'tracker_id'='trk-3';
+ PERFORM pg_temp.assert_true(d='{"shipment_id":803,"shipment_number":"SHP-803","tracker_id":"trk-3","tracker_name":"Tracker Three","reason":"The tracker moved to another project"}'::jsonb
+  AND (SELECT project_id FROM public.audit_log WHERE action='shipment_tracker_unlinked' AND details->>'tracker_id'='trk-3')='b1111111-1111-4111-8111-111111111111',
+  'and it is recorded, with why, in the project the link was in');
+END $$;
+
+-- A shipment moved to another project leaves its tracker the same way; a sync that leaves the project alone ends nothing.
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','01111111-1111-4111-8111-111111111111',true);
+SELECT public.link_shipment_tracker(801,'trk-1');
+RESET ROLE;
+UPDATE public.samsara_trackers SET name='Tracker One', last_seen_at=now(), project_id='b1111111-1111-4111-8111-111111111111' WHERE id='trk-1';
+DO $$ BEGIN
+ PERFORM pg_temp.assert_true(EXISTS(SELECT 1 FROM public.shipment_trackers WHERE shipment_id=801 AND tracker_id='trk-1' AND ended_at IS NULL),
+  'a tracker update that keeps its project keeps its link');
+END $$;
+UPDATE public.shipments SET project_id='b2222222-2222-4222-8222-222222222222' WHERE id=801;
+DO $$ BEGIN
+ PERFORM pg_temp.assert_true(EXISTS(SELECT 1 FROM public.shipment_trackers WHERE shipment_id=801 AND tracker_id='trk-1' AND ended_reason='reassigned'
+  AND ended_by='01111111-1111-4111-8111-111111111111'),'the link ends when its shipment moves to another project');
+ PERFORM pg_temp.assert_true(EXISTS(SELECT 1 FROM public.audit_log WHERE action='shipment_tracker_unlinked' AND details->>'reason'='The shipment moved to another project'
+  AND details->>'shipment_number'='SHP-801' AND project_id='b1111111-1111-4111-8111-111111111111'),'recorded with why');
+END $$;
+UPDATE public.shipments SET project_id='b1111111-1111-4111-8111-111111111111' WHERE id=801;
+
+-- A link that somehow reaches across projects is never moved, or named, from a project that can't see it.
+INSERT INTO public.shipment_trackers(project_id,shipment_id,tracker_id) VALUES ('b2222222-2222-4222-8222-222222222222',806,'trk-2');
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','01111111-1111-4111-8111-111111111111',true);
+DO $$ DECLARE state text; message text; BEGIN
+ BEGIN
+  PERFORM public.link_shipment_tracker(802,'trk-2',true);
+ EXCEPTION WHEN OTHERS THEN GET STACKED DIAGNOSTICS state=RETURNED_SQLSTATE, message=MESSAGE_TEXT;
+ END;
+ PERFORM pg_temp.assert_true(state='42501' AND message='Tracker Tracker Two is on a shipment in another project; take it off there first'
+  AND position('SECRET' in message)=0,'refused without naming the other project''s shipment');
+END $$;
+RESET ROLE;
+DO $$ BEGIN
+ PERFORM pg_temp.assert_true(EXISTS(SELECT 1 FROM public.shipment_trackers WHERE shipment_id=806 AND ended_at IS NULL),'and that link is left as it was');
+END $$;
 ROLLBACK;

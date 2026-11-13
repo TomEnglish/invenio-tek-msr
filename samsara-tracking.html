@@ -235,7 +235,7 @@
             </select>
             <select class="form-select gps-filter-linked" id="filterLinked">
                 <option value="">All Trackers</option>
-                <option value="linked">Linked to Materials</option>
+                <option value="linked">Linked to a shipment or material</option>
                 <option value="unlinked">Not Linked</option>
             </select>
             <div class="form-check gps-filter-check">
@@ -286,7 +286,7 @@
                             <th>Location</th>
                             <th>Distance from Site</th>
                             <th>Last Seen</th>
-                            <th>Linked Material</th>
+                            <th>Linked To</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -331,12 +331,13 @@
     <script src="js/utils/formatting.js?v=20260424f"></script>
     <script src="js/utils/branding.js?v=20261010portal"></script>
     <script src="js/utils/supabase-client.js?v=20260424f"></script>
-    <script src="js/utils/project-scope.js?v=20260908a"></script>
+    <script src="js/utils/project-scope.js?v=20261113ship"></script>
     <script src="js/utils/user-access.js?v=20260908a"></script>
     <script src="js/utils/auth-guard.js?v=20261019portal"></script>
     <script src="js/utils/sidebar.js?v=20261019portal"></script>
 
     <!-- Main App Script -->
+    <script src="js/utils/shipment-location.js?v=20261113ship"></script>
     <script src="samsara-tracking.js?v=20261113ship"></script>
 </body>
 
