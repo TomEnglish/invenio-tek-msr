@@ -6,6 +6,8 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const inventory = require('../js/utils/inventory-helpers');
 const loadsHelpers = require('../js/utils/loads-helpers');
+const logistics = require('../js/utils/logistics-helpers');
+const crateContents = require('../js/utils/crate-contents');
 const { createProjectScopedClient } = require('../js/utils/project-scope');
 const { emptyLoads, createModel } = require('./support/loads-model');
 const { fakeDocument, assertFocus } = require('./support/fake-dom');
@@ -80,7 +82,10 @@ function fakeServer(state, { role }) {
     const server = { state, model, log: [], paused: false, waiting: [], fail: null };
     server.step = () => server.waiting.shift()();
     const reads = { ...model.views, load_companies: () => state.load_companies, places: () => state.places, load_write_offs: () => state.load_write_offs,
-        load_driver_licences: () => office() ? state.load_driver_licences : [], driver_licence_photos: () => office() ? state.driver_licence_photos : [] };
+        load_driver_licences: () => office() ? state.load_driver_licences : [], driver_licence_photos: () => office() ? state.driver_licence_photos : [],
+        // As packedIn says, T-101 is packed in HU-AAAA11: a counted item, not yet received.
+        handling_unit_items: () => state.items.filter(row => row.qr_code === 'T-101').map(row => ({ id: `c-${row.uid}`, project_id: P, unit_id: id(11), unit_code: 'HU-AAAA11',
+            tag: row.qr_code, name: row.inventory_item, quantity: 1, uom: 'EA', material_id: null, inventory_uid: row.uid, packed_at: ago(6) })) };
     async function respond(request) {
         server.log.push(request);
         if (server.paused) await new Promise(resolve => server.waiting.push(resolve));
@@ -138,7 +143,8 @@ async function openPage({ role = 'admin', projectStatus = 'active', search = '',
             opened.push(printWindow);
             return printWindow;
         },
-        InvenioAuthReady: Promise.resolve(true), InvenioInventory: inventory, InvenioLoads: loadsHelpers, InvenioCurrentProfile: { role },
+        InvenioAuthReady: Promise.resolve(true), InvenioInventory: inventory, InvenioLoads: loadsHelpers, InvenioLogistics: logistics, InvenioCrateContents: crateContents,
+        InvenioCurrentProfile: { role },
         InvenioProjectScope: { getActiveProjectId: () => P, activeProject: { id: P, name: 'North Yard project', status: projectStatus },
             availableProjects: [{ id: P, name: 'North Yard project' }, { id: 'p2', name: 'South Yard project' }] },
         supabaseClient: server.client, projectSupabaseClient: createProjectScopedClient(server.client, () => P),
@@ -160,7 +166,8 @@ async function openPage({ role = 'admin', projectStatus = 'active', search = '',
     const set = (id, value) => { const control = input(id); control.value = value; control.dispatch('input'); control.dispatch('change'); };
     const submit = async name => { await section(name).querySelector('form').onsubmit({ preventDefault() {} }); await settle(); };
     const status = () => $('loadStatus').textContent;
-    const rows = name => section(name).querySelectorAll('tbody').flatMap(tbody => tbody.childNodes.map(row => row.childNodes.map(cell => cell.textContent)));
+    const rows = name => section(name).querySelectorAll('tbody').flatMap(tbody => tbody.childNodes.filter(row => !row.className.split(/\s+/).includes('crate-contents-row'))
+        .map(row => row.childNodes.map(cell => cell.textContent)));
     return { server, document, context, $, drawer, body, columns, card, open, section, find, press, input, set, submit, status, rows, confirms, opened };
 }
 
@@ -283,6 +290,42 @@ test('the manifest is grouped by drop-off stop; pieces are planned by code and t
     await page.press('Remove T-100 from the plan');
     assert.deepEqual(plain(page.server.ops().at(-1).p_payload), { loadId: id(31), remove: ['T-100'] });
     assert.ok(!page.rows('manifest').some(row => row[0] === 'T-100'));
+});
+
+test('a crate on the manifest opens out to show what is inside, level by level; items link to their records', async () => {
+    const page = await openPage();
+    await page.open('L-0001');
+    const manifest = page.section('manifest');
+    const toggle = () => page.section('manifest').querySelectorAll('button').find(node => node.className.split(/\s+/).includes('crate-tree-toggle') && node.textContent === 'HU-AAAA11');
+    const extra = () => page.section('manifest').querySelectorAll('tr').find(row => row.className.split(/\s+/).includes('crate-contents-row'));
+    const contentReads = () => page.server.log.filter(request => ['handling_unit_overview', 'handling_unit_items'].includes(request.table)).map(request => [request.table, plain(request.filters)]);
+    assert.equal(toggle().getAttribute('aria-expanded'), 'false');
+    assert.equal(extra().hidden, true);
+    assert.equal(toggle().getAttribute('aria-controls'), extra().childNodes[0].id);
+    assert.deepEqual(contentReads(), [], 'nothing is read until a crate is opened out');
+    // T-100 rides loose: a counted item, so its tag opens it on Initial Inventory.
+    assert.equal(manifest.querySelectorAll('a').find(node => node.textContent === 'T-100').href, `initial-inventory.html?item=${id(21)}`);
+
+    toggle().click(); await settle();
+    assert.equal(toggle().getAttribute('aria-expanded'), 'true');
+    assert.equal(extra().hidden, false);
+    assert.equal(extra().childNodes[0].colSpan, 4);
+    assert.deepEqual(contentReads(), [['handling_unit_overview', [['project_id', P], ['parent_id', id(11)]]], ['handling_unit_items', [['project_id', P], ['unit_id', id(11)]]]]);
+    assert.deepEqual(plain(extra().querySelectorAll('a').map(node => [node.textContent, node.href])), [['Open HU-AAAA11 on the Crates page', `handling-units.html?unit=${id(11)}`],
+        ['Open', `handling-units.html?unit=${id(12)}`], ['T-101', `initial-inventory.html?item=${id(22)}`]], 'the crate, the crate inside it and the item packed in it');
+    assert.ok(extra().textContent.includes('HU-BBBB22'));
+    assert.ok(extra().textContent.includes('Packed valve'));
+
+    // Redrawn after a change, it stays open and is read again.
+    page.set('planCode', 'hu-free77'); page.set('planStop', id(42));
+    await page.submit('manifest');
+    assert.equal(page.status(), 'Planned hu-free77 on L-0001.');
+    assert.equal(toggle().getAttribute('aria-expanded'), 'true');
+    assert.ok(extra().textContent.includes('Packed valve'));
+    assert.equal(contentReads().filter(([table]) => table === 'handling_unit_items').length, 2);
+    toggle().click();
+    assert.equal(toggle().getAttribute('aria-expanded'), 'false');
+    assert.equal(extra().hidden, true);
 });
 
 test('Mark loaded and depart confirms every planned piece; Cancel load puts crates back', async () => {

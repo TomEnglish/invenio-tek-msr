@@ -2,12 +2,13 @@
     if (document.readyState === 'loading') await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve, { once: true }));
     if (!(await window.InvenioAuthReady)) return;
     const $ = id => document.getElementById(id);
-    const logistics = InvenioLogistics;
+    const logistics = InvenioLogistics, contents = InvenioCrateContents;
     const projectId = InvenioProjectScope.getActiveProjectId();
     const profile = InvenioCurrentProfile;
     const office = ['office_staff', 'admin'].includes(profile.role) && InvenioProjectScope.activeProject.status === 'active';
     const PAGE_SIZE = 250, LABELS_PER_PAGE = 6;
-    const COLUMNS = 'id,code,kind,description,is_high_value,status,parent_id,parent_code,top_unit_id,top_code,place_name,location,item_count,unit_count,sealed_at,created_at';
+    const COLUMNS = 'id,code,kind,description,is_high_value,status,parent_id,parent_code,top_unit_id,top_code,place_name,location,item_count,unit_count,sealed_at,created_at,'
+        + 'load_id,load_number,load_line_status';
     const message = text => { $('pageMessage').textContent = text; };
     function el(tag, text = '', className = '') {
         const node = document.createElement(tag); node.textContent = text; node.className = className; return node;
@@ -30,6 +31,14 @@
     const dateText = value => value ? new Date(value).toLocaleDateString() : '';
     const statusChip = unit => { const status = logistics.UNIT_STATUS[unit.status] || { label: unit.status, chip: 'chip-muted' }; return el('span', status.label, `chip ${status.chip}`); };
     const kindText = unit => logistics.UNIT_KINDS[unit.kind] || unit.kind;
+    // 022: the load a crate's outermost crate is planned for, on or missing from, linked to it on the Loads page.
+    const LOAD_WORDS = { planned: 'Planned on', on_board: 'On', missing: 'Missing from' };
+    function loadLink(unit) {
+        const text = `${LOAD_WORDS[unit.load_line_status] || 'On'} load ${unit.load_number}`;
+        if (!unit.load_id) return el('span', text);
+        const link = el('a', text); link.href = `loads.html?load=${encodeURIComponent(unit.load_id)}`;
+        return link;
+    }
 
     let units = [], byId = new Map(), filtered = [], shown = PAGE_SIZE, lastBatch = null, printing = false;
 
@@ -60,8 +69,7 @@
         const cell = el('td'), where = logistics.unitWhere(unit);
         if (unit.parent_code) cell.append(el('div', `Inside ${unit.parent_code}`, 'mono'));
         if (where) cell.append(el('div', where, unit.parent_code ? 'small text-muted' : ''));
-        // 022: the load its outermost crate is planned for, on or missing from.
-        if (unit.load_number) cell.append(el('div', `${{ planned: 'Planned on', on_board: 'On', missing: 'Missing from' }[unit.load_line_status] || 'On'} load ${unit.load_number}`, 'small'));
+        if (unit.load_number) { const line = el('div', '', 'small'); line.append(loadLink(unit)); cell.append(line); }
         if (!cell.childNodes.length) cell.append(el('span', 'Not recorded', 'small text-muted'));
         return cell;
     }
@@ -109,6 +117,7 @@
         if (unit.top_unit_id && unit.top_unit_id !== unit.id && unit.top_unit_id !== unit.parent_id) {
             pair('Outermost crate', byId.has(unit.top_unit_id) ? link(byId.get(unit.top_unit_id)) : unit.top_code || '');
         }
+        if (unit.load_number) pair('Load', loadLink(unit));
         if (unit.place_name) pair('Place', unit.place_name);
         if (unit.location) pair('Area', unit.location);
         if (unit.sealed_at) pair('Sealed', new Date(unit.sealed_at).toLocaleString());
@@ -117,51 +126,25 @@
         if (unit.parent_id) details.append(el('p', 'A crate inside another crate is wherever its outermost crate is.', 'small text-muted mb-0'));
         content.append(details);
 
-        const items = el('section', '', 'record-section mb-3'), itemBody = el('div');
-        items.append(el('h3', `Items (${unit.item_count.toLocaleString()})`, 'h6'), itemBody);
-        itemBody.append(el('p', unit.item_count ? 'Loading items…' : 'No items packed.', 'text-muted mb-0'));
-        content.append(items);
-
-        const inside = units.filter(other => other.parent_id === unit.id).sort((a, b) => a.code.localeCompare(b.code));
-        const nested = el('section', '', 'record-section');
-        nested.append(el('h3', `Crates inside (${inside.length.toLocaleString()})`, 'h6'));
-        if (!inside.length) nested.append(el('p', 'No crates inside.', 'text-muted mb-0'));
-        else {
-            const rows = el('ul', '', 'unit-children');
-            for (const child of inside) {
-                const row = el('li');
-                row.append(link(child), statusChip(child), el('span', `${kindText(child)} · ${logistics.contentsText(child)}`, 'small text-muted'));
-                rows.append(row);
-            }
-            nested.append(rows);
-        }
-        content.append(nested);
+        // What is inside, read afresh each time a crate is opened: crates, containers and the rest open out in place,
+        // or open in this drawer, and each item links to its record.
+        const inside = el('section', '', 'record-section'), body = el('div');
+        inside.append(el('h3', `Contents · ${logistics.contentsText(unit)}`, 'h6'), body);
+        content.append(inside);
+        tree.levels.clear();
+        if (unit.item_count || unit.unit_count) crateTree.render(body, unit.id);
+        else body.append(el('p', 'Nothing inside.', 'text-muted mb-0'));
         if (drawer.open) title.focus(); else { drawer.showModal(); close.focus(); }
-        if (unit.item_count) void loadItems(unit, itemBody);
     }
-
-    // Each opening builds a new container, so items that arrive after another crate was opened land nowhere.
-    async function loadItems(unit, container) {
-        let rows;
-        try { rows = await fetchAll('handling_unit_items', 'id,tag,name,quantity,uom,packed_at', query => query.eq('unit_id', unit.id)); }
-        catch (error) {
-            container.replaceChildren(el('p', `Items could not be loaded (${logistics.errorMessage(error)}). Close and reopen to retry.`, 'text-danger mb-0'));
-            return;
+    const tree = contents.newState();
+    // A unit inside that this page hasn't read yet (packed since it opened) is read with the rest first.
+    const crateTree = contents.view({ document, client: projectSupabaseClient, state: tree, logistics, openCrate: async other => {
+        if (!byId.has(other.id)) {
+            try { await load(); }
+            catch (error) { message(`Could not load crates: ${logistics.errorMessage(error)}`); return; }
         }
-        if (!rows.length) { container.replaceChildren(el('p', 'No items packed.', 'text-muted mb-0')); return; }
-        rows.sort((a, b) => a.tag.localeCompare(b.tag, undefined, { numeric: true }));
-        const table = el('table', '', 'table table-sm'), head = el('tr'), body = el('tbody');
-        for (const label of ['Tag', 'Item', 'Quantity', 'Packed']) { const cell = el('th', label); cell.scope = 'col'; head.append(cell); }
-        const thead = el('thead'); thead.append(head);
-        for (const item of rows) {
-            const row = el('tr');
-            row.append(el('td', item.tag, 'mono'), el('td', item.name || ''), el('td', `${Number(item.quantity).toLocaleString(undefined, { maximumFractionDigits: 3 })} ${item.uom || ''}`.trim(), 'num'), el('td', dateText(item.packed_at)));
-            body.append(row);
-        }
-        table.append(thead, body);
-        const wrap = el('div', '', 'table-responsive'); wrap.append(table);
-        container.replaceChildren(wrap);
-    }
+        openUnit(other.id);
+    } });
 
     // ---- Crate labels -----------------------------------------------------------------------
     const labelDialog = $('labelDialog');
@@ -290,5 +273,8 @@ body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #000; backgr
     $('printLabels').hidden = !office;
     $('printLabels').onclick = openLabels;
     try { await load(); }
-    catch (error) { message(`Could not load crates: ${logistics.errorMessage(error)}`); }
+    catch (error) { message(`Could not load crates: ${logistics.errorMessage(error)}`); return; }
+    // The Loads page and the crates inside a crate link here with ?unit=<id>.
+    const linked = new URLSearchParams(location.search).get('unit');
+    if (linked) { if (byId.has(linked)) openUnit(linked); else message('That crate is not in this project, or no longer exists.'); }
 })();

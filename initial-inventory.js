@@ -464,5 +464,11 @@
     $('openImport').onclick = openImport;
     for (const dot of document.querySelectorAll('.legend-dot')) dot.style.backgroundColor = siteMapView.cssToken(inv.STATUS[dot.dataset.status].token, '#174fda');
     try { await load(); }
-    catch (error) { message(`Could not load the inventory: ${inv.errorMessage(error)}`); }
+    catch (error) { message(`Could not load the inventory: ${inv.errorMessage(error)}`); return; }
+    // A crate's contents link to a counted item with ?item=<uid>.
+    const linked = new URLSearchParams(location.search).get('item');
+    if (linked) {
+        const record = records.find(row => row.uid === linked);
+        if (record) void openItem(record); else message('That counted item is not in this project, or no longer exists.');
+    }
 })().catch(error => { const message = document.getElementById('pageMessage'); if (message) message.textContent = error.message; });

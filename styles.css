@@ -1382,6 +1382,15 @@ button.category-toggle:hover { background:var(--primary-soft); color:var(--prima
 .unit-children { list-style:none; margin:0; padding:0; }
 .unit-children li { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; padding:.5rem 0; border-bottom:1px solid var(--border); }
 .unit-children li:last-child { border-bottom:0; }
+/* What is inside a crate, opened out level by level (Crates and Loads pages) */
+.crate-tree > li { display:block; }
+.crate-tree-head { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; }
+.crate-tree-toggle { display:inline-flex; align-items:center; gap:.375rem; font-weight:600; text-decoration:none; }
+.crate-tree-toggle:hover, .crate-tree-toggle:focus-visible { text-decoration:underline; }
+.crate-tree-toggle .fas { width:.625rem; color:var(--text-muted); }
+.crate-tree-nested { margin:.5rem 0 0 .375rem; padding-left:1rem; border-left:2px solid var(--border); }
+.crate-tree-level .table { margin:.5rem 0 0; }
+.crate-contents-row > td { padding:.75rem 1rem; background:var(--raised); }
 @media (max-width:1024px) { .places-layout { grid-template-columns:1fr; } }
 @media (max-width:600px) { .place-form-grid { grid-template-columns:1fr; } }
 /* Loads and Outside Shops (logistics) */
