@@ -348,6 +348,16 @@ test('a link in the drawer asks before leaving unsaved edits, as closing does', 
     const asked = page.confirms.length;
     assert.equal(link().dispatch('click', { metaKey: true }).defaultPrevented, false);
     assert.equal(page.confirms.length, asked);
+    // While a change saves, a link waits too.
+    page.server.paused = true;
+    page.find('Save companies').click();
+    await settle();
+    assert.equal(link().dispatch('click').defaultPrevented, true);
+    assert.equal(page.status(), 'Still saving the last change. Try again in a moment.');
+    assert.equal(page.confirms.length, asked, 'nothing to ask yet');
+    page.server.paused = false;
+    while (page.server.waiting.length) page.server.step();
+    await settle();
 });
 
 test('Mark loaded and depart confirms every planned piece; Cancel load puts crates back', async () => {

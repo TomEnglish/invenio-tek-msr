@@ -239,7 +239,7 @@ test('Open on a crate packed since the page loaded reads the list again; when it
     page.server.fail = null;
     page.server.units = page.server.units.filter(row => row.code !== 'HU-NEWW02');
     await page.open('HU-NEWW02');
-    assert.equal(page.$('unitStatus').textContent, "HU-NEWW02 isn't among this project's crates any more. Reload the page.");
+    assert.equal(page.$('unitStatus').textContent, "HU-NEWW02 isn't among this project's crates anymore. Reload the page.");
     await page.open('HU-NEWW01');
     assert.equal(page.$('unitStatus').textContent, '', 'opening a crate clears it');
 });

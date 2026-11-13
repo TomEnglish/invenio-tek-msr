@@ -147,7 +147,7 @@
             try { await load(); }
             catch (error) { $('unitStatus').textContent = `Could not open ${other.code}: ${logistics.errorMessage(error)}`; return; }
         }
-        if (!byId.has(other.id)) { $('unitStatus').textContent = `${other.code} isn't among this project's crates any more. Reload the page.`; return; }
+        if (!byId.has(other.id)) { $('unitStatus').textContent = `${other.code} isn't among this project's crates anymore. Reload the page.`; return; }
         openUnit(other.id);
     } });
 
