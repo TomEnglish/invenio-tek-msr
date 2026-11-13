@@ -58,6 +58,8 @@
         'load_driver_licences',
         'driver_licence_photos',
         'driver_licence_holds',
+        // 026: which tracker rides with which shipment.
+        'shipment_trackers',
     ]);
 
     let currentUserId = null;

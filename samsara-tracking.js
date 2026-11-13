@@ -35,6 +35,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load tracker data
     await loadTrackers();
 
+    // Show the tracker a Shipments page link names, if any
+    focusLinkedTracker();
+
     // Setup event listeners
     setupEventListeners();
 
@@ -347,6 +350,36 @@ function zoomToTracker(trackerId) {
 }
 
 window.zoomToTracker = zoomToTracker;
+
+// A link from the Shipments page names one tracker (?tracker=<id>, 026). Once the trackers are in, clear any
+// filter that hides it, then zoom to it and open its popup, or say why it isn't on the map.
+function focusLinkedTracker() {
+    const id = new URLSearchParams(location.search).get('tracker');
+    if (!id) return;
+    const notice = document.getElementById('trackerFocus');
+    const say = text => { notice.textContent = text; notice.hidden = false; };
+    const tracker = state.trackers.find(t => t.id === id);
+    if (!tracker) {
+        say("That tracker isn't one of this project's trackers, or it hasn't been synced yet.");
+        return;
+    }
+    if (!state.filteredTrackers.includes(tracker)) {
+        document.getElementById('searchBox').value = '';
+        document.getElementById('filterStatus').value = '';
+        document.getElementById('filterLinked').value = '';
+        document.getElementById('hideUnknown').checked = false;
+        applyFilters();
+    }
+    const name = tracker.name || tracker.id;
+    const marker = state.markers[tracker.id];
+    if (!marker) {
+        say(`${name} hasn't reported a GPS position yet.`);
+        return;
+    }
+    const seen = tracker.last_seen_at ? `last seen ${getTimeAgo(new Date(tracker.last_seen_at)).toLowerCase()}` : 'last seen at an unknown time';
+    say(`Showing ${name}, ${seen}.`);
+    state.markerCluster.zoomToShowLayer(marker, () => marker.openPopup());
+}
 
 // ============================================================================
 // EVENT LISTENERS

@@ -365,4 +365,28 @@ overlap(
     '22023',
 )
 assert sql(f"SELECT status FROM public.projects WHERE id='{second_project}'") == 'active'
+
+
+# Two office users linking one tracker to two shipments at once (026): the
+# second waits, then is told the tracker is on the other shipment.
+sql(f"""
+INSERT INTO public.shipments(id,shipment_number,status,project_id) VALUES
+ (9101,'RACE-SHP-1','In Transit','{first_project}'),(9102,'RACE-SHP-2','In Transit','{first_project}');
+INSERT INTO public.samsara_trackers(id,name,project_id) VALUES('race-trk','Race Tracker','{first_project}');
+""")
+
+
+def link_tracker(shipment):
+    return f"""SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','a1111111-1111-4111-8111-111111111111',true);
+SELECT public.link_shipment_tracker({shipment},'race-trk');"""
+
+
+overlap(
+    'one tracker cannot be linked to two shipments at once',
+    link_tracker(9101),
+    link_tracker(9102),
+    '23505',
+)
+assert sql("SELECT string_agg(shipment_id::text,',') FROM public.shipment_trackers WHERE tracker_id='race-trk' AND ended_at IS NULL") == '9101'
 PY

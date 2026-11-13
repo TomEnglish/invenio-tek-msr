@@ -155,14 +155,25 @@
             {id:1,project_id:project.id,purchase_order_id:'PO-20001',purchase_order_item:'00010',item_description:'Six-inch isolation valve',po_description:'Mechanical package',supplier:'Yard Supply',net_value:150,status:'Sent'},
             {id:2,project_id:project.id,purchase_order_id:'PO-20001',purchase_order_item:'00020',item_description:null,po_description:'Cable tray supports',supplier:'Yard Supply',net_value:50,status:'Sent'},
         ],
-        shipments: [{id:1,project_id:project.id,shipment_number:'SHIP-10',po_number:'PO-20001',status:'Delivered'}, {id:2,project_id:project.id,shipment_number:'SHIP-20',po_number:'PO-20001',status:'In Transit',eta:new Date().toISOString().slice(0,10)}],
+        // Shipments of every status (026's Location column): places from the inventory fixtures with and without a map
+        // point, a markup name, a tracker seen now, a stale one, one on a delivered shipment and an in-transit shipment with none.
+        shipments: [
+            {id:1,project_id:project.id,shipment_number:'SHIP-10',po_number:'PO-20001',status:'Delivered',cargo_description:'Valve crate',mode:'ROAD',ship_type:'DIRECT SHIP',origin:'Pasadena, TX',destination:'North Yard laydown',storage_location:'Rack 1',rts_date:'2026-10-20'},
+            {id:2,project_id:project.id,shipment_number:'SHIP-20',po_number:'PO-20001',status:'In Transit',eta:new Date().toISOString().slice(0,10),cargo_description:'Fuel pump skid',mode:'ROAD',ship_type:'DIRECT SHIP',origin:'Port Arthur, TX',destination:'Coastal Terminal site',rts_date:'2026-11-10'},
+            {id:3,project_id:project.id,shipment_number:'SHIP-30',po_number:'PO-20001',status:'Not RTS',cargo_description:'Cable drums',mode:'ROAD',ship_type:'DIRECT SHIP',origin:'Nederland, TX',destination:'Freeport, TX'},
+            {id:4,project_id:project.id,shipment_number:'SHIP-40',po_number:'PO-20001',status:'RTS',cargo_description:'<img src=x onerror=alert(1)> crate',mode:'ROAD',ship_type:'OUTSIDE SHOP',origin:'Fixture Machine Works',destination:'North Yard laydown',rts_date:'2026-11-14'},
+            {id:5,project_id:project.id,shipment_number:'SHIP-50',status:'In Transit',cargo_description:'MCC Crates',mode:'ROAD',ship_type:'OUTSIDE SHOP',origin:'RIVERBEND YARD',destination:'Fixture Machine Works',rts_date:'2026-11-11'},
+            {id:6,project_id:project.id,shipment_number:'SHIP-60',status:'Delivered',cargo_description:'Gaskets',mode:'BARGE',ship_type:'OUTSIDE SHOP',origin:'North Yard laydown',destination:'Gulf Valve Supply',rts_date:'2026-10-02'},
+            {id:7,project_id:project.id,shipment_number:'SHIP-70',po_number:'PO-20001',status:'In Transit',cargo_description:'Transformer',mode:'ROAD',ship_type:'DIRECT SHIP',origin:'Tulsa, OK',destination:'Freeport, TX',rts_date:'2026-11-01'},
+        ],
         dashboard_metrics: [{id:1,project_id:project.id,project_name:'Wrong imported name',last_updated:'2026-02-22T12:37:00Z',procurement:{total_pos:999},installation:{total_items:0}}],
         installation_datasets: [{project_id:project.id,dataset_key:'audit_data',payload:{items:[]},updated_at:'2026-02-22T12:37:00Z'}, {project_id:project.id,dataset_key:'discipline_summary',payload:{},updated_at:'2026-02-22T12:37:00Z'}],
         samsara_trackers: [{id:'gps-1',project_id:project.id,synced_at:new Date().toISOString()}],
         vw_active_samsara_trackers: [
-            {id:'gps-1',name:'Houston Yard A',status:'On Site',last_latitude:29.76,last_longitude:-95.37,distance_from_site_km:820,is_on_site:false,last_seen_at:new Date().toISOString(),synced_at:new Date().toISOString()},
-            {id:'gps-2',name:'Houston Yard B',status:'In Transit',last_latitude:29.761,last_longitude:-95.371,distance_from_site_km:821,is_on_site:false,last_seen_at:new Date().toISOString(),synced_at:new Date().toISOString()},
-            {id:'gps-3',name:'East Texas Unit 3',status:'On Site',last_latitude:29.762,last_longitude:-95.369,distance_from_site_km:819,is_on_site:false,last_seen_at:new Date().toISOString(),synced_at:new Date().toISOString()},
+            {id:'gps-1',project_id:project.id,name:'Houston Yard A',status:'On Site',last_latitude:29.76,last_longitude:-95.37,distance_from_site_km:820,is_on_site:false,last_seen_at:new Date().toISOString(),synced_at:new Date().toISOString()},
+            {id:'gps-2',project_id:project.id,name:'Houston Yard B',status:'In Transit',last_latitude:29.761,last_longitude:-95.371,distance_from_site_km:821,is_on_site:false,last_seen_at:new Date().toISOString(),synced_at:new Date().toISOString()},
+            {id:'gps-3',project_id:project.id,name:'East Texas Unit 3',status:'Stale',last_latitude:30.2672,last_longitude:-94.0977,distance_from_site_km:819,is_on_site:false,last_seen_at:new Date(Date.now()-10*86400000).toISOString(),synced_at:new Date().toISOString()},
+            {id:'gps-4',project_id:project.id,name:'Spare Tag 4',status:'No Data',last_latitude:null,last_longitude:null,distance_from_site_km:null,is_on_site:false,last_seen_at:null,synced_at:new Date().toISOString()},
         ],
         inventory_records: Array.from({length:6},(_,i)=>({id:`inv-${i}`,project_id:project.id,qr_code:`QR-${i}`,inventory_item:`Valve ${i}`,subsystem:'Mech',unit:'EA',location:'Yard A',status:'In stock',created_at:'2026-09-08T12:00:00Z'})),
     };
@@ -171,6 +182,37 @@
         installation_date:null, notes:null, linked_by:'User', created_at:'2026-10-20T12:00:00Z', updated_at:'2026-10-20T12:00:00Z', ...extra });
     state.material_links ||= [link(1,{po_id:'PO-20001',po_description:'Six-inch isolation valve',install_tag:'MV-101',install_discipline:'Mechanical',quantity:2,material_status:'shipped'}),
         link(2,{po_id:'PO-20001',po_line_item:20,po_description:'Cable tray supports',install_tag:'CT-204',install_discipline:'Electrical',quantity:12,created_at:'2026-10-22T12:00:00Z'})];
+    // Tracker links (026). Active ones: a tracker seen now and a stale one on the way, and a tag still on a delivered shipment.
+    state.shipmentTrackers ||= [
+        {id:'st-1',project_id:project.id,shipment_id:2,tracker_id:'gps-2',linked_at:'2026-11-10T14:00:00Z',ended_at:null},
+        {id:'st-2',project_id:project.id,shipment_id:7,tracker_id:'gps-3',linked_at:'2026-11-01T14:00:00Z',ended_at:null},
+        {id:'st-3',project_id:project.id,shipment_id:6,tracker_id:'gps-4',linked_at:'2026-10-02T14:00:00Z',ended_at:null},
+    ];
+    // link_shipment_tracker and unlink_shipment_tracker as 026 has them: office staff only, a tracker on another
+    // shipment moves only with p_move, and unlinking names the tracker the page showed.
+    function shipmentTrackerCall(name, args) {
+        const refuse = (code, message) => ({ data:null, error:{ code, message } });
+        if (new URLSearchParams(location.search).get('fixture')==='no-026') return refuse('PGRST202','Could not find the function public.'+name+' in the schema cache');
+        if (!['office_staff','admin'].includes(me.role)) return refuse('42501', name==='link_shipment_tracker' ? 'Only office staff can link a tracker to a shipment' : 'Only office staff can unlink a tracker from a shipment');
+        const shipment = reportRows.shipments.find(row => row.id===args.p_shipment_id), active = () => state.shipmentTrackers.filter(link => !link.ended_at);
+        if (!shipment) return refuse('42501',"That shipment isn't in a project you can change");
+        const current = active().find(link => link.shipment_id===shipment.id), end = (link, reason) => Object.assign(link, { ended_at:new Date().toISOString(), ended_reason:reason });
+        if (name==='unlink_shipment_tracker') {
+            if (!current) return refuse('22023','No tracker is linked to this shipment');
+            if (current.tracker_id!==args.p_tracker_id) return refuse('40001',`The tracker on shipment ${shipment.shipment_number} has changed since you opened it; open it again`);
+            end(current,'unlinked'); save(); return success({...current});
+        }
+        const tracker = reportRows.vw_active_samsara_trackers.find(row => row.id===args.p_tracker_id);
+        if (!tracker) return refuse('22023',"That tracker isn't one of this project's trackers");
+        if (current?.tracker_id===tracker.id) return success({...current});
+        const other = active().find(link => link.tracker_id===tracker.id);
+        if (other && !args.p_move) return refuse('23505',`Tracker ${tracker.name} is on shipment ${reportRows.shipments.find(row => row.id===other.shipment_id)?.shipment_number}. Move it to this shipment?`);
+        if (other) end(other,'moved');
+        if (current) end(current,'replaced');
+        const link = { id:crypto.randomUUID(), project_id:project.id, shipment_id:shipment.id, tracker_id:tracker.id, linked_at:new Date().toISOString(), ended_at:null };
+        state.shipmentTrackers.push(link); save();
+        return success({...link});
+    }
     class Query {
         constructor(table) { this.table=table; this.filters=[]; this.one=false; this.start=0; this.end=1000; this.write=null; }
         select() { if (this.write) this.returning=true; return this; } insert(values) { this.write={insert:[].concat(values)}; return this; } update(values) { this.write={update:values}; return this; } delete() { this.write={delete:true}; return this; }
@@ -194,6 +236,11 @@
             }
             if (state.inventory[this.table]) return Promise.resolve(this.inventory()).then(resolve,reject);
             if (this.table==='material_links') return Promise.resolve(this.links()).then(resolve,reject);
+            if (this.table==='shipment_trackers') {
+                if (new URLSearchParams(location.search).get('fixture')==='no-026') return Promise.resolve({data:null,error:{code:'PGRST205',message:'Could not find the table public.shipment_trackers in the schema cache'}}).then(resolve,reject);
+                const rows = state.shipmentTrackers.filter(r=>this.filters.every(f=>f(r))).slice(this.start,this.end+1).map(row=>({...row}));
+                return Promise.resolve({data:rows,error:null}).then(resolve,reject);
+            }
             let rows = this.table==='users' ? [me,{id:'f1111111-1111-4111-8111-111111111111',full_name:'Jordan Field',role:'field_worker'}] : this.table==='projects' ? state.projects : this.table==='user_projects' ? (sessionStorage.getItem('fixtureNoProjects') ? [] : state.projects.map(p=>({user_id:me.id,project_id:p.id,projects:p}))) : this.table==='receiving_records'||this.table==='materials' ? state.records : this.table==='locations' ? racks : this.table==='location_areas' ? racks.map(rack=>{ const zone=state.inventory.site_map_zones.find(z=>z.location_id===rack.id&&z.is_active!==false);
                 return {location_id:rack.id,project_id:rack.project_id,rack_zone:rack.zone,rack_row:rack.row,rack:rack.rack,is_hold_area:rack.is_hold_area,zone_id:zone?.id||null,site_map_id:zone?.map_id||null,area:zone?.name||null}; }) : [];
             const mode = new URLSearchParams(location.search).get('fixture');
@@ -270,6 +317,7 @@
                 if(payload.p_action==='exception') Object.assign(state.records[0],{exception_owner_id:payload.p_payload.ownerId,exception_due_date:payload.p_payload.dueDate,exception_notes:payload.p_payload.notes,exception_resolution:payload.p_payload.resolution,exception_resolved:payload.p_payload.resolution!=='hold'});
                 save();return success({id:state.records[0].id});
             }
+            if(['link_shipment_tracker','unlink_shipment_tracker'].includes(name)) return shipmentTrackerCall(name,payload);
             if(name==='reserve_handling_unit_labels') {
                 if(!['office_staff','admin'].includes(me.role)) return {data:null,error:{code:'42501',message:'Office access to an active project is required'}};
                 if(!Number.isInteger(payload.p_count)||payload.p_count<1||payload.p_count>500) return {data:null,error:{code:'22023',message:'Reserve between 1 and 500 labels at a time'}};

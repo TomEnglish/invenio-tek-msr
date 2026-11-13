@@ -1421,3 +1421,9 @@ button.category-toggle:hover { background:var(--primary-soft); color:var(--prima
 .reason-form textarea { resize:vertical; }
 @media (max-width:1024px) { .load-board { grid-template-columns:repeat(2,minmax(0,1fr)); } .load-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (max-width:600px) { .load-board, .load-grid, .load-row, .stop-row { grid-template-columns:1fr; } .company-row .load-row-tools { grid-column:auto; } }
+
+/* Shipments: where each shipment is now (026). */
+.shipment-location { min-width: 12rem; }
+.shipment-location-link { font-weight: 600; }
+.shipment-location-warn { color: var(--warn); }
+.btn.shipment-tracker-action { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; }
