@@ -380,9 +380,16 @@ function selectPhotoType(btn) {
     wizardState.selectedPhotoType = btn.dataset.value;
 }
 
+// Receiving photos are stored as JPEG or PNG, up to 10 MB each (migration 027).
+const PHOTO_TYPES_ALLOWED = ['image/jpeg', 'image/png'];
+const PHOTO_MAX_BYTES = 10 * 1024 * 1024;
+
 function handlePhotoSelect(event) {
     const files = event.target.files;
+    const skipped = [];
     for (const file of files) {
+        if (!PHOTO_TYPES_ALLOWED.includes(file.type)) { skipped.push(`${file.name} (use a JPEG or PNG photo)`); continue; }
+        if (file.size > PHOTO_MAX_BYTES) { skipped.push(`${file.name} (larger than 10 MB)`); continue; }
         const reader = new FileReader();
         reader.onload = (e) => {
             wizardState.photos.push({
@@ -394,6 +401,7 @@ function handlePhotoSelect(event) {
         };
         reader.readAsDataURL(file);
     }
+    document.getElementById('photoNotice').textContent = skipped.length ? `Not added: ${skipped.join('; ')}.` : '';
     event.target.value = '';
 }
 
@@ -616,6 +624,7 @@ function resetWizard() {
     document.getElementById('exceptionTypeGroup').querySelectorAll('.btn-choice').forEach(b => b.classList.remove('selected'));
     document.getElementById('photoTypeGroup').querySelectorAll('.btn-choice').forEach(b => b.classList.remove('selected'));
     document.getElementById('photoTypeGroup').querySelector('[data-value="general"]').classList.add('selected');
+    document.getElementById('photoNotice').textContent = '';
 
     // Hide conditional sections
     document.getElementById('damageNotesSection').style.display = 'none';

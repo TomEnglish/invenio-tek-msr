@@ -42,11 +42,11 @@ class FakeElement {
     }
     removeAttribute(name) { this.attributes.delete(name); }
     contains(node) { for (let current = node; current; current = current.parentNode) if (current === this) return true; return false; }
-    // Enough selector support for the page and tests: tag, [attr], [attr="value"] and .class.
+    // Enough selector support for the page and tests: tag, [attr], [attr="value"], .class and #id.
     matches(selector) {
         const tag = /^[a-z][a-z0-9]*/.exec(selector)?.[0];
-        return (!tag || this.tagName === tag.toUpperCase()) && [...selector.matchAll(/\[([\w-]+)(?:="([^"]*)")?\]|\.([\w-]+)/g)].every(([, name, value, className]) =>
-            className ? this.className.split(/\s+/).includes(className) : value === undefined ? this.getAttribute(name) !== null : this.getAttribute(name) === value);
+        return (!tag || this.tagName === tag.toUpperCase()) && [...selector.matchAll(/\[([\w-]+)(?:="([^"]*)")?\]|\.([\w-]+)|#([\w-]+)/g)].every(([, name, value, className, id]) =>
+            id ? this.id === id : className ? this.className.split(/\s+/).includes(className) : value === undefined ? this.getAttribute(name) !== null : this.getAttribute(name) === value);
     }
     closest(selector) { for (let node = this; node instanceof FakeElement; node = node.parentNode) if (node.matches(selector)) return node; return null; }
     querySelectorAll(selector) {
