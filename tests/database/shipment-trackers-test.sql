@@ -56,6 +56,8 @@ DO $$ DECLARE r public.shipment_trackers; BEGIN
  PERFORM pg_temp.assert_true((SELECT count(*) FROM public.shipment_trackers WHERE shipment_id=801 AND ended_at IS NULL)=1,'a shipment has one tracker at a time');
  PERFORM pg_temp.assert_true(EXISTS(SELECT 1 FROM public.shipment_trackers WHERE shipment_id=801 AND tracker_id='trk-1' AND ended_reason='replaced'
   AND ended_by='01111111-1111-4111-8111-111111111111' AND ended_at IS NOT NULL),'the first tracker''s link ends as replaced, and says who ended it');
+ PERFORM pg_temp.assert_true((SELECT linked_at FROM public.shipment_trackers WHERE shipment_id=801 AND tracker_id='trk-2')
+  >=(SELECT ended_at FROM public.shipment_trackers WHERE shipment_id=801 AND tracker_id='trk-1'),'the new link starts once the old one has ended');
 END $$;
 
 -- A tracker on another shipment moves only when asked.
@@ -188,4 +190,24 @@ RESET ROLE;
 DO $$ BEGIN
  PERFORM pg_temp.assert_true(EXISTS(SELECT 1 FROM public.shipment_trackers WHERE shipment_id=806 AND ended_at IS NULL),'and that link is left as it was');
 END $$;
+
+-- However they ended, no two links of one shipment, or of one tracker, overlap in time.
+DO $$ BEGIN
+ PERFORM pg_temp.assert_true(NOT EXISTS(SELECT 1 FROM public.shipment_trackers a JOIN public.shipment_trackers b ON a.id<b.id
+  AND (a.shipment_id=b.shipment_id OR a.tracker_id=b.tracker_id)
+  AND a.linked_at<coalesce(b.ended_at,'infinity') AND b.linked_at<coalesce(a.ended_at,'infinity')),'links never overlap');
+END $$;
+
+-- Entries whose shipment id isn't a plain number name no shipment, and don't stop the feed.
+INSERT INTO public.audit_log(action,entity_type,details,project_id) VALUES
+ ('legacy_note','shipment','{"shipment_id":"abc"}','b1111111-1111-4111-8111-111111111111'),
+ ('legacy_note','shipment','{"shipment_id":"99999999999999999999"}','b1111111-1111-4111-8111-111111111111'),
+ ('legacy_note','shipment','{"shipment_id":802}','b1111111-1111-4111-8111-111111111111');
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','f1111111-1111-4111-8111-111111111111',true);
+DO $$ BEGIN
+ PERFORM pg_temp.assert_true((SELECT array_agg(subject ORDER BY subject NULLS FIRST)::text FROM public.list_project_activity('b1111111-1111-4111-8111-111111111111')
+  WHERE action='legacy_note')='{NULL,NULL,SHP-802}','odd ids name nothing; a plain one, as a number, still names its shipment');
+END $$;
+RESET ROLE;
 ROLLBACK;

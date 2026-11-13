@@ -152,3 +152,16 @@ test('the notice names the shipment a tracker rides with', async () => {
     page.focus();
     assert.equal(page.$('trackerFocus').textContent, 'Showing Houston Yard A, on shipment SHIP-20, last seen 2 hours ago.');
 });
+
+test('the export keeps Linked Material as it was and adds the shipment as a last column', async () => {
+    const page = openPage('', { stubFilters: false });
+    await withLinks(page, fakeClient({ links: [{ tracker_id: 'gps-1', shipment_id: 2 }], shipments: [{ id: 2, shipment_number: 'SHIP "20"' }] }));
+    let written = null;
+    Object.assign(page.context, { Blob: class { constructor(parts) { written = parts.join(''); } }, showSuccess: () => {} });
+    page.context.window.URL = { createObjectURL: () => 'blob:fixture', revokeObjectURL: () => {} };
+    vm.runInContext("Object.assign(state.trackers[1], { po_id: 'PO-1', install_tag: 'V-1' }); state.filteredTrackers = state.trackers; exportToCSV();", page.context);
+    const lines = written.split('\n');
+    assert.equal(lines[0], '"Name","Status","Latitude","Longitude","Distance (km)","Last Seen","Linked Material","Shipment"');
+    assert.ok(lines[1].startsWith('"Houston Yard A",') && lines[1].endsWith(',"","SHIP ""20"""'), `quotes inside a value are doubled: ${lines[1]}`);
+    assert.ok(lines[2].startsWith('"Unknown",') && lines[2].endsWith(',"PO: PO-1 -> V-1",""'), `Linked Material reads as before: ${lines[2]}`);
+});

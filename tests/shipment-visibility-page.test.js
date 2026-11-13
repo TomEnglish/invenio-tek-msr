@@ -385,3 +385,18 @@ test('statuses typed with other capitals or spacing are counted, filtered and ba
     assert.deepEqual(page.rows().map(row => row[0]), ['<img src=x onerror=alert(1)> crate', 'Cargo 11']);
     assert.match(fs.readFileSync('shipment-visibility.html', 'utf8'), /<option value="Not RTS">Not RTS<\/option>\s*<option value="RTS">RTS<\/option>/, 'RTS can be chosen');
 });
+
+test('a request that fails outright frees the dialog and says so', async () => {
+    const page = await openPage();
+    page.location('SHP-4').button.click();
+    await settle();
+    page.$('trackerChoice').value = 'trk-3'; page.$('trackerChoice').dispatch('change');
+    page.server.client.rpc = () => Promise.reject(new TypeError('Failed to fetch'));
+    page.$('trackerSave').click();
+    await settle();
+    assert.equal(page.$('trackerStatus').textContent, "Couldn't save: Failed to fetch");
+    assert.ok(page.$('trackerContent').querySelectorAll('button').every(node => !node.disabled) && !page.$('trackerChoice').disabled, 'nothing is left disabled');
+    assertFocus(page, page.$('trackerChoice'), 'focus stays in the dialog');
+    page.$('trackerDialog').escape();
+    assert.equal(page.$('trackerDialog').open, false, 'and it can be closed');
+});

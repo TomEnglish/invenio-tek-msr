@@ -239,13 +239,30 @@
     }
     const NOT_REFRESHED = " The list couldn't be refreshed, so other recent changes may not show; reload the page to see them.";
 
-    // A refused change: re-read the links, then show the dialog again with the reason. The dialog stays busy until then.
+    // Runs a change with the dialog busy, and frees it whatever happens, a failed request included. The change returns
+    // what to do once the dialog is free: show it again with a reason, or close it.
+    async function saving(change) {
+        setBusy(true);
+        dialogStatus.textContent = 'Saving…';
+        let afterward = null;
+        try {
+            afterward = await change();
+        } catch (error) {
+            afterward = () => { dialogStatus.textContent = `Couldn't save: ${where.errorMessage(error)}`; focusDialog(); };
+        } finally {
+            setBusy(false);
+        }
+        afterward?.();
+    }
+
+    // A refused change: re-read the links, then show the dialog again with the reason.
     async function refused(error) {
         const read = await refreshLinks();
-        setBusy(false);
-        renderDialog();
-        dialogStatus.textContent = where.errorMessage(error) + (read ? '' : NOT_REFRESHED);
-        focusDialog();
+        return () => {
+            renderDialog();
+            dialogStatus.textContent = where.errorMessage(error) + (read ? '' : NOT_REFRESHED);
+            focusDialog();
+        };
     }
 
     async function linkTracker() {
@@ -254,34 +271,35 @@
         const choice = choicesFor(shipment).find(item => item.id === current.choice);
         if (!choice || choice.here) return;
         const move = moving(choice);
-        setBusy(true);
-        dialogStatus.textContent = 'Saving…';
-        const { data: link, error } = await supabaseClient.rpc('link_shipment_tracker', { p_shipment_id: shipment.id, p_tracker_id: choice.id, p_move: move });
-        if (error) {
-            // The database says the tracker is on another shipment this page didn't know of: offer to move it.
-            if (error.code === '23505') current.move = choice.id;
-            await refused(error);
-            return;
-        }
-        const read = await refreshLinks();
-        if (!read && link) { setLinks([...data.links.filter(row => row.shipment_id !== shipment.id && row.tracker_id !== choice.id), link]); applyFilters(); }
-        setBusy(false);
-        message(`${choice.name} is linked to shipment ${numberOf(shipment)}${choice.elsewhere ? `, and no longer to ${choice.elsewhere}` : ''}.${read ? '' : NOT_REFRESHED}`);
-        dialog.close();
+        await saving(async () => {
+            const { data: link, error } = await supabaseClient.rpc('link_shipment_tracker', { p_shipment_id: shipment.id, p_tracker_id: choice.id, p_move: move });
+            if (error) {
+                // The database says the tracker is on another shipment this page didn't know of: offer to move it.
+                if (error.code === '23505') current.move = choice.id;
+                return refused(error);
+            }
+            const read = await refreshLinks();
+            if (!read && link) { setLinks([...data.links.filter(row => row.shipment_id !== shipment.id && row.tracker_id !== choice.id), link]); applyFilters(); }
+            return () => {
+                message(`${choice.name} is linked to shipment ${numberOf(shipment)}${choice.elsewhere ? `, and no longer to ${choice.elsewhere}` : ''}.${read ? '' : NOT_REFRESHED}`);
+                dialog.close();
+            };
+        });
     }
 
     async function unlinkTracker(linked) {
         if (lock.busy || !current) return;
         const { shipment } = current, name = trackerName(linked);
-        setBusy(true);
-        dialogStatus.textContent = 'Saving…';
-        const { error } = await supabaseClient.rpc('unlink_shipment_tracker', { p_shipment_id: shipment.id, p_tracker_id: linked.tracker_id });
-        if (error) { await refused(error); return; }
-        const read = await refreshLinks();
-        if (!read) { setLinks(data.links.filter(row => row.shipment_id !== shipment.id)); applyFilters(); }
-        setBusy(false);
-        message(`${name} is no longer linked to shipment ${numberOf(shipment)}.${read ? '' : NOT_REFRESHED}`);
-        dialog.close();
+        await saving(async () => {
+            const { error } = await supabaseClient.rpc('unlink_shipment_tracker', { p_shipment_id: shipment.id, p_tracker_id: linked.tracker_id });
+            if (error) return refused(error);
+            const read = await refreshLinks();
+            if (!read) { setLinks(data.links.filter(row => row.shipment_id !== shipment.id)); applyFilters(); }
+            return () => {
+                message(`${name} is no longer linked to shipment ${numberOf(shipment)}.${read ? '' : NOT_REFRESHED}`);
+                dialog.close();
+            };
+        });
     }
 
     for (const id of ['filterShipType', 'filterMode', 'filterStatus']) $(id).addEventListener('change', applyFilters);

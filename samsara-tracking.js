@@ -449,7 +449,8 @@ function setupRealtimeSubscriptions() {
 // EXPORT
 // ============================================================================
 function exportToCSV() {
-    const headers = ['Name', 'Status', 'Latitude', 'Longitude', 'Distance (km)', 'Last Seen', 'Linked To'];
+    // "Linked Material" stays as it was for anyone reading these files; the shipment (026) is a new last column.
+    const headers = ['Name', 'Status', 'Latitude', 'Longitude', 'Distance (km)', 'Last Seen', 'Linked Material', 'Shipment'];
     const rows = state.filteredTrackers.map(t => [
         t.name,
         t.status,
@@ -457,10 +458,12 @@ function exportToCSV() {
         t.last_longitude || '',
         t.distance_from_site_km ? t.distance_from_site_km.toFixed(2) : '',
         t.last_seen_at || '',
-        linkedTo(t).join('; ').replace(/ → /g, ' -> ')
+        t.po_id ? `PO: ${t.po_id}${t.install_tag ? ` -> ${t.install_tag}` : ''}` : '',
+        state.shipmentByTracker.get(t.id) || ''
     ]);
 
-    const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    // Quotes inside a value are doubled, so imported text (shipment numbers, 026) can't break a row.
+    const csv = [headers, ...rows].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
 
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);

@@ -18,7 +18,7 @@ create table public.shipment_trackers (
  shipment_id bigint not null references public.shipments(id),
  tracker_id text not null references public.samsara_trackers(id),
  linked_by uuid references public.users(id),
- linked_at timestamptz not null default now(),
+ linked_at timestamptz not null default clock_timestamp(),
  ended_by uuid references public.users(id),
  ended_at timestamptz,
  -- unlinked: taken off this shipment; replaced: another tracker was linked to
@@ -35,8 +35,9 @@ alter table public.shipment_trackers enable row level security;
 revoke insert,update,delete,truncate on public.shipment_trackers from anon,authenticated;
 create policy member_read on public.shipment_trackers for select to authenticated using(public.has_project_access(project_id));
 
--- Links end by the clock, not the transaction's start: a call that waited for
--- another may end a link made after it began.
+-- Links start and end by the clock, not the transaction's start: a call that
+-- waited for another may end a link made after it began, and a new link starts
+-- after the one it replaces or moves ended, so no two overlap in time.
 
 -- Link a tracker to a shipment, replacing the shipment's current tracker. A
 -- tracker already on another shipment is moved here only with p_move; without
@@ -197,8 +198,10 @@ language sql stable security definer set search_path=public as $$
    when 'inventory_record' then (select btrim(i.qr_code) from public.inventory_records i where i.uid=a.entity_id and i.project_id=a.project_id)
    when 'receiving_record' then (select q.code_value from public.receiving_records r join public.qr_codes q on q.id=r.qr_code_id
     where r.id=a.entity_id and r.project_id=a.project_id)
-   -- 026: a shipment is named by its number; its id is in the details, compared as text so no entry can fail the feed.
-   when 'shipment' then (select s.shipment_number from public.shipments s where s.id::text=a.details->>'shipment_id' and s.project_id=a.project_id)
+   -- 026: a shipment is named by its number; its id is in the details, read only when it is a plain number, so no
+   -- entry can fail the feed and the lookup uses the key.
+   when 'shipment' then (select s.shipment_number from public.shipments s
+    where s.id=case when a.details->>'shipment_id' ~ '^[0-9]{1,18}$' then (a.details->>'shipment_id')::bigint end and s.project_id=a.project_id)
   end,
   coalesce((select jsonb_object_agg(k.key,k.value) from jsonb_each(coalesce(a.details,'{}'::jsonb)) k
    where k.key in ('tag','code','created','added','removed','qty','accepted_qty','status','items_released','units_released','pieces','on','undone',
