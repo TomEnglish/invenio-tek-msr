@@ -46,7 +46,8 @@ async function openInventory(tables, { failing = [] } = {}) {
     for (const name of ['select', 'order', 'range', 'eq', 'in']) Query.prototype[name] = function (...args) { this.request.calls.push([name, ...args]); return this; };
     const storage = { from: bucket => ({ createSignedUrl: async path => ({ data: { signedUrl: `https://files.test/${bucket}/${path}` }, error: null }) }) };
     const client = { from: table => new Query(table), storage };
-    const context = { document, console: { log() {}, error() {}, warn() {} }, InvenioAuthReady: Promise.resolve(true), supabaseClient: client, projectSupabaseClient: client };
+    const context = { document, console: { log() {}, error() {}, warn() {} }, InvenioAuthReady: Promise.resolve(true), supabaseClient: client, projectSupabaseClient: client,
+        InvenioProjectScope: { getActiveProjectId: () => 'project-1' } };
     context.window = context;
     vm.createContext(context);
     vm.runInContext(viewer, context);
@@ -66,16 +67,19 @@ const photos = {
     inspection_photos: [{ receiving_record_id: 'r9', storage_path: 'r9/op-0-damage.jpg', photo_type: 'damage', created_at: '2026-10-27T09:00:00Z' }],
 };
 
-test('each item shows how many photos it has, from its count and its receipt, asked for in two requests', async () => {
+test('each item shows how many photos it has, from its count and its receipt, asked for a page at a time for the whole project', async () => {
     const inventory = await openInventory({ inventory_records: records, ...photos });
     const rows = inventory.tbody.innerHTML.split('</tr>').filter(row => row.includes('<tr>'));
     assert.equal(rows.length, 2);
     assert.match(rows[0], /<td><button type="button" class="photo-chip" data-photo-index="0" aria-label="Open 2 photos">/);
     assert.match(rows[1], /<td><span class="text-muted">-<\/span><\/td>$/, 'no button without photos');
+    // However many items: pages of every photo in the project, until a page comes back empty.
     const counts = inventory.query('inventory_photos');
-    assert.equal(counts.length, 1, 'every count photo in the project at once');
-    assert.deepEqual(plain(counts[0].calls.find(([name]) => name === 'range')), ['range', 0, 999]);
-    assert.deepEqual(plain(inventory.query('inspection_photos')[0].calls.find(([name]) => name === 'in')), ['in', 'receiving_record_id', ['r9']], 'only items that were received');
+    assert.deepEqual(counts.map(request => plain(request.calls.find(([name]) => name === 'range').slice(1))), [[0, 999], [1, 1000]]);
+    const receipts = inventory.query('inspection_photos');
+    assert.equal(receipts.length, 2);
+    assert.deepEqual(plain(receipts[0].calls.find(([name]) => name === 'eq')), ['eq', 'receiving_records.project_id', 'project-1'], 'receiving photos through their receipt\'s project');
+    assert.equal(receipts[0].calls.some(([name]) => name === 'in'), false, 'not item by item');
 });
 
 test('the button opens that item\'s photos, oldest first', async () => {

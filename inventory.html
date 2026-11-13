@@ -338,8 +338,8 @@
             photosByUid = null;
             let found;
             try {
-                const receiptIds = allRecords.map(r => r.receiving_record_id).filter(Boolean);
-                const [counts, receipts] = await Promise.all([InvenioPhotos.loadAllCounts(), InvenioPhotos.load('receipt', receiptIds)]);
+                // Every photo in the project, a page at a time: two kinds of request, however many items there are.
+                const [counts, receipts] = await Promise.all([InvenioPhotos.loadAll('count'), InvenioPhotos.loadAll('receipt')]);
                 found = new Map();
                 allRecords.forEach(r => {
                     const photos = InvenioPhotos.merge(counts.get(String(r.uid)) || [], r.receiving_record_id ? receipts.get(String(r.receiving_record_id)) || [] : []);

@@ -12,8 +12,8 @@ const RECEIPT = 'c1111111-1111-4111-8111-111111111111';
 const plain = value => JSON.parse(JSON.stringify(value));
 const ITEM = 'a1000000-0000-4000-8000-000000000000';
 
-function fakeSupabase(tables = {}, { failing = new Set() } = {}) {
-    const requests = [], signing = [];
+function fakeSupabase(tables = {}, { failing = new Set(), slow = false } = {}) {
+    const requests = [], signing = [], flight = { now: 0, most: 0 };
     class Query {
         constructor(table, scoped) { Object.assign(this, { table, scoped, calls: [] }); requests.push(this); }
         then(resolve, reject) {
@@ -21,7 +21,10 @@ function fakeSupabase(tables = {}, { failing = new Set() } = {}) {
             for (const [name, key, values] of this.calls) if (name === 'in') rows = rows.filter(row => values.includes(String(row[key])));
             const range = this.calls.find(([name]) => name === 'range');
             if (range) rows = rows.slice(range[1], range[2] + 1);
-            return Promise.resolve({ data: rows.map(row => ({ ...row })), error: null }).then(resolve, reject);
+            const answer = { data: rows.map(row => ({ ...row })), error: null };
+            if (!slow) return Promise.resolve(answer).then(resolve, reject);
+            flight.now++; flight.most = Math.max(flight.most, flight.now);
+            return new Promise(done => setTimeout(() => { flight.now--; done(answer); }, 2)).then(resolve, reject);
         }
     }
     for (const name of ['select', 'in', 'eq', 'order', 'range']) Query.prototype[name] = function (...args) { this.calls.push([name, ...args]); return this; };
@@ -41,7 +44,7 @@ function fakeSupabase(tables = {}, { failing = new Set() } = {}) {
         }),
     };
     return {
-        requests, signing,
+        requests, signing, flight,
         raw: { from: table => new Query(table, false), storage },
         scoped: { from: table => { const query = new Query(table, true); query.calls.push(['eq', 'project_id', 'project-1']); return query; } },
     };
@@ -50,7 +53,8 @@ function fakeSupabase(tables = {}, { failing = new Set() } = {}) {
 function setup(tables, options) {
     const { document } = fakeDocument();
     const fake = fakeSupabase(tables, options);
-    const context = { document, console, supabaseClient: fake.raw, projectSupabaseClient: fake.scoped };
+    const context = { document, console, supabaseClient: fake.raw, projectSupabaseClient: fake.scoped,
+        InvenioProjectScope: { getActiveProjectId: () => 'project-1' } };
     context.window = context;
     vm.createContext(context);
     vm.runInContext(source, context);
@@ -73,28 +77,55 @@ test('a receipt\'s photos are found by its ID and labeled by type; count photos 
     assert.deepEqual(plain(request.calls.find(([name]) => name === 'in')), ['in', 'receiving_record_id', [RECEIPT]], 'each ID once, empty ones left out');
     assert.deepEqual([...receipts.keys()], [RECEIPT]);
     assert.deepEqual(plain(receipts.get(RECEIPT).map(photo => [photo.bucket, photo.label])),
-        [['inspection-photos', 'Receiving photo: Damage'], ['inspection-photos', 'Receiving photo: General']]);
+        [['inspection-photos', 'Receiving photo: General'], ['inspection-photos', 'Receiving photo: Damage']], 'oldest first, whatever order they came in');
 
     const counts = await page.photos.load('count', [ITEM]);
     const countRequest = page.fake.requests.at(-1);
     assert.equal(countRequest.scoped, true);
     assert.deepEqual(plain(counts.get(ITEM).map(photo => [photo.bucket, photo.path, photo.label])), [['inventory-photos', `${ITEM}/op-1.jpg`, 'Count photo']]);
-    // merge: every source, oldest first.
-    const merged = page.photos.merge(receipts.get(RECEIPT), counts.get(ITEM));
+    // merge: every source, each photo once, oldest first by the moment taken (not by the text).
+    const merged = page.photos.merge(receipts.get(RECEIPT), counts.get(ITEM), counts.get(ITEM));
     assert.deepEqual(plain(merged.map(photo => photo.takenAt)), ['2026-09-08T12:04:00Z', '2026-09-08T12:05:00Z', '2026-10-26T15:00:00Z']);
+    const second = [{ takenAt: '2026-10-27T19:05:00.5+00:00', bucket: 'b', path: 'later' }, { takenAt: '2026-10-27T19:05:00+00:00', bucket: 'b', path: 'first' }, { takenAt: null, bucket: 'b', path: 'none' }];
+    assert.deepEqual(plain(page.photos.merge(second).map(photo => photo.path)), ['first', 'later', 'none']);
 });
 
-test('many IDs are asked for 100 at a time, and every count photo in the project in pages of 1,000', async () => {
-    const uids = Array.from({ length: 250 }, (_, i) => `uid-${i}`);
-    const page = setup({ inventory_photos: Array.from({ length: 1001 }, (_, i) => countRow(i, `2026-10-26T15:00:${String(i % 60).padStart(2, '0')}Z`, `uid-${i % 250}`)) });
+test('a receipt\'s photos include the count photos of an item counted before it was received', async () => {
+    const page = setup({
+        inspection_photos: [receiptRow(0, 'damage', '2026-09-08T12:04:00Z')],
+        inventory_records: [{ uid: ITEM, receiving_record_id: RECEIPT }, { uid: 'other', receiving_record_id: 'another' }],
+        inventory_photos: [countRow(1, '2026-09-01T09:00:00Z'), countRow(2, '2026-09-02T09:00:00Z', 'other')],
+    });
+    const found = await page.photos.loadForReceipts([RECEIPT, 'no-photos']);
+    assert.deepEqual([...found.keys()], [RECEIPT], 'a receipt with no photos is left out');
+    assert.deepEqual(plain(found.get(RECEIPT).map(photo => photo.label)), ['Count photo', 'Receiving photo: Damage']);
+    const counted = page.fake.requests.find(request => request.table === 'inventory_records');
+    assert.equal(counted.scoped, true, 'items are asked for in the active project');
+    assert.deepEqual(plain(counted.calls.find(([name]) => name === 'in')), ['in', 'receiving_record_id', [RECEIPT, 'no-photos']]);
+});
+
+test('many IDs are asked for 100 at a time, four requests at most at once; whole-project photos page until one comes back empty', async () => {
+    const uids = Array.from({ length: 1000 }, (_, i) => `uid-${i}`);
+    const rows = Array.from({ length: 1001 }, (_, i) => countRow(i, `2026-10-26T15:00:${String(i % 60).padStart(2, '0')}Z`, `uid-${i % 250}`));
+    const page = setup({ inventory_photos: rows }, { slow: true });
     const found = await page.photos.load('count', uids);
-    assert.deepEqual(page.fake.requests.map(request => request.calls.find(([name]) => name === 'in')[2].length), [100, 100, 50]);
+    assert.equal(page.fake.requests.length, 10);
+    assert.ok(page.fake.requests.every(request => request.calls.find(([name]) => name === 'in')[2].length === 100));
+    assert.equal(page.fake.flight.most, 4, 'no more than four at a time');
     assert.equal([...found.values()].flat().length, 1001);
     page.fake.requests.length = 0;
-    const all = await page.photos.loadAllCounts();
-    assert.deepEqual(page.fake.requests.map(request => request.calls.find(([name]) => name === 'range').slice(1)), [[0, 999], [1000, 1999]]);
+    const all = await page.photos.loadAll('count');
+    assert.deepEqual(page.fake.requests.map(request => plain(request.calls.find(([name]) => name === 'range').slice(1))), [[0, 999], [1000, 1999], [1001, 2000]]);
+    assert.deepEqual(plain(page.fake.requests[0].calls.filter(([name]) => name === 'order').map(([, key]) => key)), ['created_at', 'id'], 'a fixed order across pages');
     assert.ok(page.fake.requests.every(request => request.scoped), 'in the active project only');
     assert.equal([...all.values()].flat().length, 1001);
+
+    const receipts = setup({ inspection_photos: [receiptRow(0, 'general', '2026-09-08T12:00:00Z')] });
+    const byReceipt = await receipts.photos.loadAll('receipt');
+    const first = receipts.fake.requests[0];
+    assert.equal(first.calls.find(([name]) => name === 'select')[1], 'id,receiving_record_id,storage_path,photo_type,created_at,receiving_records!inner(project_id)');
+    assert.deepEqual(plain(first.calls.find(([name]) => name === 'eq')), ['eq', 'receiving_records.project_id', 'project-1'], 'through the receipt\'s project');
+    assert.deepEqual([...byReceipt.keys()], [RECEIPT]);
 });
 
 test('the photo button says how many and carries only numbers into the markup', () => {
@@ -117,6 +148,18 @@ test('thumbnails get their links in one request per storage area, matched by pat
     assert.equal(thumbs[1].querySelector('img'), null);
     assert.equal(thumbs[1].querySelector('.photo-thumb-missing').textContent, 'Unavailable');
     assert.equal(thumbs[2].getAttribute('aria-label'), 'Open photo 3 of 3: Count photo');
+
+    // A link that has lapsed by the time the thumbnail loads: a new one is asked for once, then it says so.
+    const before = page.fake.signing.length;
+    const image = thumbs[0].querySelector('img');
+    image.dispatch('error');
+    await settle();
+    assert.equal(page.fake.signing.length, before + 1);
+    assert.match(image.src, /op-0-general\.jpg\?link=\d+$/);
+    image.dispatch('error');
+    await settle();
+    assert.equal(thumbs[0].querySelector('img'), null);
+    assert.equal(thumbs[0].querySelector('.photo-thumb-missing').textContent, 'Unavailable');
 
     const large = page.document.createElement('div');
     await page.photos.strip(large, list.slice(0, 1), { large: true });
@@ -163,6 +206,16 @@ test('the viewer opens each photo through a fresh link, pages with buttons and a
     assertFocus(page, close, 'Tab wraps inside the viewer');
     close.dispatch('keydown', { key: 'Tab', shiftKey: true });
     assertFocus(page, full, 'Shift+Tab wraps back');
+    // Paging from Open full size hides it while the next photo loads: focus stays in the viewer.
+    full.dispatch('keydown', { key: 'ArrowRight' });
+    assertFocus(page, viewer, 'focus moves to the viewer, not out of it');
+    assert.equal(viewer.getAttribute('tabindex'), '-1', 'a click on the photo focuses the viewer');
+    await settle();
+    viewer.dispatch('keydown', { key: 'ArrowRight' });
+    await settle();
+    assert.match(viewer.querySelector('.photo-viewer-caption').textContent, / · 2 of 2$/, 'keys work with focus on the viewer itself');
+    viewer.dispatch('keydown', { key: 'Tab' });
+    assertFocus(page, close, 'Tab from the viewer goes to Close');
 
     close.dispatch('keydown', { key: 'Escape' });
     assert.equal(overlay(page), null);
@@ -187,6 +240,21 @@ test('a photo that cannot be opened says so, and the viewer sits inside an open 
     // A click on the dimmed area outside the photo closes it.
     viewer.dispatch('click');
     assert.equal(modal.querySelector('.photo-viewer'), null);
+    // The dialog closing closes the viewer in it, so it can't show over the next record.
+    page.photos.open([page.photos.fromRow('receipt', receiptRow(1, 'general', null))], 0, trigger);
+    await settle();
+    assert.ok(modal.querySelector('.photo-viewer'));
+    modal.dispatch('hide.bs.modal');
+    assert.equal(modal.querySelector('.photo-viewer'), null);
+    // An image that fails to load after its link was given says so.
+    page.photos.open([page.photos.fromRow('receipt', receiptRow(2, 'general', null))], 0, trigger);
+    await settle();
+    const shown = modal.querySelector('.photo-viewer-image');
+    assert.equal(shown.hidden, false);
+    shown.dispatch('error');
+    assert.equal(shown.hidden, true);
+    assert.match(modal.querySelector('.photo-viewer-status').textContent, /could not be opened/);
+    page.photos.close();
     page.photos.open([], 0, trigger);
     assert.equal(page.document.body.querySelector('.photo-viewer'), null, 'nothing to show, nothing opens');
 });

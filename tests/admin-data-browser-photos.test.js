@@ -33,7 +33,7 @@ function openBrowser(tables = {}) {
     const createElement = document.createElement;
     document.createElement = tag => { const node = createElement(tag); made.push(node); return node; };
     const client = { from: table => new Query(table), storage };
-    const context = { document, console: { ...console, warn() {} }, Promise, crypto: globalThis.crypto,
+    const context = { document, console: { ...console, warn() {} }, Promise, crypto: globalThis.crypto, setTimeout, clearTimeout,
         bootstrap: { Modal: class { show() {} hide() {} } }, InvenioProjectScope: { getActiveProjectId: () => PROJECT },
         supabaseClient: client, projectSupabaseClient: client,
         Blob: class { constructor(parts) { this.text = parts.join(''); } },
@@ -194,4 +194,80 @@ test('a table replaced before it loads is not shown, and values are escaped in c
     page.context.rowClicked({ target: page.document.createElement('td') }, 0);
     await settle();
     assert.match(page.html('editModalBody'), /value="&quot;&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt;"/);
+});
+
+test('the audit log hides license details and shows logged values as text, in the table and the export', async () => {
+    const page = openBrowser({ audit_log: [
+        { id: 'a1', action: 'driver_licence_recorded', entity_type: 'load', details: { last4: '4821', operation_id: 'op-1' }, created_at: '2026-11-01T12:00:00Z' },
+        { id: 'a2', action: 'load_saved', entity_type: 'load', details: { load: { load_number: 'L-0001', licence_override_reason: 'Driver forgot it', driver_name: 'Pat Example' } }, created_at: '2026-11-01T12:01:00Z' },
+        { id: 'a3', action: 'receiving_created', entity_type: 'receiving_record', details: { tag: '<img src=x onerror=alert(1)>' }, created_at: '2026-11-01T12:02:00Z' },
+    ] });
+    await page.open('audit_log');
+    const body = page.html('tableBody');
+    assert.doesNotMatch(body, /4821|Driver forgot it/, 'license details never reach the page');
+    assert.match(body, /&quot;last4&quot;:&quot;\(hidden\)&quot;/);
+    assert.doesNotMatch(body, /<img/, 'a logged tag is text');
+    assert.match(body, /&lt;img src=x onerror=alert\(1\)&gt;/);
+    page.run('exportCSV()');
+    assert.doesNotMatch(page.downloads.at(-1), /4821|Driver forgot it/);
+    assert.match(page.downloads.at(-1), /Pat Example/, 'other details stay');
+});
+
+test('an empty time is a dash in the record, not Invalid Date', async () => {
+    const page = openBrowser({ inventory_records: [{ id: 1, uid: 'u1', qr_code: 'GT2-LO-002', inventory_item: 'Lube oil filter', count_status: 'expected', counted_at: null }] });
+    await page.open('inventory_records');
+    page.context.rowClicked({ target: page.document.createElement('td') }, 0);
+    await settle();
+    const form = page.html('editModalBody');
+    assert.doesNotMatch(form, /Invalid Date/);
+    assert.match(form, /<label>Counted <span class="badge bg-secondary">read-only<\/span><\/label><div class="field-readonly"><span class="text-muted">—<\/span><\/div>/);
+});
+
+test('export never writes one table\'s rows under another\'s headings; search is off where a table has none; errors stay plain', async () => {
+    let release;
+    const page = openBrowser({ places: [{ id: 'pl1', name: 'North Yard', contact_name: 'Pat Example' }], load_companies: [] });
+    await page.open('places');
+    page.context.projectSupabaseClient.from = (from => table => {
+        const query = from(table);
+        if (table !== 'load_companies') return query;
+        const then = query.then.bind(query);
+        query.then = (resolve, reject) => new Promise(done => { release = () => done(then(value => value)); }).then(resolve, reject);
+        return query;
+    })(page.context.projectSupabaseClient.from);
+    page.run('state.currentTable = "load_companies"; loadData();');
+    await settle();
+    page.run('exportCSV()');
+    assert.equal(page.downloads.length, 0, 'nothing is exported while the new table loads');
+    release();
+    await settle();
+    assert.equal(page.run('state.dataTable'), 'load_companies');
+
+    await page.open('inventory_photos');
+    const search = page.document.getElementById('searchInput');
+    assert.equal(search.disabled, true);
+    assert.equal(search.placeholder, 'This table has no search');
+    await page.open('places');
+    assert.equal(page.document.getElementById('searchInput').disabled, false);
+
+    page.context.projectSupabaseClient.from = () => ({ select() { return this; }, order() { return this; }, range() { return this; }, or() { return this; }, eq() { return this; },
+        then: (resolve, reject) => Promise.resolve({ data: null, error: { code: '42501', message: 'permission denied for table samsara_trackers' }, count: null }).then(resolve, reject) });
+    await page.open('samsara_trackers');
+    const body = page.html('tableBody');
+    assert.match(body, /This table could not be loaded \(42501\)\. Refresh to try again\./);
+    assert.doesNotMatch(body, /samsara/, 'the server\'s words, which can name its tables, stay in the console');
+});
+
+test('a record left open while the table reloads still gets its own photos', async () => {
+    const page = openBrowser({
+        receiving_records: [{ id: 'r1', material_type: 'Steel Pipe' }, { id: 'r2', material_type: 'Valve' }],
+        inspection_photos: [{ receiving_record_id: 'r2', storage_path: 'r2/op-1-damage.jpg', photo_type: 'damage', created_at: '2026-09-08T12:00:00Z' }],
+    });
+    await page.open('receiving_records');
+    page.context.rowClicked({ target: page.document.createElement('td') }, 1);
+    // The search fires while the record is open, and the rows come back in another order.
+    page.run('state.data = []; loadData();');
+    await settle();
+    await new Promise(resolve => setTimeout(resolve, 120));
+    const strip = page.document.getElementById('recordPhotoStrip');
+    assert.deepEqual(strip.querySelectorAll('button').map(button => button.getAttribute('aria-label')), ['Open photo 1 of 1: Receiving photo: Damage']);
 });

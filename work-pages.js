@@ -112,12 +112,8 @@
         if (receiptId && window.InvenioPhotos) {
             $('photoSection').hidden = false;
             try {
-                const { data: counted, error: countError } = await projectSupabaseClient.from('inventory_records').select('uid').eq('receiving_record_id', receiptId);
-                if (countError) throw countError;
-                const uids = (counted || []).map(item => item.uid);
-                const [receipts, counts] = await Promise.all([InvenioPhotos.load('receipt', [receiptId]), InvenioPhotos.load('count', uids)]);
-                const photos = InvenioPhotos.merge(receipts.get(String(receiptId)) || [], ...uids.map(uid => counts.get(String(uid)) || []));
-                await InvenioPhotos.strip($('recordPhotos'), photos, { large: true });
+                const found = await InvenioPhotos.loadForReceipts([receiptId]);
+                await InvenioPhotos.strip($('recordPhotos'), found.get(String(receiptId)) || [], { large: true });
                 if ($('recordPhotos').querySelector('.photo-thumb-missing')) message('Some photos are unavailable. Refresh to retry.');
             } catch (_) {
                 message('Photo references could not be loaded. Refresh to retry.');

@@ -28,7 +28,7 @@ const TABLE_CONFIG = {
         searchColumns: ['material_type', 'size', 'grade', 'spec'],
         record: { type: 'materials' },
         // A material's photos were taken when it was received.
-        photos: [{ kind: 'receipt', from: 'receiving_record_id' }],
+        photos: [{ kind: 'receipts', from: 'receiving_record_id' }],
     },
     receiving_records: {
         label: 'Receiving Records',
@@ -57,7 +57,7 @@ const TABLE_CONFIG = {
         ],
         searchColumns: ['material_type', 'vendor', 'po_number', 'grade'],
         record: { type: 'receiving_records' },
-        photos: [{ kind: 'receipt', from: 'id' }],
+        photos: [{ kind: 'receipts', from: 'id' }],
     },
     locations: {
         label: 'Locations',
@@ -268,6 +268,8 @@ const TABLE_CONFIG = {
             { key: 'created_at', label: 'Date', editable: false, type: 'datetime' },
         ],
         searchColumns: ['action', 'entity_type'],
+        // Driver-license entries keep the last four digits and load snapshots keep license fields: hidden here.
+        clean: row => { row.details = withoutLicense(row.details); },
     },
     project_schedule: {
         label: 'Project Schedule',
@@ -367,7 +369,7 @@ const TABLE_CONFIG = {
         lookups: [{ column: 'category_id', table: 'inventory_categories', select: 'id,name', as: '__category', text: category => category.name }],
         searchColumns: ['qr_code', 'inventory_item', 'item_description', 'part_number'],
         // Photos from the count, and from receiving once the item has been received.
-        photos: [{ kind: 'count', from: 'uid' }, { kind: 'receipt', from: 'receiving_record_id' }],
+        photos: [{ kind: 'count', from: 'uid' }, { kind: 'receipts', from: 'receiving_record_id' }],
     },
     inventory_categories: {
         label: 'Categories',
@@ -502,7 +504,7 @@ const TABLE_CONFIG = {
         ],
         lookups: [{ column: 'material_id', table: 'materials', select: 'id,receiving_record_id', as: '__receipt', text: material => material.receiving_record_id }],
         searchColumns: ['unit_code', 'tag', 'name'],
-        photos: [{ kind: 'count', from: 'inventory_uid' }, { kind: 'receipt', from: '__receipt' }],
+        photos: [{ kind: 'count', from: 'inventory_uid' }, { kind: 'receipts', from: '__receipt' }],
     },
     load_overview: {
         label: 'Loads',
@@ -591,7 +593,7 @@ const TABLE_CONFIG = {
         ],
         lookups: [{ column: 'material_id', table: 'materials', select: 'id,receiving_record_id', as: '__receipt', text: material => material.receiving_record_id }],
         searchColumns: ['load_number', 'tag', 'name'],
-        photos: [{ kind: 'count', from: 'inventory_uid' }, { kind: 'receipt', from: '__receipt' }],
+        photos: [{ kind: 'count', from: 'inventory_uid' }, { kind: 'receipts', from: '__receipt' }],
     },
     load_companies: {
         label: 'Load Companies',
@@ -666,6 +668,7 @@ let state = {
     editRecord: null,
     isNewRecord: false,
     loadToken: 0,
+    dataTable: null,
     photos: null,
     photosReady: Promise.resolve(),
 };
@@ -752,8 +755,16 @@ async function loadData() {
     const config = TABLE_CONFIG[tableName];
     if (!config) return;
 
-    // A later table, page or search replaces this one; its answers are then ignored.
+    // A later table, page or search replaces this one; its answers are then ignored. Until it loads,
+    // nothing of the last table is kept to export or open.
     const token = ++state.loadToken;
+    state.data = [];
+    state.dataTable = null;
+    state.totalCount = 0;
+    state.photos = null;
+    const search = document.getElementById('searchInput');
+    search.disabled = !config.searchColumns.length;
+    search.placeholder = config.searchColumns.length ? 'Search across columns...' : 'This table has no search';
     const tbody = document.getElementById('tableBody');
     tbody.innerHTML = `<tr><td colspan="20" style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin fa-2x"></i></td></tr>`;
 
@@ -791,9 +802,11 @@ async function loadData() {
         if (token !== state.loadToken) return;
 
         const rows = data || [];
+        if (config.clean) rows.forEach(config.clean);
         await addLookups(config, rows);
         if (token !== state.loadToken) return;
         state.data = rows;
+        state.dataTable = tableName;
         state.totalCount = count || 0;
         // null while the photos load, 'error' if they could not, else one list per row.
         state.photos = null;
@@ -804,7 +817,10 @@ async function loadData() {
         renderPagination();
     } catch (err) {
         if (token !== state.loadToken) return;
-        tbody.innerHTML = `<tr><td colspan="20" class="empty-state"><i class="fas fa-exclamation-triangle d-block" style="color:#DC2626;"></i><p>${escapeHtml(err.message || 'This table could not be loaded.')}</p></td></tr>`;
+        state.photos = 'error';
+        // The server's own words can name its tables; the console keeps them.
+        console.warn(`Could not load ${tableName}:`, err?.message || err);
+        tbody.innerHTML = `<tr><td colspan="20" class="empty-state"><i class="fas fa-exclamation-triangle d-block" style="color:#DC2626;"></i><p>${escapeHtml(`This table could not be loaded${err?.code ? ` (${err.code})` : ''}. Refresh to try again.`)}</p></td></tr>`;
     }
 }
 
@@ -840,7 +856,10 @@ async function loadRowPhotos(config, rows, token) {
         if (typeof config.photos === 'string') {
             lists = rows.map(row => row.storage_path ? [InvenioPhotos.fromRow(config.photos, row)] : []);
         } else {
-            const found = await Promise.all(config.photos.map(source => InvenioPhotos.load(source.kind, rows.map(row => row[source.from]))));
+            const found = await Promise.all(config.photos.map(source => {
+                const keys = rows.map(row => row[source.from]);
+                return source.kind === 'receipts' ? InvenioPhotos.loadForReceipts(keys) : InvenioPhotos.load(source.kind, keys);
+            }));
             lists = rows.map(row => InvenioPhotos.merge(...config.photos.map((source, n) =>
                 row[source.from] === null || row[source.from] === undefined ? [] : found[n].get(String(row[source.from])) || [])));
         }
@@ -890,20 +909,29 @@ function recordHref(config, record) {
     return `record.html?type=${encodeURIComponent(config.record.type)}&id=${encodeURIComponent(id)}`;
 }
 
-// The open record's photos, once the page's photos have loaded.
-async function showRecordPhotos(rowIndex) {
+// The open record's photos, once the page's photos have loaded. A reload while the record is open
+// (a search, a page) is waited for, and the record found again by its ID.
+async function showRecordPhotos(record) {
     const config = TABLE_CONFIG[state.currentTable];
     if (!config.photos) return;
-    const token = state.loadToken;
-    await state.photosReady;
     const container = document.getElementById('recordPhotoStrip');
-    if (token !== state.loadToken || state.editRecord !== state.data[rowIndex]) return;
-    if (!Array.isArray(state.photos)) {
-        container.textContent = 'Photos could not be loaded. Refresh to try again.';
+    for (let waited = 0; ; waited += 50) {
+        const token = state.loadToken;
+        await state.photosReady;
+        if (state.editRecord !== record) return;
+        if ((token !== state.loadToken || state.photos === null) && waited < 30000) { await new Promise(resolve => setTimeout(resolve, 50)); continue; }
+        if (!Array.isArray(state.photos)) {
+            container.textContent = 'Photos could not be loaded. Refresh to try again.';
+            return;
+        }
+        const at = state.data.findIndex(row => row[config.idField] === record[config.idField]);
+        if (at === -1) {
+            container.textContent = 'This record is no longer in the list. Close it and open it again to see its photos.';
+            return;
+        }
+        await InvenioPhotos.strip(container, state.photos[at] || []);
         return;
     }
-    const { photos } = typeof config.photos === 'string' ? { photos: state.photos[rowIndex] || [] } : photosFor(rowIndex);
-    await InvenioPhotos.strip(container, photos);
 }
 
 // ── Rendering ──
@@ -951,10 +979,14 @@ function formatCell(value, type) {
     if (value === null || value === undefined) return '<span class="text-muted">—</span>';
 
     switch (type) {
-        case 'datetime':
-            return new Date(value).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
-        case 'date':
-            return value ? new Date(value + 'T00:00:00').toLocaleDateString('en-US') : '—';
+        case 'datetime': {
+            const date = new Date(value);
+            return Number.isNaN(date.getTime()) ? escapeHtml(String(value)) : date.toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
+        }
+        case 'date': {
+            const date = value ? new Date(value + 'T00:00:00') : null;
+            return !date ? '—' : Number.isNaN(date.getTime()) ? escapeHtml(String(value)) : date.toLocaleDateString('en-US');
+        }
         case 'boolean':
             return value
                 ? '<span class="status-badge" style="background:#D1FAE5;color:#065F46;">Yes</span>'
@@ -962,9 +994,9 @@ function formatCell(value, type) {
         case 'enum':
             return `<span class="status-badge" style="background:${statusColor(value)};color:white;">${escapeHtml(String(value).replaceAll('_', ' '))}</span>`;
         case 'json':
-            return typeof value === 'object' ? '<code>' + truncate(JSON.stringify(value), 60) + '</code>' : String(value);
+            return typeof value === 'object' ? '<code>' + escapeHtml(truncate(JSON.stringify(value), 60)) + '</code>' : escapeHtml(String(value));
         case 'number':
-            return typeof value === 'number' ? value.toLocaleString() : String(value);
+            return typeof value === 'number' ? value.toLocaleString() : escapeHtml(String(value));
         default:
             return escapeHtml(truncate(String(value), 80));
     }
@@ -1009,6 +1041,8 @@ function sortBy(column) {
 // ── Edit Modal ──
 
 function openEditModal(rowIndex) {
+    // A photo still open from another record closes first.
+    if (window.InvenioPhotos) InvenioPhotos.close();
     const config = TABLE_CONFIG[state.currentTable];
     const record = state.data[rowIndex];
     state.editRecord = record;
@@ -1027,7 +1061,7 @@ function openEditModal(rowIndex) {
 
     const modal = new bootstrap.Modal(document.getElementById('editModal'));
     modal.show();
-    showRecordPhotos(rowIndex);
+    showRecordPhotos(record);
 }
 
 function openAddModal() {
@@ -1059,14 +1093,15 @@ function renderEditForm(config, record) {
     }
 
     config.columns.forEach(col => {
-        const value = record[col.key] ?? '';
+        const stored = record[col.key];
+        const value = stored ?? '';
         const editable = state.isNewRecord ? (col.key !== 'created_at' && col.type !== 'datetime') : col.editable;
 
         html += `<div class="field-group">`;
         html += `<label>${col.label} ${!editable ? '<span class="badge bg-secondary">read-only</span>' : ''}</label>`;
 
         if (!editable) {
-            html += `<div class="field-readonly">${formatCell(value, col.type)}</div>`;
+            html += `<div class="field-readonly">${formatCell(stored, col.type)}</div>`;
         } else {
             switch (col.type) {
                 case 'enum':
@@ -1086,7 +1121,7 @@ function renderEditForm(config, record) {
                     html += `<input type="number" class="form-control" data-field="${col.key}" value="${escapeHtml(value)}" step="any">`;
                     break;
                 case 'date':
-                    html += `<input type="date" class="form-control" data-field="${col.key}" value="${value || ''}">`;
+                    html += `<input type="date" class="form-control" data-field="${col.key}" value="${escapeHtml(value || '')}">`;
                     break;
                 default:
                     html += `<input type="text" class="form-control" data-field="${col.key}" value="${escapeHtml(String(value))}">`;
@@ -1195,7 +1230,7 @@ async function deleteRecord() {
 
 function exportCSV() {
     const config = TABLE_CONFIG[state.currentTable];
-    if (!config || state.data.length === 0) return;
+    if (!config || state.dataTable !== state.currentTable || state.data.length === 0) return;
 
     const headers = config.columns.map(c => c.label);
     const rows = state.data.map(row =>
@@ -1223,6 +1258,14 @@ function exportCSV() {
 
 function truncate(str, max) {
     return str.length > max ? str.slice(0, max) + '...' : str;
+}
+
+// A copy of a logged value with license details hidden: the last four digits, and license fields in snapshots.
+function withoutLicense(value) {
+    if (Array.isArray(value)) return value.map(withoutLicense);
+    if (!value || typeof value !== 'object') return value;
+    return Object.fromEntries(Object.entries(value).map(([key, item]) =>
+        [key, /licen[cs]e|^last4$/i.test(key) ? '(hidden)' : withoutLicense(item)]));
 }
 
 // Text for markup, quotes included: values also go inside the edit form's value="…" attributes.

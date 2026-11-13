@@ -57,6 +57,7 @@ class FakeElement {
     }
     querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
     addEventListener(type, listener) { (this.listeners[type] ||= []).push(listener); }
+    removeEventListener(type, listener) { this.listeners[type] = (this.listeners[type] || []).filter(item => item !== listener); }
     dispatch(type, extra = {}) {
         const event = { type, target: this, cancelable: true, defaultPrevented: false, preventDefault() { if (this.cancelable) this.defaultPrevented = true; }, ...extra };
         // Listeners and on… handler properties, on this element and then up the tree, as events bubble in a browser.
@@ -93,6 +94,7 @@ function fakeDocument() {
             return elements.get(id);
         },
         addEventListener() {},
+        removeEventListener() {},
     };
     document.body = new FakeElement(document, 'body');
     document.head = new FakeElement(document, 'head');
