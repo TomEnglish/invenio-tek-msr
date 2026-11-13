@@ -126,23 +126,28 @@
         if (unit.parent_id) details.append(el('p', 'A crate inside another crate is wherever its outermost crate is.', 'small text-muted mb-0'));
         content.append(details);
 
-        // What is inside, read afresh each time a crate is opened: crates, containers and the rest open out in place,
-        // or open in this drawer, and each item links to its record.
-        const inside = el('section', '', 'record-section'), body = el('div');
-        inside.append(el('h3', `Contents · ${logistics.contentsText(unit)}`, 'h6'), body);
+        // What is inside, read afresh each time a crate is opened (the list's counts are from when the page loaded):
+        // crates, containers and the rest open out in place, or open in this drawer, and each item links to its record.
+        const inside = el('section', '', 'record-section'), heading = el('h3', 'Contents', 'h6'), body = el('div');
+        inside.append(heading, body);
         content.append(inside);
+        $('unitStatus').textContent = '';
         tree.levels.clear();
-        if (unit.item_count || unit.unit_count) crateTree.render(body, unit.id);
-        else body.append(el('p', 'Nothing inside.', 'text-muted mb-0'));
+        crateTree.render(body, unit.id, { onReady: level => {
+            heading.textContent = `Contents · ${logistics.contentsText({ item_count: level.items.length, unit_count: level.units.length })}`;
+        } });
         if (drawer.open) title.focus(); else { drawer.showModal(); close.focus(); }
     }
     const tree = contents.newState();
-    // A unit inside that this page hasn't read yet (packed since it opened) is read with the rest first.
+    // A unit inside that this page hasn't read yet (packed since it opened) is read with the rest first. What goes
+    // wrong is said in the drawer, not behind it.
     const crateTree = contents.view({ document, client: projectSupabaseClient, state: tree, logistics, openCrate: async other => {
         if (!byId.has(other.id)) {
+            $('unitStatus').textContent = `Loading ${other.code}…`;
             try { await load(); }
-            catch (error) { message(`Could not load crates: ${logistics.errorMessage(error)}`); return; }
+            catch (error) { $('unitStatus').textContent = `Could not open ${other.code}: ${logistics.errorMessage(error)}`; return; }
         }
+        if (!byId.has(other.id)) { $('unitStatus').textContent = `${other.code} isn't among this project's crates any more. Reload the page.`; return; }
         openUnit(other.id);
     } });
 

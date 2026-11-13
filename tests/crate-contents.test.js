@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const contents = require('../js/utils/crate-contents');
 const logistics = require('../js/utils/logistics-helpers');
-const { fakeDocument, settle } = require('./support/fake-dom');
+const { fakeDocument, settle, assertFocus } = require('./support/fake-dom');
 
 const unit = (id, code, extra = {}) => ({ id, code, kind: 'crate', description: null, is_high_value: false, status: 'sealed', parent_id: null, item_count: 0, unit_count: 0, ...extra });
 const item = (unitId, tag, extra = {}) => ({ id: `${unitId}-${tag}`, unit_id: unitId, tag, name: `Item ${tag}`, quantity: 1, uom: 'EA', material_id: null, inventory_uid: null,
@@ -124,6 +124,33 @@ test('a failed level says why and Try again reads it again', async () => {
     page.box.querySelector('button').click();
     await settle();
     assert.deepEqual(page.tags(), [['T-1']]);
+});
+
+test('render tells the page what it read once the level is in, at once when it already was, and after Try again', async () => {
+    const { document } = fakeDocument();
+    const client = fakeClient([unit('c1', 'HU-C1', { parent_id: 'top' })], [item('top', 'T-1'), item('top', 'T-2')]);
+    const state = contents.newState(), told = [];
+    const view = contents.view({ document, client, state, logistics });
+    const box = document.createElement('div'); document.body.append(box);
+    const tell = level => told.push([level.units.length, level.items.length]);
+    view.render(box, 'top', { onReady: tell });
+    assert.deepEqual(told, [], 'not before the read finishes');
+    await settle();
+    assert.deepEqual(told, [[1, 2]]);
+    view.render(box, 'top', { onReady: tell });
+    assert.deepEqual(told, [[1, 2], [1, 2]], 'already read: at once');
+    state.levels.clear();
+    client.fail = () => ({ code: 'PGRST301', message: 'timeout' });
+    view.render(box, 'top', { onReady: tell });
+    await settle();
+    assert.equal(told.length, 2, 'not for a failed read');
+    client.fail = null;
+    const retry = box.querySelector('button');
+    retry.click();
+    assertFocus({ document }, box, 'the box the level sits in keeps the focus when Try again is gone');
+    await settle();
+    assert.deepEqual(told.at(-1), [1, 2], 'told once it reads');
+    assert.equal(told.length, 3);
 });
 
 test('markup in codes, names and tags stays text, and a loop in the data stops at the depth limit', async () => {

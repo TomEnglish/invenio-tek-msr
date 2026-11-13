@@ -197,14 +197,51 @@ test('the drawer shows what is inside a crate: the crates inside open out in pla
     assert.equal(page.content.querySelector('h2').textContent, 'HU-AAAA11');
 
     page.drawer.close();
-    const before = page.server.log.length;
     await page.view('HU-FFFF66');
     assert.ok(page.content.textContent.includes('Contents · Empty'));
     assert.ok(page.content.textContent.includes('Nothing inside.'));
-    assert.equal(page.server.log.length, before, 'an empty crate asks for nothing');
     page.drawer.close(); await page.view('HU-GGGG77');
     assert.deepEqual(page.itemRows()[0].slice(0, 3), ['X-<i>1</i>', '<img src=x onerror=alert(1)>', '1.5 M']);
     assert.deepEqual(page.itemLinks(), [['X-<i>1</i>', null]], 'an item with neither record is plain text');
+});
+
+test('the drawer reads what a crate holds now, not what the list said when the page loaded', async () => {
+    const page = await openPage();
+    // Packed since the list was read: an empty crate gets an item, and HU-AAAA11 a third one.
+    page.server.items.push(item('HU-FFFF66', 'GT-9', 'Late arrival'), item('HU-AAAA11', 'GT-8', 'Another cooler'));
+    await page.view('HU-FFFF66');
+    assert.ok(page.content.textContent.includes('Contents · 1 item'), 'the heading follows what was read');
+    assert.deepEqual(page.tags(), [['GT-9']]);
+    page.drawer.close(); await page.view('HU-AAAA11');
+    assert.ok(page.content.textContent.includes('Contents · 3 items, 1 crate'));
+    assert.equal(page.$('unitRows').querySelectorAll('tr').find(row => row.querySelector('.mono').textContent === 'HU-AAAA11').childNodes[4].textContent, '2 items, 1 crate',
+        'the list keeps what it read until the page reloads');
+});
+
+test('Open on a crate packed since the page loaded reads the list again; when it cannot open, the drawer says why', async () => {
+    const page = await openPage();
+    page.server.units.push(unit('HU-NEWW01', { ...nestedIn, parent_id: 'hu-aaaa11', parent_code: 'HU-AAAA11', item_count: 1 }));
+    page.server.items.push(item('HU-NEWW01', 'GT-7', 'Gauge'));
+    await page.view('HU-AAAA11');
+    await page.open('HU-NEWW01');
+    assert.equal(page.content.querySelector('h2').textContent, 'HU-NEWW01');
+    assert.equal(page.$('unitStatus').textContent, '');
+    assert.deepEqual(page.tags(), [['GT-7']]);
+
+    page.server.units.push(unit('HU-NEWW02', { ...nestedIn, parent_id: 'hu-aaaa11', parent_code: 'HU-AAAA11' }));
+    await page.open('HU-AAAA11');
+    page.server.fail = request => request.table === 'handling_unit_overview' && !request.filters.some(([key]) => key === 'parent_id')
+        && { code: '42501', message: 'permission denied for view handling_unit_overview' };
+    await page.open('HU-NEWW02');
+    assert.equal(page.$('unitStatus').textContent, 'Could not open HU-NEWW02: You do not have permission to make this change.');
+    assert.equal(page.content.querySelector('h2').textContent, 'HU-AAAA11', 'the drawer stays where it was');
+    // Gone from the project's list by the time it is read again.
+    page.server.fail = null;
+    page.server.units = page.server.units.filter(row => row.code !== 'HU-NEWW02');
+    await page.open('HU-NEWW02');
+    assert.equal(page.$('unitStatus').textContent, "HU-NEWW02 isn't among this project's crates any more. Reload the page.");
+    await page.open('HU-NEWW01');
+    assert.equal(page.$('unitStatus').textContent, '', 'opening a crate clears it');
 });
 
 test('what is inside a crate that arrives after another crate was opened is dropped', async () => {

@@ -59,6 +59,14 @@
         let serial = 0;
         // Placeholders shown while a level is read, by unit id; each is replaced when the read finishes.
         const waiting = new Map();
+        // What to tell the page once a rendered unit's own level has been read, by unit id (the latest render's).
+        const readyCalls = new Map();
+        function ready(unitId, entry) {
+            const call = readyCalls.get(unitId);
+            if (!call || entry?.status !== 'ready') return;
+            readyCalls.delete(unitId);
+            call({ units: entry.units, items: entry.items });
+        }
         function el(tag, text = '', className = '') {
             const node = doc.createElement(tag); node.textContent = text; node.className = className; return node;
         }
@@ -84,6 +92,7 @@
                 const nodes = waiting.get(unitId) || new Set();
                 waiting.delete(unitId);
                 for (const node of nodes) if (node.parentNode) node.replaceWith(level(unitId, Number(node.dataset.depth)));
+                ready(unitId, done);
             });
         }
 
@@ -100,7 +109,13 @@
             if (entry.status === 'error') {
                 const node = el('div', '', 'crate-tree-error');
                 node.append(el('p', `What is inside could not be loaded (${logistics.errorMessage(entry.error)}).`, 'small text-danger mb-1'),
-                    button('Try again', 'btn btn-sm btn-outline', () => { state.levels.delete(unitId); node.replaceWith(level(unitId, depth)); }));
+                    button('Try again', 'btn btn-sm btn-outline', () => {
+                        const holder = node.parentNode;
+                        state.levels.delete(unitId);
+                        node.replaceWith(level(unitId, depth));
+                        // The button is gone: the box the level sits in takes the focus, so a keyboard user keeps their place.
+                        if (holder) { holder.tabIndex = -1; holder.focus(); }
+                    }));
                 return node;
             }
             const wrap = el('div', '', 'crate-tree-level');
@@ -168,7 +183,13 @@
             return wrap;
         }
 
-        return { render(container, unitId) { container.replaceChildren(level(unitId, 0)); } };
+        /** Shows what is inside a unit; `onReady({ units, items })` once that level is read (at once if it was already). */
+        function render(container, unitId, { onReady = null } = {}) {
+            if (onReady) readyCalls.set(unitId, onReady); else readyCalls.delete(unitId);
+            container.replaceChildren(level(unitId, 0));
+            ready(unitId, state.levels.get(unitId));
+        }
+        return { render };
     }
 
     const api = { UNIT_COLUMNS, ITEM_COLUMNS, MAX_DEPTH, itemHref, crateHref, quantityText, newState, toggleOpen, readLevel, view };

@@ -134,6 +134,14 @@
         if (dirty() && !confirm('Discard your unsaved changes to this load?')) return;
         if (drawer.open) { closing = true; drawer.close(); }
     }
+    // A link in the drawer (to a crate, or an item's record) leaves the page, so it asks first, as closing does.
+    // One opened in another tab leaves the page as it is.
+    body.addEventListener('click', event => {
+        const link = event.target.closest?.('a');
+        if (!link?.href || link.target === '_blank' || event.ctrlKey || event.metaKey || event.shiftKey) return;
+        if (lock.busy) { event.preventDefault(); status(STILL_SAVING); return; }
+        if (dirty() && !confirm('Discard your unsaved changes to this load?')) event.preventDefault();
+    });
     const markDirty = section => () => { if (current) { current.dirty[section] = true; window.InvenioUnsavedChanges = true; } };
 
     async function loadDetail(state) {

@@ -328,6 +328,28 @@ test('a crate on the manifest opens out to show what is inside, level by level; 
     assert.equal(extra().hidden, true);
 });
 
+test('a link in the drawer asks before leaving unsaved edits, as closing does', async () => {
+    const page = await openPage();
+    await page.open('L-0001');
+    const toggle = page.section('manifest').querySelectorAll('button').find(node => node.className.split(/\s+/).includes('crate-tree-toggle') && node.textContent === 'HU-AAAA11');
+    toggle.click(); await settle();
+    const link = () => page.section('manifest').querySelectorAll('a').find(node => node.textContent === 'T-101');
+    // Nothing unsaved: it just goes.
+    assert.equal(link().dispatch('click').defaultPrevented, false);
+    assert.equal(page.confirms.length, 0);
+    // An unsaved edit to the details: it asks, and staying keeps the page.
+    page.set('truckNumber', 'TRK-999');
+    page.context.confirmAnswer = false;
+    assert.equal(link().dispatch('click').defaultPrevented, true);
+    assert.equal(page.confirms.at(-1), 'Discard your unsaved changes to this load?');
+    page.context.confirmAnswer = true;
+    assert.equal(link().dispatch('click').defaultPrevented, false, 'discarding lets it go');
+    // A new tab leaves this page as it is.
+    const asked = page.confirms.length;
+    assert.equal(link().dispatch('click', { metaKey: true }).defaultPrevented, false);
+    assert.equal(page.confirms.length, asked);
+});
+
 test('Mark loaded and depart confirms every planned piece; Cancel load puts crates back', async () => {
     const page = await openPage();
     await page.open('L-0001');
