@@ -1312,6 +1312,28 @@ canvas { background: transparent !important; }
 .record-fields dd { margin:0; overflow-wrap:anywhere; white-space:pre-wrap; }
 .record-photos { display:flex; flex-wrap:wrap; gap:1rem; }
 .record-photo { width:320px; max-width:100%; height:auto; object-fit:contain; }
+
+/* Item photos (js/utils/photo-viewer.js): the button that opens a row's photos, thumbnails, and the viewer. */
+.photo-chip { display:inline-flex; align-items:center; gap:0.35rem; padding:0.1rem 0.6rem; border:1px solid var(--border-strong); border-radius:var(--radius-pill); background:var(--surface); color:var(--primary); font-size:0.8rem; font-weight:600; line-height:1.6; cursor:pointer; white-space:nowrap; }
+.photo-chip:hover { background:var(--primary-soft); }
+.photo-chip:focus-visible, .photo-thumb:focus-visible, .photo-viewer-close:focus-visible { outline:none; box-shadow:var(--ring); }
+.photo-strip { display:flex; flex-wrap:wrap; gap:0.5rem; }
+.photo-thumb { width:96px; height:96px; padding:0; border:1px solid var(--border); border-radius:var(--radius-md); background:var(--raised); color:var(--text); overflow:hidden; cursor:zoom-in; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.photo-thumb-image { width:100%; height:100%; object-fit:cover; display:block; }
+.photo-thumb-large { width:320px; max-width:100%; height:auto; align-items:stretch; }
+.photo-thumb-large .photo-thumb-image { height:auto; object-fit:contain; }
+.photo-thumb-caption { display:block; padding:0.4rem 0.6rem; font-size:0.8rem; color:var(--text-muted); text-align:left; border-top:1px solid var(--border); background:var(--surface); }
+.photo-thumb-missing { font-size:0.75rem; color:var(--text-muted); padding:0.25rem; text-align:center; }
+.photo-viewer { position:fixed; inset:0; z-index:2000; background:var(--overlay); display:flex; align-items:center; justify-content:center; padding:1rem; }
+.photo-viewer-frame { background:var(--surface); color:var(--text); border-radius:var(--radius-xl); box-shadow:var(--shadow-lg); width:min(960px, 100%); max-height:calc(100vh - 2rem); display:flex; flex-direction:column; overflow:hidden; }
+.photo-viewer-bar { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:0.75rem 1rem; border-bottom:1px solid var(--border); }
+.photo-viewer-caption { margin:0; font-weight:600; min-width:0; overflow-wrap:anywhere; }
+.photo-viewer-close { border:0; background:transparent; color:var(--text-muted); font-size:1.75rem; line-height:1; padding:0 0.35rem; border-radius:var(--radius-sm); cursor:pointer; }
+.photo-viewer-close:hover { color:var(--text); }
+.photo-viewer-stage { flex:1; min-height:200px; display:flex; align-items:center; justify-content:center; background:var(--canvas); padding:0.75rem; overflow:auto; }
+.photo-viewer-image { max-width:100%; max-height:calc(100vh - 12rem); object-fit:contain; display:block; }
+.photo-viewer-status { margin:0; color:var(--text-muted); }
+.photo-viewer-nav { display:flex; flex-wrap:wrap; gap:0.5rem; justify-content:flex-end; padding:0.75rem 1rem; border-top:1px solid var(--border); }
 @media (max-width:1024px) { .inbox-row { grid-template-columns:minmax(0,1fr) minmax(90px,.4fr) auto; } .inbox-identity { grid-column:1 / -1; } .inbox-row > button { grid-column:3; grid-row:2; } .inbox-row > .work-badge { grid-column:1 / -1; grid-row:3; } }
 @media (max-width:600px) { .record-groups { grid-template-columns:1fr; } .record-fields > div { grid-template-columns:1fr; gap:.15rem; } .inbox-row { gap:.75rem; } .review-drawer { padding:1rem; } .work-page-header > label { width:100%; } }
 

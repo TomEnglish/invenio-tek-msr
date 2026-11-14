@@ -38,6 +38,11 @@
         ],
         inventory_photos: [{ id:'p1', project_id:project.id, inventory_uid:'a1000000-0000-4000-8000-000000000000', storage_path:'a1000000-0000-4000-8000-000000000000/op-1.jpg', created_at:'2026-10-26T15:00:00Z' }],
     };
+    const receipt = 'c1111111-1111-4111-8111-111111111111';
+    state.inventory.inspection_photos ||= [
+        { id:'ip1', receiving_record_id:receipt, storage_path:`${receipt}/op-1-0-damage.jpg`, photo_type:'damage', created_at:'2026-09-08T12:05:00Z', receiving_records:{ project_id:project.id } },
+        { id:'ip2', receiving_record_id:receipt, storage_path:`${receipt}/op-1-1-delivery_ticket.jpg`, photo_type:'delivery_ticket', created_at:'2026-09-08T12:06:00Z', receiving_records:{ project_id:project.id } },
+    ];
     // Places and crates (021). Made-up fixture rows: a markup-named shop, a retired yard, and a yard tied to a
     // project this user is not assigned to (read-only for them). Crates nest three deep under HU-AAAA11.
     const place = (n, name, kind, extra = {}) => ({ id:`f${n}000000-0000-4000-8000-000000000000`, kind, name, project_id:null, address:null, city:null, state:null, postal_code:null,
@@ -174,7 +179,7 @@
     class Query {
         constructor(table) { this.table=table; this.filters=[]; this.one=false; this.start=0; this.end=1000; this.write=null; }
         select() { if (this.write) this.returning=true; return this; } insert(values) { this.write={insert:[].concat(values)}; return this; } update(values) { this.write={update:values}; return this; } delete() { this.write={delete:true}; return this; }
-        eq(k,v) { this.filters.push(r=>r[k]===v); return this; } is(k,v) {this.filters.push(r=>(r[k] ?? null)===v);return this;}
+        eq(k,v) { this.filters.push(r=>k.split('.').reduce((value,part)=>value?.[part],r)===v); return this; } is(k,v) {this.filters.push(r=>(r[k] ?? null)===v);return this;}
         order(){return this;} range(a,b){this.start=a;this.end=b;return this;} limit(n){this.end=n-1;return this;}
         single(){this.one=true;return this;} maybeSingle(){return this.single();}
         lt(k,v){this.filters.push(r=>r[k]<v);return this;} in(k,v){this.filters.push(r=>v.includes(r[k]));return this;}
@@ -319,7 +324,8 @@
             remove:async paths=>{ const removed=loadsModel.storage.remove(paths); save(); return success(removed.map(name=>({name}))); },
             list:async prefix=>success(loadsModel.storage.list(prefix)),
         } : {
-            createSignedUrl:async path=>success({signedUrl:uploads.get(path)||(bucket==='site-plans'?planImage:bucket==='inventory-photos'?photoImage:'')}),
+            createSignedUrl:async path=>success({signedUrl:uploads.get(path)||(bucket==='site-plans'?planImage:['inventory-photos','inspection-photos'].includes(bucket)?photoImage:'')}),
+            createSignedUrls:async paths=>success(paths.map(path=>({path,error:null,signedUrl:uploads.get(path)||(bucket==='site-plans'?planImage:['inventory-photos','inspection-photos'].includes(bucket)?photoImage:'')}))),
             upload:async(path,blob)=>{uploads.set(path,URL.createObjectURL(blob));return success({path});},
         }},
     }) };
