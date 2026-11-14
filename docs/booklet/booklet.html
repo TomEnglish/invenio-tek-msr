@@ -40,11 +40,11 @@
     </svg>
   </div>
   <div class="edition">
-    <span>Edition</span><b>3 · November 6, 2026</b>
-    <span>Field app</span><b>1.1.0 (build 5), over-the-air update 63ed2c22</b>
-    <span>Office site</span><b>release 835fb3a</b>
-    <span>Database</span><b>migration 025</b>
-    <span>Covers</span><b>initial count, receiving, stock, crates, loads and driver check-in</b>
+    <span>Edition</span><b>4 · November 13, 2026</b>
+    <span>Field app</span><b>1.1.0 (build 5), over-the-air update d1c2ac1d</b>
+    <span>Office site</span><b>release 13b90ea</b>
+    <span>Database</span><b>migration 027</b>
+    <span>Covers</span><b>initial count, receiving, stock, crates, loads, driver check-in, shipments and photos</b>
   </div>
 </section>
 
@@ -135,7 +135,7 @@
     <thead><tr><th style="width:24%">Role</th><th style="width:20%">Works in</th><th>Can</th></tr></thead>
     <tbody>
       <tr><td>Field worker <span class="who crew">Crew</span></td><td>Field app</td><td>Scan, receive deliveries, count, move and issue stock, pack and move crates, start a load for a truck that turns up, check drivers in, load out, depart once the license is on file, unload and finish stops at our own yards and sites.</td></tr>
-      <tr><td>Office staff <span class="who office">Office</span></td><td>Office site, and the app</td><td>Everything a crew can, plus: places, site maps and crate labels; planning loads; letting a truck leave without the license (with a reason); confirming deliveries at outside shops and vendors; marking pieces found, writing them off, closing and canceling loads; driver licenses; exceptions and holds; importing the expected list; shipping stock out.</td></tr>
+      <tr><td>Office staff <span class="who office">Office</span></td><td>Office site, and the app</td><td>Everything a crew can, plus: places, site maps and crate labels; planning loads; letting a truck leave without the license (with a reason); confirming deliveries at outside shops and vendors; marking pieces found, writing them off, closing and canceling loads; driver licenses; exceptions and holds; importing the expected list; shipping stock out; linking GPS trackers to shipments.</td></tr>
       <tr><td>Administrator <span class="who admin">Admin</span></td><td>Office site</td><td>Everything office staff can, plus users and access, projects, the Data Browser, the admin audit, correcting material records, editing or deleting PO &amp; Installation links, and undoing a write-off.</td></tr>
     </tbody>
   </table>
@@ -300,6 +300,7 @@
   <p class="for"><span class="who crew">Crew</span><span class="who office">Office</span></p>
   <p class="lede">Received material lives on the <span class="ui">Inventory</span> tab (office: <span class="ui">Materials</span>). Each item opens on its material page, which says what it is, how much is left and where it is. Search finds an item by its type, its grade or part of its QR code.</p>
   <p>The page shows <span class="ui">Quantity</span>, <span class="ui">Size</span>, <span class="ui">Grade</span>, <span class="ui">Weight</span>, <span class="ui">Spec</span>, <span class="ui">QR Code</span>, <span class="ui">Rack</span>, <span class="ui">Where</span> and <span class="ui">Received</span>. “Where” reads, for example, “On load L-0003”, “Missing from load L-0003”, “In crate HU-ABC123 (inside HU-XYZ789) at Yard · Rack 2” or “Place · Area”; crate and load lines open those screens.</p>
+  <p><strong>Photos.</strong> The page's <span class="ui">Photos</span> section shows the photos taken at receiving and, if the item was counted first, its count photo, each labeled with what it is and when (for example “Damage, Oct 27”). Tap one to see it full screen; <span class="ui">Previous</span> and <span class="ui">Next</span> page through them. Photos the phone has already shown appear offline too; otherwise it says “Photos show when this phone is online.” If a photo doesn't load, tap <span class="ui">Reload photos</span>.</p>
   <h3>Actions</h3>
   <table>
     <thead><tr><th style="width:22%">Action</th><th>What it asks</th></tr></thead>
@@ -411,15 +412,23 @@
     <thead><tr><th style="width:20%">Group</th><th>Pages</th></tr></thead>
     <tbody>
       <tr><td>Top</td><td><span class="ui">Dashboard</span> (project tiles, “Work needing attention”, “Expected arrivals”, <span class="ui">Export PDF</span>) and <span class="ui">Work Inbox</span> (chapter 18).</td></tr>
-      <tr><td>Logistics</td><td><span class="ui">Outside Shops</span>, <span class="ui">Places</span>, <span class="ui">Crates</span> and <span class="ui">Loads</span> (chapters 13 to 16, 18). <span class="ui">Shipments</span> and <span class="ui">Inventory</span> are read-only views of older tables.</td></tr>
+      <tr><td>Logistics</td><td><span class="ui">Outside Shops</span>, <span class="ui">Places</span>, <span class="ui">Crates</span> and <span class="ui">Loads</span> (chapters 13 to 16, 18). <span class="ui">Shipments</span> lists the PO &amp; Shipment Log with where each shipment is now (below). <span class="ui">Inventory</span> (formerly Yard Inventory) is an older, read-only view of the count records, now with their photos.</td></tr>
       <tr><td>Planning</td><td><span class="ui">PO &amp; Installation</span> links PO items to install tags; administrators can edit or delete a link. <span class="ui">Gap Analysis</span>, <span class="ui">Delivery Dates</span> and <span class="ui">Schedule</span> are older, read-only pages.</td></tr>
-      <tr><td>Field</td><td><span class="ui">Receiving</span> (a six-step receipt for use at a desk), <span class="ui">GPS Tracking</span> (tracker positions, appendix A9). <span class="ui">Site Plan</span> is a demonstration page, not Site Maps.</td></tr>
+      <tr><td>Field</td><td><span class="ui">Receiving</span> (a six-step receipt for use at a desk; photos are JPEG or PNG, up to 10 MB each), <span class="ui">GPS Tracking</span> (tracker positions and the shipment each tracker rides with, appendix A9). <span class="ui">Site Plan</span> is a demonstration page, not Site Maps.</td></tr>
       <tr><td>Initial Count</td><td><span class="ui">Initial Inventory</span>, <span class="ui">Inventory Categories</span> and <span class="ui">Site Maps</span> (chapters 13 and 17).</td></tr>
       <tr><td>System <span class="who admin">Admin</span></td><td><span class="ui">Data Browser</span>, <span class="ui">Users &amp; Access</span>, <span class="ui">Projects</span>, <span class="ui">Activity &amp; Audit</span> (chapter 19, appendix A7). Hidden from everyone else.</td></tr>
     </tbody>
   </table>
-  <p><strong>Search.</strong> <span class="ui">Search records...</span> in the header looks through materials, receipts, purchase orders, shipments and QR codes (at least two characters, up to 20 results a group). A result opens “Record details”, with its photos and any exception.</p>
+  <p><strong>Search.</strong> <span class="ui">Search records...</span> in the header looks through materials, receipts, purchase orders, shipments and QR codes (at least two characters, up to 20 results a group). A result opens “Record details”, with its photos and any exception; a material shows the photos from its receipt and from its count.</p>
   <p><strong>Read-only pages.</strong> On a completed project every page is read-only. Pages also show text instead of forms when you lack the role for an action, saying who can do it, for example “Office staff manage site maps. You can view plans and zones.”</p>
+  <h3>Shipments: where each one is</h3>
+  <p>The <span class="ui">Location</span> column says where each shipment is now, going by its status in the shipment log. Press it to see that place:</p>
+  <ul>
+    <li><strong>Not RTS or RTS:</strong> the loading location (the origin).</li>
+    <li><strong>In Transit:</strong> the GPS tracker linked to the shipment, for example “Live GPS · seen 2 hours ago”. It opens the <span class="ui">GPS Tracking</span> map on that tracker. With no tracker it says “No tracker linked” and where the shipment is heading.</li>
+    <li><strong>Delivered:</strong> the delivery location (the destination), with the storage area when one is recorded.</li>
+  </ul>
+  <p>A loading or delivery location opens a map in a new tab: at the place's map point when <span class="ui">Places</span> has a place of that name, otherwise as a map search for the name. Office staff link a tracker to a shipment that is RTS or In Transit with <span class="ui">Link tracker</span>, and change or remove it with <span class="ui">Change tracker</span> and <span class="ui">Unlink tracker</span>. A tracker rides with one shipment at a time: one already on another shipment moves only after <span class="ui">Move tracker here</span>. Every link and unlink is recorded.</p>
 </section>
 
 <section class="chapter">
@@ -643,6 +652,7 @@
     <li><strong>Plan the load before the truck arrives.</strong> Stops in order, every crate and loose piece planned to the stop where it comes off, and companies recorded.</li>
     <li><strong>Leaving without the license is the exception.</strong> Use it only when there is no other way, write a reason that will make sense in a year, and get the license afterward if you can.</li>
     <li><strong>Confirm shop and vendor stops the same day.</strong> Your confirmation is the only record of what was handed over there.</li>
+    <li><strong>Keep tracker links true.</strong> Link a tracker on the Shipments page when it goes on a shipment, and unlink it when it comes off, so the map shows the shipment, not where the tracker used to be.</li>
     <li><strong>Resolve missing pieces quickly.</strong> Scan, mark found (with where) or write off (with why) within the week, while people still remember.</li>
     <li><strong>Close loads when they are done.</strong> A delivered load with nothing missing should be closed; closing starts the license's 365-day clock.</li>
     <li><strong>Keep a license only for a reason.</strong> For example to recover a tracker the driver kept. Release it when the reason is resolved.</li>
@@ -709,7 +719,7 @@
       <tr><td>Field app</td><td>iPhone and Android, built from the field app repository. Version 1.1.0, build 5.</td><td>Offline queue on the phone; new screens arrive as over-the-air updates on the production channel.</td></tr>
       <tr><td>Office site</td><td>A managed web host, deployed from <code>main</code> of the office repository (MSR).</td><td>Plain HTML and JavaScript; the site build writes a <code>release.json</code> of asset hashes.</td></tr>
       <tr><td>Database and sign-in</td><td>The managed database (project “InventoryApp_w_MSR”), with row-level security, and its sign-in service.</td><td>Shared by both clients. Every migration lives in the MSR repository.</td></tr>
-      <tr><td>Private storage</td><td>Buckets <code>inspection-photos</code>; <code>site-plans</code> (15 MB; PNG, JPEG, WEBP); <code>inventory-photos</code> (10 MB); <code>driver-licences</code> (10 MB; JPEG, PNG; at most 4 files a load).</td><td>Read only through short-lived signed links.</td></tr>
+      <tr><td>Private storage</td><td>Buckets <code>inspection-photos</code> (10 MB; JPEG, PNG; from 027); <code>site-plans</code> (15 MB; PNG, JPEG, WEBP); <code>inventory-photos</code> (10 MB; JPEG, PNG); <code>driver-licences</code> (10 MB; JPEG, PNG; at most 4 files a load).</td><td>Read only through short-lived signed links.</td></tr>
       <tr><td>Admin function</td><td>A server function, <code>admin-users</code>, that checks each caller's sign-in token.</td><td>Invitations, users, projects and the admin audit.</td></tr>
       <tr><td>Email</td><td>The sign-in service, sending through an email delivery provider.</td><td>Templates in the office repository.</td></tr>
       <tr><td>License job</td><td>A scheduled job in the office repository, daily at 09:17 UTC.</td><td>Removes licenses that are due and not kept.</td></tr>
@@ -733,6 +743,7 @@
       <tr><td>What</td><td><code>qr_codes</code> (every tag and label, unique per project ignoring capitals); <code>inventory_categories</code>; <code>inventory_records</code> (count records: expected, counted, received) and <code>inventory_photos</code>; <code>receiving_records</code> and <code>inspection_photos</code>; <code>materials</code> (in yard, issued, shipped, depleted, written off); <code>material_movements</code>, <code>material_issues</code>, <code>shipments_out</code>.</td></tr>
       <tr><td>Crates</td><td><code>handling_units</code> (code, kind, status, place and area, parent crate); <code>handling_unit_contents</code>; views <code>handling_unit_items</code>, <code>handling_unit_overview</code>.</td></tr>
       <tr><td>Loads</td><td><code>loads</code>, <code>load_companies</code> (up to 3), <code>load_stops</code> (up to 20), <code>load_lines</code> (the manifest), <code>load_write_offs</code>; views <code>load_overview</code>, <code>load_stop_overview</code>, <code>load_line_overview</code>.</td></tr>
+      <tr><td>Shipments</td><td><code>purchase_orders</code> and <code>shipments</code> (the PO &amp; Shipment Log, A9); <code>shipment_trackers</code> (from 026: which tracker rides with which shipment, at most one each at a time; an ended link keeps who ended it, when and why).</td></tr>
       <tr><td>Licenses <span class="who office">Office</span></td><td><code>load_driver_licences</code>, <code>driver_licence_photos</code>, <code>load_licence_operations</code>, <code>driver_licence_holds</code> (from 023). Office staff only; see A5.</td></tr>
       <tr><td>Changes and history</td><td><code>field_operations</code> (one row per step, with its result); <code>audit_log</code> (who did what, when, to what).</td></tr>
       <tr><td>Position</td><td>View <code>item_positions</code>: the one answer to “where is it?” for every item and crate (A3).</td></tr>
@@ -793,7 +804,7 @@
   <ul>
     <li>Row-level security is on for every table. People read only the projects they are assigned to; places are readable by every active user.</li>
     <li>Writes go through checked functions that test the role and project themselves (<code>is_office_user</code>, <code>has_project_access</code>, <code>can_work_project</code>). The screens hiding a button is a convenience, never the control.</li>
-    <li>History is never deleted: places retire, areas go inactive, loads close; the audit log can't be changed. The one exception is an administrator deleting a PO &amp; Installation link, which takes its status history with it after the audit log has recorded both.</li>
+    <li>History is never deleted: places retire, areas go inactive, loads close, tracker links end; the audit log can't be changed. The one exception is an administrator deleting a PO &amp; Installation link, which takes its status history with it after the audit log has recorded both.</li>
     <li>Completed projects are read-only and archived projects are hidden, in the database as well as on screen.</li>
   </ul>
   <h3>Driver licenses</h3>
@@ -801,6 +812,7 @@
     <li>License tables and the <code>driver-licences</code> bucket are readable by office staff only. Crews can upload a license but can never read one back, in the app or by any other route.</li>
     <li>Office staff see photos through signed links that expire after five minutes. Licenses are never printed; the manifest leaves them out.</li>
     <li>The audit log keeps at most the last four characters, and only for numbers longer than six.</li>
+    <li>The Data Browser never fetches, shows or exports a license table or column. In its Audit Log, entries about licenses are hidden whole, and license fields inside load snapshots show as “(hidden)”.</li>
     <li>On the phone the number stays in memory only, and the photos are deleted after upload, after a discard and at sign-out.</li>
     <li>Each license is removed 365 days after its load closes unless office staff keep it with a reason. The daily job removes it with the service-role key; opening the Loads page does the same as a backup.</li>
   </ul>
@@ -837,7 +849,7 @@
     <tbody>
       <tr><td>Users &amp; Access</td><td>Invite, edit, deactivate; resend or cancel invitations; filter by role, status and project; open a person's history (chapter 19). Backed by the <code>admin-users</code> function.</td></tr>
       <tr><td>Projects</td><td>Create, edit, complete (read-only) or archive (hidden). Completing or archiving is refused while loads are open.</td></tr>
-      <tr><td>Data Browser</td><td>Browse any table for the active project, 25 to 100 rows at a time, and export CSV. History tables are read-only and nothing can be deleted. Material records can be corrected with a reason of at least five characters. <span class="ui">Locations</span> is the only table with <span class="ui">Add</span>: it is where racks are made.</td></tr>
+      <tr><td>Data Browser</td><td>Browse any table for the active project, 25 to 100 rows at a time, and export the table on screen as CSV. History tables and the newer data (counts, categories, site maps, places, crates, loads, trackers) are read-only, and nothing can be deleted. A row with photos shows how many; press it to open them. An opened record shows its photos and <span class="ui">Open record details</span>. License tables and fields are never shown (A5). Material records can be corrected with a reason of at least five characters. <span class="ui">Locations</span> is the only table with <span class="ui">Add</span>: it is where racks are made.</td></tr>
       <tr><td>PO &amp; Installation links</td><td><span class="ui">Edit</span> changes a link's PO and installation details; <span class="ui">Delete</span> removes a link. Each asks why (5 to 500 characters). An edit records the old and new values with the reason, and isn't saved if someone changed the same detail since the form opened. A delete records the link, its status history and any tracker on it, then removes the link and its history and unhooks the tracker. Office staff still change a link's status with <span class="ui">Update</span>.</td></tr>
       <tr><td>Activity &amp; Audit</td><td>Administrator changes (users and projects) with person, time and old and new values, 25 a page. Operational history (counts, crates, loads) is in Data Browser › <span class="ui">Audit Log</span>, and on the app's Activity tab.</td></tr>
       <tr><td>Auth settings</td><td>Held by the sign-in service: email codes last 3,600 seconds; the redirect allowlist has <code>/login.html</code> and <code>/login.html?setup=invite</code>; templates and subjects as in <code>docs/INVITATION_RECOVERY.md</code>.</td></tr>
@@ -881,6 +893,7 @@
   <h2 data-toc="a-integrations"><span class="n">A9</span>Integrations</h2>
   <h3>GPS trackers</h3>
   <p>The <span class="ui">GPS Tracking</span> page shows the GPS trackers, but its data updates only while the legacy hourly job in the old tracker repository writes to the shared database; the MSR repository's own tracker sync workflow is a manual placeholder that prints the hand-over steps. The cut-over is set out in <code>docs/INTEGRATION_OWNERSHIP.md</code>.</p>
+  <p>Office staff link a tracker to a shipment on the <span class="ui">Shipments</span> page (chapter 12). <span class="ui">GPS Tracking</span> shows each tracker's shipment under <span class="ui">Linked To</span>, and a link from Shipments opens the map on that tracker and names its shipment.</p>
   <p><strong>Planned.</strong> Trackers will be attached to crates and high-value items, not trucks. A server job will record positions and use each place's arrival radius to mark crates as arrived at shops and stops, with a map on each load and a warning when a tracker in transit goes quiet. Before building it, confirm with the tracker provider that the tags will be seen at outside shops, since they report only near a gateway.</p>
   <h3>Purchase orders and shipments</h3>
   <p>The purchase-order import script checks an MSR workbook and, only with <code>--apply</code>, a <code>--project-id</code> and the service-role key, imports both sheets in one transaction. Without <code>--apply</code> it only validates. It never deletes rows.</p>
@@ -904,6 +917,8 @@
     <li>Racks can be added only in Data Browser › Locations.</li>
     <li><span class="ui">Print the last N labels again</span> is lost when the page reloads; reprint from the reserved range before leaving the page.</li>
     <li>The arrival radius has no effect until trackers are connected.</li>
+    <li>Tracker positions are only as fresh as the legacy tracker sync (A9), so “Live GPS” on Shipments depends on that job running.</li>
+    <li>A loading or delivery location with no place of that name opens as a map search, which can find the wrong place for a short or unusual name. Add the place, with its map point, on the Places page.</li>
   </ul>
 </section>
 
@@ -915,6 +930,7 @@
       <tr><td>1</td><td>Oct 31, 2026</td><td>Field app 1.1.0 (build 5, update 56cc444c); office site release 8bb6abd; database migration 024</td><td>First edition.</td></tr>
       <tr><td>2</td><td>Nov 2, 2026</td><td>Same as edition 1</td><td>US English spelling, words and dates throughout. Screen labels are quoted in US spelling; where a screen still spells a word differently, it means the same thing. No rules changed.</td></tr>
       <tr><td>3</td><td>Nov 6, 2026</td><td>Field app 1.1.0 (build 5, update 63ed2c22); office site release 835fb3a; database migration 025</td><td>The app, the office site and database messages now use US spelling too, so the screens match the labels quoted here. Count home shows a 12-hour time, for example “Updated Oct 30, 2:05 PM”. No rules changed.</td></tr>
+      <tr><td>4</td><td>Nov 13, 2026</td><td>Field app 1.1.0 (build 5, update d1c2ac1d); office site release 13b90ea; database migrations 026 and 027</td><td>App: a received item's page shows its photos; crates and loads open level by level down to each item. Office: Yard Inventory is now Inventory, with photos; Shipments shows where each shipment is, and office staff link GPS trackers to shipments; Record details and the Data Browser show photos, and the Data Browser hides licenses; crates and loads open out their contents; receiving photos are JPEG or PNG, up to 10 MB. New office rule 5 on tracker links.</td></tr>
     </tbody>
   </table>
   <h3>Updating this guide</h3>
