@@ -19,7 +19,7 @@ The office imports the tags it expects to find (early data), builds a category t
 - **Tag rule:** `btrim(qr_code)` is unique per project. Match tags with trimmed, case-sensitive text.
 - **`count_status`:** `expected` (imported, not yet found) → `counted` → `received` (linked to a receipt). `received` is set only by receiving.
 - **`source`:** `import`, `field`, or `legacy` (rows that existed before 019, grouped under a top-level category per old `unit`).
-- **Legacy columns** (`unit`, `subsystem`, `location`, `status`) are kept so the existing Yard Inventory page keeps working. A count writes the area's full path into `location` (`site_map_zone_path`, e.g. "T1 Pipe Racks › Rack 2").
+- **Legacy columns** (`unit`, `subsystem`, `location`, `status`) are kept so the existing Inventory page keeps working. A count writes the area's full path into `location` (`site_map_zone_path`, e.g. "T1 Pipe Racks › Rack 2").
 
 ## Field: `apply_field_operation(op_id, project_id, 'count', payload)`
 
