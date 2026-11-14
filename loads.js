@@ -2,7 +2,7 @@
     if (document.readyState === 'loading') await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve, { once: true }));
     if (!(await window.InvenioAuthReady)) return;
     const $ = id => document.getElementById(id);
-    const loadsApi = InvenioLoads, inv = InvenioInventory;
+    const loadsApi = InvenioLoads, inv = InvenioInventory, crateContents = InvenioCrateContents;
     const projectId = InvenioProjectScope.getActiveProjectId();
     const profile = InvenioCurrentProfile;
     // 022: office staff plan loads, and a crew plans only a load it started. Anyone working an active project finishes
@@ -134,6 +134,14 @@
         if (dirty() && !confirm('Discard your unsaved changes to this load?')) return;
         if (drawer.open) { closing = true; drawer.close(); }
     }
+    // A link in the drawer (to a crate, or an item's record) leaves the page, so it asks first, as closing does.
+    // One opened in another tab leaves the page as it is.
+    body.addEventListener('click', event => {
+        const link = event.target.closest?.('a');
+        if (!link?.href || link.target === '_blank' || event.ctrlKey || event.metaKey || event.shiftKey) return;
+        if (lock.busy) { event.preventDefault(); status(STILL_SAVING); return; }
+        if (dirty() && !confirm('Discard your unsaved changes to this load?')) event.preventDefault();
+    });
     const markDirty = section => () => { if (current) { current.dirty[section] = true; window.InvenioUnsavedChanges = true; } };
 
     async function loadDetail(state) {
@@ -155,13 +163,15 @@
         if (hold.error) throw hold.error;
         // null when the folder couldn't be listed: nothing is then offered or flagged from it.
         const stored = listed.error ? null : (listed.data || []).filter(object => PHOTO_NAME.test(object.name)).map(object => `${id}/${object.name}`);
+        state.crates.levels.clear();
         Object.assign(state, { load: loads.find(load => load.id === id) || state.load, companies: companies.sort((a, b) => a.position - b.position),
             stops: stops.sort((a, b) => a.seq - b.seq), lines, writeOffs, licence: licence.data, photos, stored, hold: hold.data,
             unattached: (stored || []).filter(path => !photos.some(photo => photo.storage_path === path)) });
     }
 
     async function openLoad(id) {
-        const state = { id, isNew: false, load: loads.find(load => load.id === id), dirty: {}, companyDraft: null, stopDraft: null, found: null, unattached: [], writeOffs: [] };
+        const state = { id, isNew: false, load: loads.find(load => load.id === id), dirty: {}, companyDraft: null, stopDraft: null, found: null, unattached: [], writeOffs: [],
+            crates: crateContents.newState() };
         if (!state.load) { message('That load is not in this project.'); return; }
         current = state;
         const heading = el('h2', state.load.load_number); heading.id = 'loadTitle';
@@ -176,7 +186,7 @@
 
     function openNew() {
         current = { id: crypto.randomUUID(), isNew: true, load: null, companies: [], stops: [], lines: [], writeOffs: [], licence: null, photos: [], stored: [], unattached: [],
-            dirty: {}, companyDraft: null, stopDraft: null };
+            dirty: {}, companyDraft: null, stopDraft: null, crates: crateContents.newState() };
         status('');
         renderDrawer();
         if (!drawer.open) drawer.showModal();
@@ -613,7 +623,7 @@
             for (const label of ['Tag', 'Piece', 'Status']) { const cell = el('th', label); cell.scope = 'col'; head.append(cell); }
             const actionsHead = el('th'); actionsHead.scope = 'col'; actionsHead.append(el('span', 'Actions', 'visually-hidden')); head.append(actionsHead);
             const thead = el('thead'); thead.append(head);
-            for (const line of group.lines) rows.append(manifestRow(load, line, planning));
+            for (const line of group.lines) rows.append(...manifestRows(load, line, planning));
             table.append(thead, rows);
             const wrap = el('div', '', 'table-responsive'); wrap.append(table);
             section.append(wrap);
@@ -663,8 +673,44 @@
         return form;
     }
 
+    // A crate on the manifest opens out in a row below it to show what is inside, level by level: crates, containers
+    // and the rest, each opening out in turn, and the items packed in each, linked to their records. A loose item's
+    // tag links to its record. What is open stays open when the drawer is redrawn.
+    function manifestRows(load, line, planning) {
+        const row = manifestRow(load, line, planning);
+        if (!line.unit_id) return [row];
+        const state = current, extra = el('tr', '', 'crate-contents-row'), cell = el('td');
+        cell.colSpan = 4; cell.id = `crateContents-${line.id}`; extra.append(cell);
+        const toggle = el('button', '', 'btn btn-link p-0 mono crate-tree-toggle'), icon = el('i', '', 'fas fa-caret-right');
+        toggle.type = 'button'; icon.setAttribute('aria-hidden', 'true');
+        toggle.append(icon, line.tag);
+        toggle.setAttribute('aria-controls', cell.id);
+        toggle.dataset.focusKey = `crate-${line.id}`;
+        const show = open => {
+            toggle.setAttribute('aria-expanded', String(open));
+            icon.className = open ? 'fas fa-caret-down' : 'fas fa-caret-right';
+            extra.hidden = !open;
+            if (!open || cell.childNodes.length) return;
+            const link = el('a', `Open ${line.tag} on the Crates page`, 'small'); link.href = crateContents.crateHref(line.unit_id);
+            const inside = el('div', '', 'mt-2');
+            cell.append(link, inside);
+            state.crateView ||= crateContents.view({ document, client: projectSupabaseClient, state: state.crates, logistics: InvenioLogistics });
+            state.crateView.render(inside, line.unit_id);
+        };
+        toggle.onclick = () => show(crateContents.toggleOpen(state.crates, line.unit_id));
+        row.childNodes[0].append(toggle);
+        show(state.crates.open.has(line.unit_id));
+        return [row, extra];
+    }
+
     function manifestRow(load, line, planning) {
-        const row = el('tr'), piece = el('td'), state = el('td'), actions = el('td');
+        const row = el('tr'), tag = el('td', '', 'mono'), piece = el('td'), state = el('td'), actions = el('td');
+        const href = line.unit_id ? null : crateContents.itemHref(line);
+        if (href) {
+            const link = el('a', line.tag); link.href = href;
+            link.title = line.material_id ? 'Open its record' : 'Open it on Initial Inventory';
+            tag.append(link);
+        } else if (!line.unit_id) tag.textContent = line.tag;
         piece.append(el('div', line.name || ''), el('div', line.piece_kind === 'crate' ? 'Crate' : 'Item', 'small text-muted'));
         state.append(chip(loadsApi.LINE_STATUS[line.status], line.status));
         if (line.is_high_value) state.append(el('span', 'High value', 'chip chip-danger'));
@@ -699,7 +745,7 @@
                 actions.append(undo);
             }
         }
-        row.append(el('td', line.tag, 'mono'), piece, state, actions);
+        row.append(tag, piece, state, actions);
         return row;
     }
 

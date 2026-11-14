@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const logistics = require('../js/utils/logistics-helpers');
+const crateContents = require('../js/utils/crate-contents');
 const { createProjectScopedClient } = require('../js/utils/project-scope');
 const { fakeDocument, settle, assertFocus } = require('./support/fake-dom');
 
@@ -26,9 +27,12 @@ const UNITS = [
     unit('HU-GGGG77', { description: '<img src=x onerror=alert(1)> crate', item_count: 1 }),
     unit('HU-ZZZZ99', { project_id: 'p2', description: 'Another project' }),
 ];
-const item = (unitCode, tag, name, quantity = 1, uom = 'EA') => ({ id: `${unitCode}-${tag}`, project_id: PROJECT_ID, unit_id: unitCode.toLowerCase(), tag, name, quantity, uom, packed_at: '2026-10-28T15:00:00Z' });
-const ITEMS = [item('HU-AAAA11', 'GT2-LO-010', 'Lube oil cooler'), item('HU-AAAA11', 'GT2-LO-002', 'Cable drum 240 m', 3), item('HU-BBBB22', 'GT2-LO-003', 'Lube oil pump'),
-    item('HU-CCCC33', 'GT2-FS-011', 'Fuel filter set', 4), item('HU-GGGG77', 'X-<i>1</i>', '<img src=x onerror=alert(1)>', 1.5, 'M')];
+// A received item has its material; one counted but not yet received, its count record.
+const item = (unitCode, tag, name, quantity = 1, uom = 'EA', extra = {}) => ({ id: `${unitCode}-${tag}`, project_id: PROJECT_ID, unit_id: unitCode.toLowerCase(), tag, name, quantity, uom,
+    material_id: null, inventory_uid: null, packed_at: '2026-10-28T15:00:00Z', ...extra });
+const ITEMS = [item('HU-AAAA11', 'GT2-LO-010', 'Lube oil cooler', 1, 'EA', { material_id: 'm-10' }), item('HU-AAAA11', 'GT2-LO-002', 'Cable drum 240 m', 3, 'EA', { inventory_uid: 'u-2' }),
+    item('HU-BBBB22', 'GT2-LO-003', 'Lube oil pump', 1, 'EA', { material_id: 'm-3' }), item('HU-CCCC33', 'GT2-FS-011', 'Fuel filter set', 4, 'EA', { inventory_uid: 'u-11' }),
+    item('HU-GGGG77', 'X-<i>1</i>', '<img src=x onerror=alert(1)>', 1.5, 'M')];
 
 /** The two crate views and the label RPC. Set `paused` to hold every request until step() lets the oldest one through. */
 function fakeServer(units = UNITS) {
@@ -70,12 +74,12 @@ function fakeQrLibrary(calls) {
     };
 }
 
-async function openPage({ role = 'admin', projectStatus = 'active', units } = {}) {
+async function openPage({ role = 'admin', projectStatus = 'active', units, search = '' } = {}) {
     const server = fakeServer(units), qrCalls = [], opened = [];
     const { document, Option } = fakeDocument();
     const context = {
-        document, Option, console, setTimeout, structuredClone, Intl,
-        InvenioAuthReady: Promise.resolve(true), InvenioLogistics: logistics, InvenioCurrentProfile: { role },
+        document, Option, console, setTimeout, structuredClone, Intl, URLSearchParams, location: { search },
+        InvenioAuthReady: Promise.resolve(true), InvenioLogistics: logistics, InvenioCrateContents: crateContents, InvenioCurrentProfile: { role },
         InvenioProjectScope: { getActiveProjectId: () => PROJECT_ID, activeProject: { id: PROJECT_ID, name: 'North Yard', status: projectStatus } },
         projectSupabaseClient: createProjectScopedClient(server.client, () => PROJECT_ID), supabaseClient: server.client,
         qrcode: fakeQrLibrary(qrCalls),
@@ -98,8 +102,13 @@ async function openPage({ role = 'admin', projectStatus = 'active', units } = {}
     const view = async code => { $('unitRows').querySelectorAll('button').find(node => node.textContent === code).click(); await settle(); };
     const open = async code => { content.querySelectorAll('button').find(node => node.getAttribute('aria-label') === `Open ${code}`).click(); await settle(); };
     const fields = () => Object.fromEntries(content.querySelector('dl').childNodes.map(pair => [pair.childNodes[0].textContent, pair.childNodes[1].textContent]));
-    // The fake DOM has no descendant selectors: the items table is the drawer's only tbody.
-    const itemRows = () => (content.querySelector('tbody')?.childNodes || []).map(row => row.childNodes.map(cell => cell.textContent));
+    // The fake DOM has no descendant selectors. Each level shows its items in a table: its rows, and each table's tags
+    // in page order (a crate opened out shows its own table before the level above it).
+    const itemRows = (table = content.querySelector('table')) => (table?.querySelector('tbody')?.childNodes || []).map(row => row.childNodes.map(cell => cell.textContent));
+    const tags = () => content.querySelectorAll('table').map(table => itemRows(table).map(row => row[0]));
+    const itemLinks = () => content.querySelectorAll('table').flatMap(table => table.querySelector('tbody').childNodes)
+        .map(row => [row.childNodes[0].textContent, row.childNodes[0].querySelector('a')?.href ?? null]);
+    const toggle = code => content.querySelectorAll('button').find(node => node.className.split(/\s+/).includes('crate-tree-toggle') && node.textContent === code);
     const filter = (status, search = '') => { $('filterStatus').value = status; $('filterSearch').value = search; $('filterStatus').onchange(); };
     const print = async (count, { wait = true } = {}) => {
         labels.querySelector('[id="labelCount"]').value = count;
@@ -108,7 +117,7 @@ async function openPage({ role = 'admin', projectStatus = 'active', units } = {}
         return done;
     };
     const labelStatus = () => labels.querySelector('[role="status"]').textContent;
-    return { server, document, context, $, drawer, content, labels, codes, view, open, fields, itemRows, filter, print, labelStatus, qrCalls, opened };
+    return { server, document, context, $, drawer, content, labels, codes, view, open, fields, itemRows, tags, itemLinks, toggle, filter, print, labelStatus, qrCalls, opened };
 }
 
 test('lists only this project\'s crates by code, with status counts, search and where each one is', async () => {
@@ -136,55 +145,135 @@ test('lists only this project\'s crates by code, with status counts, search and 
     assert.equal(page.$('unitRows').textContent, 'No crates match these filters.');
 });
 
-test('the drawer shows a crate\'s items and the crates inside it, and links up and down the nesting', async () => {
+test('the drawer shows what is inside a crate: the crates inside open out in place or in the drawer, and items link to their records', async () => {
     const page = await openPage();
     await page.view('HU-AAAA11');
     assert.equal(page.drawer.open, true);
     assert.equal(page.content.querySelector('h2').textContent, 'HU-AAAA11');
     assertFocus(page, page.content.querySelectorAll('button').find(node => node.textContent === 'Close'));
-    const [itemsRead] = page.server.reads('handling_unit_items');
-    assert.deepEqual(itemsRead.filters, [['project_id', PROJECT_ID], ['unit_id', 'hu-aaaa11']], 'items are read for this crate, in this project');
-    assert.deepEqual(page.itemRows(), [['GT2-LO-002', 'Cable drum 240 m', '3 EA', new Date('2026-10-28T15:00:00Z').toLocaleDateString()],
-        ['GT2-LO-010', 'Lube oil cooler', '1 EA', new Date('2026-10-28T15:00:00Z').toLocaleDateString()]], 'by tag, numbers by value');
-    assert.ok(page.content.textContent.includes('Crates inside (1)'));
+    assert.ok(page.content.textContent.includes('Contents · 2 items, 1 crate'));
+    assert.deepEqual(page.server.reads('handling_unit_overview')[1].filters, [['project_id', PROJECT_ID], ['parent_id', 'hu-aaaa11']], 'the crates inside are read for this crate, in this project');
+    assert.deepEqual(page.server.reads('handling_unit_items')[0].filters, [['project_id', PROJECT_ID], ['unit_id', 'hu-aaaa11']], 'and its items');
+    const packed = new Date('2026-10-28T15:00:00Z').toLocaleDateString('en-US');
+    assert.deepEqual(page.itemRows(), [['GT2-LO-002', 'Cable drum 240 m', '3 EA', packed], ['GT2-LO-010', 'Lube oil cooler', '1 EA', packed]], 'by tag, numbers by value');
+    assert.deepEqual(page.itemLinks(), [['GT2-LO-002', 'initial-inventory.html?item=u-2'], ['GT2-LO-010', 'record.html?type=materials&id=m-10']],
+        'a counted item opens on Initial Inventory, a received one its material record');
     assert.deepEqual(page.fields(), { Description: 'Lube oil spares', Place: 'North Yard laydown', Area: 'T1 Pipe Racks › Rack 2',
         Sealed: new Date('2026-10-28T16:00:00Z').toLocaleString(), 'First packed': new Date('2026-10-28T14:00:00Z').toLocaleString() });
 
+    // The basket inside opens out in place, and the crate inside it in turn: one level read at a time.
+    const basket = page.toggle('HU-BBBB22');
+    assert.equal(basket.getAttribute('aria-expanded'), 'false');
+    assert.ok(page.content.textContent.includes('Basket · 1 item, 1 crate'), 'each one says what kind it is and what it holds');
+    basket.click(); await settle();
+    assert.equal(basket.getAttribute('aria-expanded'), 'true');
+    assert.equal(page.content.querySelector(`[id="${basket.getAttribute('aria-controls')}"]`).hidden, false);
+    assert.deepEqual(page.server.reads('handling_unit_items').at(-1).filters, [['project_id', PROJECT_ID], ['unit_id', 'hu-bbbb22']]);
+    assert.deepEqual(page.tags(), [['GT2-LO-003'], ['GT2-LO-002', 'GT2-LO-010']]);
+    page.toggle('HU-CCCC33').click(); await settle();
+    assert.deepEqual(page.tags(), [['GT2-FS-011'], ['GT2-LO-003'], ['GT2-LO-002', 'GT2-LO-010']]);
+    assert.deepEqual(page.itemLinks().slice(0, 2), [['GT2-FS-011', 'initial-inventory.html?item=u-11'], ['GT2-LO-003', 'record.html?type=materials&id=m-3']]);
+    // Folding it away and back reads nothing again.
+    const reads = page.server.log.length;
+    basket.click();
+    assert.equal(basket.getAttribute('aria-expanded'), 'false');
+    assert.equal(page.content.querySelector(`[id="${basket.getAttribute('aria-controls')}"]`).hidden, true);
+    basket.click(); await settle();
+    assert.equal(page.server.log.length, reads);
+    assert.deepEqual(page.tags()[0], ['GT2-FS-011']);
+
+    // Open moves the drawer to the basket; what was opened out stays open there.
     await page.open('HU-BBBB22');
     assert.equal(page.content.querySelector('h2').textContent, 'HU-BBBB22');
     assertFocus(page, page.content.querySelector('h2'), 'moving to another crate focuses its title');
     assert.equal(page.fields().Inside, 'HU-AAAA11');
+    assert.equal(page.toggle('HU-CCCC33').getAttribute('aria-expanded'), 'true');
+    assert.deepEqual(page.tags(), [['GT2-FS-011'], ['GT2-LO-003']]);
     await page.open('HU-CCCC33');
     assert.deepEqual([page.fields().Inside, page.fields()['Outermost crate']], ['HU-BBBB22', 'HU-AAAA11']);
     assert.match(page.content.textContent, /A crate inside another crate is wherever its outermost crate is\./);
-    assert.deepEqual(page.itemRows(), [['GT2-FS-011', 'Fuel filter set', '4 EA', new Date('2026-10-28T15:00:00Z').toLocaleDateString()]]);
+    assert.deepEqual(page.tags(), [['GT2-FS-011']]);
     await page.open('HU-AAAA11');
     assert.equal(page.content.querySelector('h2').textContent, 'HU-AAAA11');
 
-    page.drawer.close(); await page.view('HU-FFFF66');
-    assert.ok(page.content.textContent.includes('No items packed.'));
-    assert.equal(page.server.reads('handling_unit_items').length, 4, 'an empty crate asks for no items');
+    page.drawer.close();
+    await page.view('HU-FFFF66');
+    assert.ok(page.content.textContent.includes('Contents · Empty'));
+    assert.ok(page.content.textContent.includes('Nothing inside.'));
     page.drawer.close(); await page.view('HU-GGGG77');
     assert.deepEqual(page.itemRows()[0].slice(0, 3), ['X-<i>1</i>', '<img src=x onerror=alert(1)>', '1.5 M']);
+    assert.deepEqual(page.itemLinks(), [['X-<i>1</i>', null]], 'an item with neither record is plain text');
 });
 
-test('items that arrive after another crate was opened are dropped', async () => {
+test('the drawer reads what a crate holds now, not what the list said when the page loaded', async () => {
+    const page = await openPage();
+    // Packed since the list was read: an empty crate gets an item, and HU-AAAA11 a third one.
+    page.server.items.push(item('HU-FFFF66', 'GT-9', 'Late arrival'), item('HU-AAAA11', 'GT-8', 'Another cooler'));
+    await page.view('HU-FFFF66');
+    assert.ok(page.content.textContent.includes('Contents · 1 item'), 'the heading follows what was read');
+    assert.deepEqual(page.tags(), [['GT-9']]);
+    page.drawer.close(); await page.view('HU-AAAA11');
+    assert.ok(page.content.textContent.includes('Contents · 3 items, 1 crate'));
+    assert.equal(page.$('unitRows').querySelectorAll('tr').find(row => row.querySelector('.mono').textContent === 'HU-AAAA11').childNodes[4].textContent, '2 items, 1 crate',
+        'the list keeps what it read until the page reloads');
+});
+
+test('Open on a crate packed since the page loaded reads the list again; when it cannot open, the drawer says why', async () => {
+    const page = await openPage();
+    page.server.units.push(unit('HU-NEWW01', { ...nestedIn, parent_id: 'hu-aaaa11', parent_code: 'HU-AAAA11', item_count: 1 }));
+    page.server.items.push(item('HU-NEWW01', 'GT-7', 'Gauge'));
+    await page.view('HU-AAAA11');
+    await page.open('HU-NEWW01');
+    assert.equal(page.content.querySelector('h2').textContent, 'HU-NEWW01');
+    assert.equal(page.$('unitStatus').textContent, '');
+    assert.deepEqual(page.tags(), [['GT-7']]);
+
+    page.server.units.push(unit('HU-NEWW02', { ...nestedIn, parent_id: 'hu-aaaa11', parent_code: 'HU-AAAA11' }));
+    await page.open('HU-AAAA11');
+    page.server.fail = request => request.table === 'handling_unit_overview' && !request.filters.some(([key]) => key === 'parent_id')
+        && { code: '42501', message: 'permission denied for view handling_unit_overview' };
+    await page.open('HU-NEWW02');
+    assert.equal(page.$('unitStatus').textContent, 'Could not open HU-NEWW02: You do not have permission to make this change.');
+    assert.equal(page.content.querySelector('h2').textContent, 'HU-AAAA11', 'the drawer stays where it was');
+    // Gone from the project's list by the time it is read again.
+    page.server.fail = null;
+    page.server.units = page.server.units.filter(row => row.code !== 'HU-NEWW02');
+    await page.open('HU-NEWW02');
+    assert.equal(page.$('unitStatus').textContent, "HU-NEWW02 isn't among this project's crates anymore. Reload the page.");
+    await page.open('HU-NEWW01');
+    assert.equal(page.$('unitStatus').textContent, '', 'opening a crate clears it');
+});
+
+test('what is inside a crate that arrives after another crate was opened is dropped', async () => {
     const page = await openPage();
     page.server.paused = true;
     await page.view('HU-AAAA11');
-    await page.open('HU-BBBB22');
-    page.server.step(); await settle();
-    assert.ok(!page.content.textContent.includes('Lube oil cooler'), "the first crate's items don't land in the second's drawer");
-    assert.ok(page.content.textContent.includes('Loading items…'));
-    page.server.step(); await settle();
-    assert.deepEqual(page.itemRows().map(row => row[0]), ['GT2-LO-003']);
+    await page.view('HU-BBBB22');
+    page.server.step(); page.server.step(); await settle();
+    assert.ok(!page.content.textContent.includes('Lube oil cooler'), "the first crate's contents don't land in the second's drawer");
+    assert.ok(page.content.textContent.includes('Loading what is inside…'));
+    page.server.step(); page.server.step(); await settle();
+    assert.deepEqual(page.tags(), [['GT2-LO-003']]);
+    assert.ok(page.toggle('HU-CCCC33'));
 });
 
-test('items that fail to load say so in the drawer', async () => {
+test('contents that fail to load say so in the drawer, and Try again reads them again', async () => {
     const page = await openPage();
     page.server.fail = request => request.table === 'handling_unit_items' && { code: '42501', message: 'permission denied for view handling_unit_items' };
     await page.view('HU-AAAA11');
-    assert.ok(page.content.textContent.includes('Items could not be loaded (You do not have permission to make this change.). Close and reopen to retry.'));
+    assert.ok(page.content.textContent.includes('What is inside could not be loaded (You do not have permission to make this change.).'));
+    page.server.fail = null;
+    page.content.querySelectorAll('button').find(node => node.textContent === 'Try again').click(); await settle();
+    assert.deepEqual(page.tags(), [['GT2-LO-002', 'GT2-LO-010']]);
+});
+
+test('?unit= opens that crate (the Loads page and crate contents link this way); one from elsewhere says so', async () => {
+    let page = await openPage({ search: '?unit=hu-bbbb22' });
+    assert.equal(page.drawer.open, true);
+    assert.equal(page.content.querySelector('h2').textContent, 'HU-BBBB22');
+    page = await openPage({ search: '?unit=hu-zzzz99' });
+    assert.ok(!page.drawer.open);
+    assert.equal(page.$('pageMessage').textContent, 'That crate is not in this project, or no longer exists.');
 });
 
 test('only office staff on an active project can print labels', async () => {
@@ -321,10 +410,17 @@ test('022: a crate on a load says which load, and a missing one has its own stat
         unit('HU-PLAN01', { status: 'sealed', load_id: 'l1', load_number: 'L-0001', load_line_status: 'planned', place_name: 'North Yard laydown' }),
         unit('HU-MISS01', { status: 'missing', load_id: 'l3', load_number: 'L-0003', load_line_status: 'missing' }),
     ] });
-    const where = code => page.$('unitRows').querySelectorAll('tr').find(row => row.querySelector('.mono').textContent === code).childNodes[3].textContent;
+    assert.ok(['load_id', 'load_number', 'load_line_status'].every(column => page.server.reads('handling_unit_overview')[0].columns.split(',').includes(column)),
+        'the load is read with the crates');
+    const cell = code => page.$('unitRows').querySelectorAll('tr').find(row => row.querySelector('.mono').textContent === code).childNodes[3];
+    const where = code => cell(code).textContent;
     assert.equal(where('HU-LOAD01'), 'On load L-0002');
     assert.equal(where('HU-PLAN01'), 'North Yard laydownPlanned on load L-0001');
     assert.equal(where('HU-MISS01'), 'Missing from load L-0003');
+    assert.equal(cell('HU-LOAD01').querySelector('a').href, 'loads.html?load=l1', 'the load opens on the Loads page');
+    await page.view('HU-MISS01');
+    assert.equal(page.fields().Load, 'Missing from load L-0003');
+    assert.equal(page.content.querySelector('dl').querySelector('a').href, 'loads.html?load=l3');
     assert.ok(page.$('filterStatus').options.some(option => option.textContent === 'Missing (1)'));
     page.filter('missing');
     assert.deepEqual(page.codes(), ['HU-MISS01']);

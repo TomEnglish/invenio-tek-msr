@@ -328,7 +328,7 @@
     <li><strong>Review.</strong> Tap <span class="ui">Seal crate</span> when it is closed up, or <span class="ui">Save open</span> to keep adding later. Sealing needs something inside, and an area wherever the place has a site plan with areas. Changing a sealed crate opens it again.</li>
   </ol>
   <h3>The crate screen</h3>
-  <p>Scanning a label opens the crate: its status (Open, Sealed, On a load, Delivered, Unpacked, Missing, Written off), <span class="ui">High value</span> if set, where it is (“Inside HU-…”, “On load L-0003”, “Delivered to …”, “Last at …”) and its contents. The buttons are:</p>
+  <p>Scanning a label opens the crate: its status (Open, Sealed, On a load, Delivered, Unpacked, Missing, Written off), <span class="ui">High value</span> if set, where it is (“Inside HU-…”, “On load L-0003”, “Delivered to …”, “Last at …”) and its contents. Each crate, container or other unit inside shows its kind first (for example “Container · Valve trim · 3 inside”); tap it to open its own screen, and keep tapping down. Tap a received item to open its material page. An item counted but not yet received says “Counted, not received yet” and has no page on the phone. The buttons are:</p>
   <ul>
     <li><span class="ui">Pack / add items</span>: add more, or tap <span class="ui">Take out</span> on a row, then save.</li>
     <li><span class="ui">Move crate…</span>: choose a new place and area and tap <span class="ui">Save the move</span>. Nothing is unpacked and a sealed crate stays sealed.</li>
@@ -348,7 +348,7 @@
 
   <h3>The Loads tab</h3>
   <p>The tab lists open loads (planning, loading, in transit). Each card shows the route, progress such as “4 of 10 on board” or “3 delivered, 5 on board, 1 missing”, the driver and the date. <span class="ui">New load</span> starts one for a truck that turns up unplanned: fill <span class="ui">Starts at</span>, the date, the stops (each <span class="ui">Drop-off</span>, <span class="ui">Pick-up</span> or <span class="ui">Both</span>) and the truck details, then <span class="ui">Save load</span>. It works offline; the load gets its number (L-0001…) when it uploads.</p>
-  <p>The load screen shows <span class="ui">Pieces</span>, the <span class="ui">Route</span> (each stop Done, Arrived or To come) and <span class="ui">Truck and driver</span>, with the license state: “License on file”, “License saved on this device”, “License incomplete”, “No license recorded yet” or “Left without a license (the office gave a reason)”.</p>
+  <p>The load screen shows <span class="ui">Pieces</span>: the counts, then every piece by the stop it comes off at, with its status. Tap a crate to see what is inside it, then tap down through the crates, containers and items in it; tap a received item to open its material page. Then come the <span class="ui">Route</span> (each stop Done, Arrived or To come) and <span class="ui">Truck and driver</span>, with the license state: “License on file”, “License saved on this device”, “License incomplete”, “No license recorded yet” or “Left without a license (the office gave a reason)”.</p>
 
   <h3>Driver check-in</h3>
   <ol class="steps">
@@ -456,7 +456,7 @@
     <li>The page confirms the range reserved. <span class="ui">Print the last N labels again</span> reprints the same batch without new codes, until the page is reloaded.</li>
   </ol>
   <p>If pop-ups are blocked, nothing is reserved: allow pop-ups for the site and try again.</p>
-  <p>The list shows every crate the crews have packed, with its status, where it is (“Inside HU-…”, place and area, or “On load L-…”), contents and when it was sealed. Filter by status or search by code or description; the drawer lists the items and any crates inside.</p>
+  <p>The list shows every crate the crews have packed, with its status, where it is (“Inside HU-…”, place and area, or “On load L-…”), contents and when it was sealed. Filter by status or search by code or description. A crate's code opens its drawer; its <span class="ui">Load</span> links to the load on the Loads page. Under <span class="ui">Contents</span>, press the code of a crate, container or other unit inside to open out what it holds, level by level, or <span class="ui">Open</span> to move the drawer to it. Each item's tag opens its record: a received item's material record, or a counted one on Initial Inventory.</p>
 </section>
 
 <section class="chapter">
@@ -473,6 +473,7 @@
     <li><strong>Manifest:</strong> enter a crate code or item tag, choose where it <span class="ui">Comes off at</span> (and, for a pick-up, where it is <span class="ui">Picked up at</span>), and press <span class="ui">Add to the plan</span>. Check the box to move a piece from another load that hasn't left.</li>
   </ol>
   <p>Each section saves on its own and keeps unsaved edits in the others. On a load a crew started, that crew plans the stops until the truck leaves.</p>
+  <p><strong>What is inside.</strong> On the manifest, press a crate's code to open out what is inside it, below its row; each crate or container inside opens out in turn, and each item's tag opens its record. A loose item's tag opens its record too. <span class="ui">Open HU-… on the Crates page</span> shows the crate in full.</p>
   <h3>Departure</h3>
   <ul>
     <li><span class="ui">Depart with what's on board</span>: once pieces have been scanned on. Planned pieces that weren't scanned on stay behind.</li>
