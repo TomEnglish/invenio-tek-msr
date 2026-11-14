@@ -107,15 +107,16 @@
             const link = el('a', office ? 'Review exception' : 'View exception', 'btn btn-primary');
             link.href = `work-inbox.html?filter=all&record=${encodeURIComponent(record.id)}`; $('recordActions').append(link);
         }
-        if (table === 'receiving_records') {
-            const { data: photos, error: photoError } = await supabaseClient.from('inspection_photos').select('storage_path,photo_type').eq('receiving_record_id', id);
+        // A receipt's photos, and a material's from its receipt; with them, any taken when the item was counted.
+        const receiptId = table === 'receiving_records' ? record.id : table === 'materials' ? record.receiving_record_id : null;
+        if (receiptId && window.InvenioPhotos) {
             $('photoSection').hidden = false;
-            if (photoError) message('Photo references could not be loaded. Refresh to retry.');
-            else if (!photos?.length) $('recordPhotos').append(el('p', 'No inspection photos attached.', 'text-muted mb-0'));
-            for (const photo of photos || []) {
-                const { data, error: signError } = await supabaseClient.storage.from('inspection-photos').createSignedUrl(photo.storage_path, 300);
-                if (signError) { message('Some photos are unavailable. Refresh to retry.'); continue; }
-                const img = el('img'); img.src = data.signedUrl; img.alt = photo.photo_type.replaceAll('_', ' '); img.loading = 'lazy'; img.className = 'record-photo'; $('recordPhotos').append(img);
+            try {
+                const found = await InvenioPhotos.loadForReceipts([receiptId]);
+                await InvenioPhotos.strip($('recordPhotos'), found.get(String(receiptId)) || [], { large: true });
+                if ($('recordPhotos').querySelector('.photo-thumb-missing')) message('Some photos are unavailable. Refresh to retry.');
+            } catch (_) {
+                message('Photo references could not be loaded. Refresh to retry.');
             }
         }
     }

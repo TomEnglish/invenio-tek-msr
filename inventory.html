@@ -30,7 +30,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <!-- Shared Design System -->
-    <link rel="stylesheet" href="styles.css?v=20261010portal">
+    <link rel="stylesheet" href="styles.css?v=20261113photos">
 
     <style>
         /* ── Inventory Layout ────────────────────────────────────── */
@@ -242,11 +242,12 @@
                             <th>Unit</th>
                             <th>Location</th>
                             <th>Status</th>
+                            <th>Photos</th>
                         </tr>
                     </thead>
                     <tbody id="inventoryTableBody">
                         <tr>
-                            <td colspan="6" class="text-center py-5">
+                            <td colspan="7" class="text-center py-5">
                                 <span class="loading-spinner"></span>
                                 <p class="mt-2" style="color:var(--text-muted);">Loading inventory...</p>
                             </td>
@@ -277,6 +278,7 @@
     <script src="js/utils/auth-guard.js?v=20260908a"></script>
     <script src="js/utils/export.js?v=20260424f"></script>
     <script src="js/utils/sidebar.js?v=20261010portal"></script>
+    <script src="js/utils/photo-viewer.js?v=20261113photos"></script>
 
     <!-- Inventory Dashboard JS -->
     <script>
@@ -286,10 +288,21 @@
         let allRecords = [];
         let checkedItems = new Set();
         let inventoryLoading = false;
+        // Each item's photos by uid, from its count and its receipt: null while they load, 'error' if they could not.
+        let photosByUid = null;
+        let shownRecords = [];
+        let photoRequest = 0;
 
         // ── Bootstrap ───────────────────────────────────────────
         document.addEventListener('DOMContentLoaded', async () => {
             bindFilterEvents();
+            // A row's photo button opens its photos.
+            document.getElementById('inventoryTableBody').addEventListener('click', function (event) {
+                const chip = event.target.closest && event.target.closest('[data-photo-index]');
+                if (!chip || !(photosByUid instanceof Map)) return;
+                const record = shownRecords[Number(chip.getAttribute('data-photo-index'))];
+                if (record) InvenioPhotos.open(photosByUid.get(String(record.uid)) || [], 0, chip);
+            });
             if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
             await loadInventory();
         });
@@ -308,14 +321,46 @@
                 allRecords = data || [];
                 populateItemChecklist();
                 applyFilters();
+                loadPhotos();
             } catch (err) {
                 console.error('Failed to load inventory:', err);
                 document.getElementById('inventoryTableBody').innerHTML =
-                    '<tr><td colspan="6" class="text-center py-5 text-danger">' +
+                    '<tr><td colspan="7" class="text-center py-5 text-danger">' +
                     '<i class="fas fa-exclamation-triangle me-2"></i>Failed to load inventory data.</td></tr>';
             } finally {
                 inventoryLoading = false;
             }
+        }
+
+        // ── Photos ──────────────────────────────────────────────
+        async function loadPhotos() {
+            const request = ++photoRequest;
+            photosByUid = null;
+            let found;
+            try {
+                // Count photos belong to the items listed: every one in the project, a page at a time. Receiving
+                // photos only for the items listed that were received, a few requests at a time.
+                const receiptIds = allRecords.map(r => r.receiving_record_id).filter(Boolean);
+                const [counts, receipts] = await Promise.all([InvenioPhotos.loadAll('count'), InvenioPhotos.load('receipt', receiptIds)]);
+                found = new Map();
+                allRecords.forEach(r => {
+                    const photos = InvenioPhotos.merge(counts.get(String(r.uid)) || [], r.receiving_record_id ? receipts.get(String(r.receiving_record_id)) || [] : []);
+                    if (photos.length) found.set(String(r.uid), photos);
+                });
+            } catch (err) {
+                console.error('Failed to load photos:', err);
+                found = 'error';
+            }
+            if (request !== photoRequest) return;
+            photosByUid = found;
+            applyFilters();
+        }
+
+        function photoCell(record, index) {
+            if (photosByUid === null) return '<td class="text-muted" aria-busy="true">…</td>';
+            if (photosByUid === 'error') return '<td class="text-muted">Unavailable</td>';
+            const photos = photosByUid.get(String(record.uid)) || [];
+            return '<td>' + (photos.length ? InvenioPhotos.chipHtml(photos.length, index) : '<span class="text-muted">-</span>') + '</td>';
         }
 
         // ── Populate Inventory Item checklist ───────────────────
@@ -426,6 +471,7 @@
         // ── Render Table ────────────────────────────────────────
         function renderTable(records) {
             const tbody = document.getElementById('inventoryTableBody');
+            shownRecords = records;
 
             if (records.length === 0) {
                 const message = inventoryLoading
@@ -435,12 +481,12 @@
                         : 'No inventory records match the current filters.');
                 const icon = inventoryLoading ? 'fa-spinner fa-spin' : 'fa-inbox';
                 tbody.innerHTML =
-                    '<tr><td colspan="6" class="text-center py-5" style="color:var(--text-muted);">' +
+                    '<tr><td colspan="7" class="text-center py-5" style="color:var(--text-muted);">' +
                     `<i class="fas ${icon} me-2"></i>${message}</td></tr>`;
                 return;
             }
 
-            tbody.innerHTML = records.map(r => {
+            tbody.innerHTML = records.map((r, index) => {
                 const status = r.status || '';
                 const badgeClass = getStatusBadgeClass(status);
                 return '<tr>' +
@@ -450,6 +496,7 @@
                     '<td>' + escapeHtml(r.unit || '-') + '</td>' +
                     '<td>' + escapeHtml(r.location || '-') + '</td>' +
                     '<td><span class="badge ' + badgeClass + '">' + escapeHtml(status || '-') + '</span></td>' +
+                    photoCell(r, index) +
                     '</tr>';
             }).join('');
         }

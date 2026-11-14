@@ -30,7 +30,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <!-- Shared Design System -->
-    <link rel="stylesheet" href="styles.css?v=20261010portal">
+    <link rel="stylesheet" href="styles.css?v=20261113ship">
     <style>html:not(.auth-ready) body { visibility: hidden; }</style>
 </head>
 
@@ -106,6 +106,7 @@
                     <select class="form-select" id="filterStatus">
                         <option value="">All</option>
                         <option value="Not RTS">Not RTS</option>
+                        <option value="RTS">RTS</option>
                         <option value="In Transit">In Transit</option>
                         <option value="Delivered">Delivered</option>
                     </select>
@@ -113,6 +114,8 @@
             </div>
         </div>
     </div>
+
+    <p id="pageMessage" class="small" role="status" aria-live="polite" tabindex="-1"></p>
 
     <!-- Cargo Table -->
     <div class="card fade-up" style="animation-delay:0.15s;">
@@ -132,11 +135,12 @@
                             <th>Destination</th>
                             <th>Shipped Date</th>
                             <th>Status</th>
+                            <th>Location</th>
                         </tr>
                     </thead>
                     <tbody id="cargoTableBody">
                         <tr>
-                            <td colspan="7" class="text-center py-5">
+                            <td colspan="8" class="text-center py-5">
                                 <span class="loading-spinner"></span>
                                 <p class="mt-2" style="color:var(--text-muted);">Loading shipments...</p>
                             </td>
@@ -147,6 +151,9 @@
         </div>
     </div>
 
+    <!-- Linking a tracker to a shipment (office staff) -->
+    <dialog id="trackerDialog" class="review-drawer" aria-labelledby="trackerTitle"><div id="trackerContent"></div><p id="trackerStatus" class="small mt-2 mb-0" role="status" aria-live="polite"></p></dialog>
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
@@ -156,114 +163,14 @@
 
     <!-- Shared Utilities -->
     <script src="js/utils/supabase-client.js?v=20260424f"></script>
-    <script src="js/utils/project-scope.js?v=20260908a"></script>
+    <script src="js/utils/project-scope.js?v=20261113ship"></script>
     <script src="js/utils/user-access.js?v=20260908a"></script>
     <script src="js/utils/auth-guard.js?v=20260908a"></script>
     <script src="js/utils/branding.js?v=20261010portal"></script>
     <script src="js/utils/sidebar.js?v=20261010portal"></script>
 
-    <script>
-        /* ── Shipment Visibility Dashboard ─────────────────────────── */
-        let allShipments = [];
-
-        async function loadShipments() {
-    if (window.InvenioAuthReady && !(await window.InvenioAuthReady)) return;
-            const { data, error } = await projectSupabaseClient
-                .from('shipments')
-                .select('cargo_description, mode, ship_type, origin, destination, status, rts_date, delivery_date, shipment_number, part_description');
-
-            if (error) {
-                console.error('Error loading shipments:', error);
-                document.getElementById('cargoTableBody').innerHTML =
-                    '<tr><td colspan="7" class="text-center py-5 text-danger">Failed to load shipment data.</td></tr>';
-                return;
-            }
-
-            allShipments = data || [];
-            applyFilters();
-        }
-
-        function applyFilters() {
-            const search = document.getElementById('filterSearch').value.toLowerCase().trim();
-            const shipType = document.getElementById('filterShipType').value;
-            const mode = document.getElementById('filterMode').value;
-            const status = document.getElementById('filterStatus').value;
-
-            const filtered = allShipments.filter(row => {
-                if (search && !(row.cargo_description || '').toLowerCase().includes(search)) return false;
-                if (shipType && row.ship_type !== shipType) return false;
-                if (mode && row.mode !== mode) return false;
-                if (status && row.status !== status) return false;
-                return true;
-            });
-
-            updateKPIs(filtered);
-            renderTable(filtered);
-        }
-
-        function updateKPIs(rows) {
-            const total = rows.length;
-            const notShipped = rows.filter(r => r.status === 'Not RTS' || r.status === 'RTS').length;
-            const inTransit = rows.filter(r => r.status === 'In Transit').length;
-            const delivered = rows.filter(r => r.status === 'Delivered').length;
-
-            document.getElementById('kpiTotal').textContent = total.toLocaleString();
-            document.getElementById('kpiNotShipped').textContent = notShipped.toLocaleString();
-            document.getElementById('kpiInTransit').textContent = inTransit.toLocaleString();
-            document.getElementById('kpiDelivered').textContent = delivered.toLocaleString();
-        }
-
-        function statusBadge(status) {
-            const map = {
-                'Delivered':  'bg-success',
-                'In Transit': 'bg-warning text-dark',
-                'Not RTS':    'bg-secondary',
-                'RTS':        'bg-info text-dark'
-            };
-            const cls = map[status] || 'bg-secondary';
-            return `<span class="badge ${cls}">${status || '—'}</span>`;
-        }
-
-        function formatDate(dateStr) {
-            if (!dateStr) return '—';
-            const d = new Date(dateStr);
-            if (isNaN(d)) return dateStr;
-            return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-        }
-
-        function renderTable(rows) {
-            const tbody = document.getElementById('cargoTableBody');
-            const countEl = document.getElementById('rowCount');
-
-            countEl.textContent = `${rows.length} record${rows.length !== 1 ? 's' : ''}`;
-
-            if (rows.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4" style="color:var(--text-muted);">No shipments match the current filters.</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = rows.map(row => `
-                <tr>
-                    <td>${row.cargo_description || '—'}</td>
-                    <td>${row.mode || '—'}</td>
-                    <td>${row.ship_type || '—'}</td>
-                    <td>${row.origin || '—'}</td>
-                    <td>${row.destination || '—'}</td>
-                    <td>${formatDate(row.rts_date)}</td>
-                    <td>${statusBadge(row.status)}</td>
-                </tr>
-            `).join('');
-        }
-
-        /* ── Wire up filters ───────────────────────────────────────── */
-        document.getElementById('filterSearch').addEventListener('input', applyFilters);
-        document.getElementById('filterShipType').addEventListener('change', applyFilters);
-        document.getElementById('filterMode').addEventListener('change', applyFilters);
-        document.getElementById('filterStatus').addEventListener('change', applyFilters);
-
-        /* ── Init ──────────────────────────────────────────────────── */
-        loadShipments();
-    </script>
+    <script src="js/utils/shipment-location.js?v=20261113ship"></script>
+    <script src="shipment-visibility.js?v=20261113ship"></script>
 </body>
 
 </html>

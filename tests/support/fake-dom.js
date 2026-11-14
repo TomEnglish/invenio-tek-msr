@@ -42,11 +42,11 @@ class FakeElement {
     }
     removeAttribute(name) { this.attributes.delete(name); }
     contains(node) { for (let current = node; current; current = current.parentNode) if (current === this) return true; return false; }
-    // Enough selector support for the page and tests: tag, [attr], [attr="value"] and .class.
+    // Enough selector support for the page and tests: tag, [attr], [attr="value"], .class and #id.
     matches(selector) {
         const tag = /^[a-z][a-z0-9]*/.exec(selector)?.[0];
-        return (!tag || this.tagName === tag.toUpperCase()) && [...selector.matchAll(/\[([\w-]+)(?:="([^"]*)")?\]|\.([\w-]+)/g)].every(([, name, value, className]) =>
-            className ? this.className.split(/\s+/).includes(className) : value === undefined ? this.getAttribute(name) !== null : this.getAttribute(name) === value);
+        return (!tag || this.tagName === tag.toUpperCase()) && [...selector.matchAll(/\[([\w-]+)(?:="([^"]*)")?\]|\.([\w-]+)|#([\w-]+)/g)].every(([, name, value, className, id]) =>
+            id ? this.id === id : className ? this.className.split(/\s+/).includes(className) : value === undefined ? this.getAttribute(name) !== null : this.getAttribute(name) === value);
     }
     closest(selector) { for (let node = this; node instanceof FakeElement; node = node.parentNode) if (node.matches(selector)) return node; return null; }
     querySelectorAll(selector) {
@@ -57,6 +57,7 @@ class FakeElement {
     }
     querySelector(selector) { return this.querySelectorAll(selector)[0] || null; }
     addEventListener(type, listener) { (this.listeners[type] ||= []).push(listener); }
+    removeEventListener(type, listener) { this.listeners[type] = (this.listeners[type] || []).filter(item => item !== listener); }
     dispatch(type, extra = {}) {
         const event = { type, target: this, cancelable: true, defaultPrevented: false, preventDefault() { if (this.cancelable) this.defaultPrevented = true; }, ...extra };
         // Listeners and on… handler properties, on this element and then up the tree, as events bubble in a browser.
@@ -93,6 +94,7 @@ function fakeDocument() {
             return elements.get(id);
         },
         addEventListener() {},
+        removeEventListener() {},
     };
     document.body = new FakeElement(document, 'body');
     document.head = new FakeElement(document, 'head');

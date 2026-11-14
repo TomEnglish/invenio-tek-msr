@@ -365,4 +365,68 @@ overlap(
     '22023',
 )
 assert sql(f"SELECT status FROM public.projects WHERE id='{second_project}'") == 'active'
+
+
+# Two office users linking one tracker to two shipments at once (026): the
+# second waits, then is told the tracker is on the other shipment.
+sql(f"""
+INSERT INTO public.shipments(id,shipment_number,status,project_id) VALUES
+ (9101,'RACE-SHP-1','In Transit','{first_project}'),(9102,'RACE-SHP-2','In Transit','{first_project}');
+INSERT INTO public.samsara_trackers(id,name,project_id) VALUES('race-trk','Race Tracker','{first_project}');
+""")
+
+
+def link_tracker(shipment, move=False):
+    return f"""SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','a1111111-1111-4111-8111-111111111111',true);
+SELECT public.link_shipment_tracker({shipment},'race-trk',{'true' if move else 'false'});"""
+
+
+overlap(
+    'one tracker cannot be linked to two shipments at once',
+    link_tracker(9101),
+    link_tracker(9102),
+    '23505',
+)
+assert sql("SELECT string_agg(shipment_id::text,',') FROM public.shipment_trackers WHERE tracker_id='race-trk' AND ended_at IS NULL") == '9101'
+
+
+# Unlinking a tracker while someone moves it to another shipment: the move waits, finds the link already ended and
+# links the tracker without claiming it moved it, so the history keeps the unlink.
+overlap(
+    'a tracker unlinked while it is being moved keeps one ending',
+    """SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','a2222222-2222-4222-8222-222222222222',true);
+SELECT public.unlink_shipment_tracker(9101,'race-trk');""",
+    link_tracker(9102, move=True),
+    '00000',
+)
+assert sql("SELECT ended_reason FROM public.shipment_trackers WHERE tracker_id='race-trk' AND shipment_id=9101") == 'unlinked'
+assert sql("SELECT string_agg(shipment_id::text,',') FROM public.shipment_trackers WHERE tracker_id='race-trk' AND ended_at IS NULL") == '9102'
+assert sql("""SELECT count(*) FROM public.audit_log WHERE action='shipment_tracker_linked' AND details->>'shipment_id'='9102'
+ AND NOT details ? 'moved_from_shipment_id'""") == '1'
+
+
+# A call whose transaction began before someone else linked a tracker can still replace that link: links end by the
+# clock, so the ending is never before the link was made.
+sql(f"""INSERT INTO public.shipments(id,shipment_number,status,project_id) VALUES(9103,'RACE-SHP-3','In Transit','{first_project}');
+INSERT INTO public.samsara_trackers(id,name,project_id) VALUES('race-trk2','Race Tracker 2','{first_project}'),('race-trk3','Race Tracker 3','{first_project}');""")
+early = Session('invenio-test-early')
+try:
+    early.send("BEGIN;\nSELECT now();\n\\echo STARTED :SQLSTATE")
+    assert 'STARTED 00000' in early.until('STARTED')
+    sql("""BEGIN; SET LOCAL ROLE authenticated; SELECT set_config('request.jwt.claim.sub','a1111111-1111-4111-8111-111111111111',true);
+SELECT public.link_shipment_tracker(9103,'race-trk2'); COMMIT;""")
+    early.send("""SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','a2222222-2222-4222-8222-222222222222',true);
+SELECT public.link_shipment_tracker(9103,'race-trk3');
+\\echo REPLACED :SQLSTATE""")
+    replaced = early.until('REPLACED')
+    assert 'REPLACED 00000' in replaced, replaced
+    early.send('COMMIT;\n\\echo FINISHED')
+    early.until('FINISHED')
+    print('Concurrency passed: a link made after a call began can still be replaced by it', flush=True)
+finally:
+    early.close()
+assert sql("SELECT ended_reason FROM public.shipment_trackers WHERE shipment_id=9103 AND tracker_id='race-trk2'") == 'replaced'
 PY

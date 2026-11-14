@@ -435,8 +435,10 @@
 
                     <div class="mb-3">
                         <label class="form-label-custom" for="photoInput">Upload Photos</label>
-                        <input type="file" class="form-control" id="photoInput" accept="image/*" multiple>
+                        <input type="file" class="form-control" id="photoInput" accept="image/jpeg,image/png" multiple aria-describedby="photoNotice">
+                        <div class="form-text">JPEG or PNG, up to 10 MB each.</div>
                     </div>
+                    <div id="photoNotice" class="small text-danger mb-2" role="status" aria-live="polite"></div>
 
                     <div id="photoCount" class="text-muted small mb-2">No photos added yet (optional)</div>
                     <div class="photo-grid" id="photoGrid"></div>
@@ -594,7 +596,7 @@
     <script src="js/utils/sidebar.js?v=20261010portal"></script>
 
     <!-- Receiving Wizard JS -->
-    <script src="receiving.js?v=20260908a"></script>
+    <script src="receiving.js?v=20261113photos"></script>
 </body>
 
 </html>

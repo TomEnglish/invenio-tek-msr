@@ -26,6 +26,9 @@ const TABLE_CONFIG = {
             { key: 'created_at', label: 'Created', editable: false, type: 'datetime' },
         ],
         searchColumns: ['material_type', 'size', 'grade', 'spec'],
+        record: { type: 'materials' },
+        // A material's photos were taken when it was received.
+        photos: [{ kind: 'receipts', from: 'receiving_record_id' }],
     },
     receiving_records: {
         label: 'Receiving Records',
@@ -53,6 +56,8 @@ const TABLE_CONFIG = {
             { key: 'created_at', label: 'Created', editable: false, type: 'datetime' },
         ],
         searchColumns: ['material_type', 'vendor', 'po_number', 'grade'],
+        record: { type: 'receiving_records' },
+        photos: [{ kind: 'receipts', from: 'id' }],
     },
     locations: {
         label: 'Locations',
@@ -89,6 +94,7 @@ const TABLE_CONFIG = {
             { key: 'created_at', label: 'Created', editable: false, type: 'datetime' },
         ],
         searchColumns: ['code_value'],
+        record: { type: 'qr_codes' },
         // Item codes only: HU- codes are crate labels (022), listed on the Crates page.
         filter: query => query.neq('entity_type', 'handling_unit'),
     },
@@ -178,6 +184,7 @@ const TABLE_CONFIG = {
             { key: 'sub_category', label: 'Sub-Category', editable: true, type: 'text', inTable: false },
         ],
         searchColumns: ['purchase_order_id', 'po_description', 'supplier', 'item_description'],
+        record: { type: 'purchase_orders' },
     },
     shipments: {
         label: 'Shipments (Inbound)',
@@ -200,6 +207,7 @@ const TABLE_CONFIG = {
             { key: 'num_pieces', label: 'Pieces', editable: false, type: 'number' },
         ],
         searchColumns: ['shipment_number', 'supplier', 'po_number', 'part_description'],
+        record: { type: 'shipments' },
     },
     material_links: {
         label: 'Material Links',
@@ -260,6 +268,9 @@ const TABLE_CONFIG = {
             { key: 'created_at', label: 'Date', editable: false, type: 'datetime' },
         ],
         searchColumns: ['action', 'entity_type'],
+        // Driver-license entries (their reasons, digits and photo names) are hidden whole; load
+        // snapshots keep license fields, which are hidden by name.
+        clean: row => { row.details = /licen[cs]e/i.test(row.action || '') ? '(hidden: driver license entry)' : withoutLicense(row.details); },
     },
     project_schedule: {
         label: 'Project Schedule',
@@ -283,7 +294,357 @@ const TABLE_CONFIG = {
         ],
         searchColumns: ['activity_id', 'activity_name', 'category'],
     },
+
+    // ── Photos ──
+    // The photo rows themselves; each opens in the photo viewer.
+    inspection_photos: {
+        label: 'Receiving Photos',
+        category: 'Photos',
+        icon: 'fa-camera',
+        idField: 'id',
+        orderBy: 'created_at',
+        orderAsc: false,
+        canInsert: false,
+        canDelete: false,
+        // These rows have no project of their own: they are asked for through their receipt's.
+        select: '*,receiving_records!inner(project_id)',
+        filter: query => query.eq('receiving_records.project_id', InvenioProjectScope.getActiveProjectId()),
+        columns: [
+            { key: 'photo_type', label: 'Type', type: 'enum', options: ['general', 'damage', 'delivery_ticket'] },
+            { key: '__receipt', label: 'Received Item', type: 'text', sortable: false },
+            { key: 'created_at', label: 'Taken', type: 'datetime' },
+        ],
+        lookups: [{ column: 'receiving_record_id', table: 'receiving_records', select: 'id,material_type,po_number', as: '__receipt',
+            text: receipt => [receipt.material_type, !receipt.po_number ? '' : /^po\b/i.test(receipt.po_number) ? receipt.po_number : `PO ${receipt.po_number}`]
+                .filter(Boolean).join(' · ') }],
+        searchColumns: ['photo_type'],
+        record: { type: 'receiving_records', from: 'receiving_record_id' },
+        photos: 'receipt',
+    },
+    inventory_photos: {
+        label: 'Count Photos',
+        category: 'Photos',
+        icon: 'fa-camera-retro',
+        idField: 'id',
+        orderBy: 'created_at',
+        orderAsc: false,
+        canInsert: false,
+        canDelete: false,
+        columns: [
+            { key: '__item', label: 'Counted Item', type: 'text', sortable: false },
+            { key: 'created_at', label: 'Taken', type: 'datetime' },
+        ],
+        lookups: [{ column: 'inventory_uid', table: 'inventory_records', key: 'uid', select: 'uid,qr_code,inventory_item', as: '__item',
+            text: item => [item.qr_code, item.inventory_item].filter(Boolean).join(' · ') }],
+        searchColumns: [],
+        photos: 'count',
+    },
+
+    // ── Initial count ──
+    inventory_records: {
+        label: 'Count Records',
+        category: 'Initial Count',
+        icon: 'fa-barcode',
+        idField: 'id',
+        orderBy: 'created_at',
+        orderAsc: false,
+        canInsert: false,
+        canDelete: false,
+        columns: [
+            { key: 'qr_code', label: 'Tag', type: 'text' },
+            { key: 'inventory_item', label: 'Item', type: 'text' },
+            { key: 'item_description', label: 'Description', type: 'text', inTable: false },
+            { key: 'part_number', label: 'Part Number', type: 'text', inTable: false },
+            { key: '__category', label: 'Category', type: 'text', sortable: false },
+            { key: 'quantity', label: 'Qty', type: 'number' },
+            { key: 'uom', label: 'UOM', type: 'text' },
+            { key: 'count_status', label: 'Status', type: 'enum', options: ['expected', 'counted', 'received'] },
+            { key: 'condition', label: 'Condition', type: 'enum', options: ['good', 'damaged', 'mixed'] },
+            { key: 'location', label: 'Location', type: 'text' },
+            { key: 'source', label: 'Source', type: 'enum', options: ['import', 'field', 'legacy'], inTable: false },
+            { key: 'is_high_value', label: 'High Value', type: 'boolean', inTable: false },
+            { key: 'scanner_comments', label: 'Notes', type: 'text', inTable: false },
+            { key: 'last_scanned_by', label: 'Last Scanned By', type: 'text', inTable: false },
+            { key: 'counted_at', label: 'Counted', type: 'datetime' },
+        ],
+        lookups: [{ column: 'category_id', table: 'inventory_categories', select: 'id,name', as: '__category', text: category => category.name }],
+        searchColumns: ['qr_code', 'inventory_item', 'item_description', 'part_number'],
+        // Photos from the count, and from receiving once the item has been received.
+        photos: [{ kind: 'count', from: 'uid' }, { kind: 'receipts', from: 'receiving_record_id' }],
+    },
+    inventory_categories: {
+        label: 'Categories',
+        category: 'Initial Count',
+        icon: 'fa-sitemap',
+        idField: 'id',
+        orderBy: 'name',
+        orderAsc: true,
+        canInsert: false,
+        canDelete: false,
+        columns: [
+            { key: 'name', label: 'Name', type: 'text' },
+            { key: '__parent', label: 'Inside', type: 'text', sortable: false },
+            { key: 'status', label: 'Status', type: 'enum', options: ['active', 'proposed', 'archived'] },
+            { key: 'sort_order', label: 'Order', type: 'number' },
+            { key: 'created_at', label: 'Created', type: 'datetime' },
+        ],
+        lookups: [{ column: 'parent_id', table: 'inventory_categories', select: 'id,name', as: '__parent', text: category => category.name }],
+        searchColumns: ['name'],
+    },
+    site_maps: {
+        label: 'Site Maps',
+        category: 'Initial Count',
+        icon: 'fa-map',
+        idField: 'id',
+        orderBy: 'name',
+        orderAsc: true,
+        canInsert: false,
+        canDelete: false,
+        columns: [
+            { key: 'name', label: 'Name', type: 'text' },
+            { key: 'is_active', label: 'Active', type: 'boolean' },
+            { key: 'image_width', label: 'Width (px)', type: 'number' },
+            { key: 'image_height', label: 'Height (px)', type: 'number' },
+            { key: 'created_at', label: 'Created', type: 'datetime' },
+        ],
+        searchColumns: ['name'],
+    },
+    site_map_zones: {
+        label: 'Map Areas',
+        category: 'Initial Count',
+        icon: 'fa-draw-polygon',
+        idField: 'id',
+        orderBy: 'name',
+        orderAsc: true,
+        canInsert: false,
+        canDelete: false,
+        columns: [
+            { key: 'name', label: 'Name', type: 'text' },
+            { key: '__map', label: 'Site Map', type: 'text', sortable: false },
+            { key: '__parent', label: 'Inside', type: 'text', sortable: false },
+            { key: 'is_active', label: 'Active', type: 'boolean' },
+            { key: 'created_at', label: 'Created', type: 'datetime' },
+        ],
+        lookups: [
+            { column: 'map_id', table: 'site_maps', select: 'id,name', as: '__map', text: map => map.name },
+            { column: 'parent_id', table: 'site_map_zones', select: 'id,name', as: '__parent', text: zone => zone.name },
+        ],
+        searchColumns: ['name'],
+    },
+
+    // ── Logistics ──
+    // Places are shared by every project, so this list is the same in each.
+    places: {
+        label: 'Places',
+        category: 'Logistics',
+        icon: 'fa-map-pin',
+        idField: 'id',
+        orderBy: 'name',
+        orderAsc: true,
+        canInsert: false,
+        canDelete: false,
+        columns: [
+            { key: 'name', label: 'Name', type: 'text' },
+            { key: 'kind', label: 'Kind', type: 'enum', options: ['yard', 'site', 'outside_shop', 'vendor', 'other'] },
+            { key: 'city', label: 'City', type: 'text' },
+            { key: 'state', label: 'State', type: 'text' },
+            { key: 'address', label: 'Address', type: 'text', inTable: false },
+            { key: 'postal_code', label: 'ZIP Code', type: 'text', inTable: false },
+            { key: 'latitude', label: 'Latitude', type: 'text', inTable: false },
+            { key: 'longitude', label: 'Longitude', type: 'text', inTable: false },
+            { key: 'geofence_radius_m', label: 'Arrival Radius (m)', type: 'number', inTable: false },
+            { key: 'contact_name', label: 'Contact', type: 'text' },
+            { key: 'contact_phone', label: 'Phone', type: 'text' },
+            { key: 'contact_email', label: 'Email', type: 'text', inTable: false },
+            { key: 'notes', label: 'Notes', type: 'text', inTable: false },
+            { key: 'is_active', label: 'Active', type: 'boolean' },
+        ],
+        searchColumns: ['name', 'city', 'state', 'contact_name'],
+    },
+    handling_unit_overview: {
+        label: 'Crates',
+        category: 'Logistics',
+        icon: 'fa-box',
+        idField: 'id',
+        orderBy: 'created_at',
+        orderAsc: false,
+        canInsert: false,
+        canDelete: false,
+        columns: [
+            { key: 'code', label: 'Label', type: 'text' },
+            { key: 'kind', label: 'Kind', type: 'enum', options: ['crate', 'skid', 'bundle', 'basket', 'container', 'other'] },
+            { key: 'description', label: 'Description', type: 'text' },
+            { key: 'status', label: 'Status', type: 'enum', options: ['open', 'sealed', 'on_load', 'delivered', 'unpacked'] },
+            { key: 'item_count', label: 'Items', type: 'number' },
+            { key: 'parent_code', label: 'Inside', type: 'text' },
+            { key: 'place_name', label: 'Place', type: 'text' },
+            { key: 'location', label: 'Location', type: 'text', inTable: false },
+            { key: 'load_number', label: 'Load', type: 'text' },
+            { key: 'is_high_value', label: 'High Value', type: 'boolean', inTable: false },
+            { key: 'sealed_at', label: 'Sealed', type: 'datetime', inTable: false },
+            { key: 'created_at', label: 'Created', type: 'datetime' },
+        ],
+        searchColumns: ['code', 'description'],
+    },
+    handling_unit_items: {
+        label: 'Crate Contents',
+        category: 'Logistics',
+        icon: 'fa-boxes',
+        idField: 'id',
+        orderBy: 'packed_at',
+        orderAsc: false,
+        canInsert: false,
+        canDelete: false,
+        columns: [
+            { key: 'unit_code', label: 'Crate', type: 'text' },
+            { key: 'tag', label: 'Tag', type: 'text' },
+            { key: 'name', label: 'Item', type: 'text' },
+            { key: 'quantity', label: 'Qty', type: 'number' },
+            { key: 'uom', label: 'UOM', type: 'text' },
+            { key: 'packed_at', label: 'Packed', type: 'datetime' },
+        ],
+        lookups: [{ column: 'material_id', table: 'materials', select: 'id,receiving_record_id', as: '__receipt', text: material => material.receiving_record_id }],
+        searchColumns: ['unit_code', 'tag', 'name'],
+        photos: [{ kind: 'count', from: 'inventory_uid' }, { kind: 'receipts', from: '__receipt' }],
+    },
+    load_overview: {
+        label: 'Loads',
+        category: 'Logistics',
+        icon: 'fa-truck',
+        idField: 'id',
+        orderBy: 'created_at',
+        orderAsc: false,
+        canInsert: false,
+        canDelete: false,
+        // Named columns only: license details stay on the Loads page, for the office.
+        select: 'id,load_number,status,origin_name,next_stop,planned_date,driver_name,driver_phone,truck_type,truck_number,trailer_number,bol_number,'
+            + 'stop_count,planned_count,on_board_count,delivered_count,missing_count,notes,departed_at,delivered_at,closed_at,created_at',
+        columns: [
+            { key: 'load_number', label: 'Load', type: 'text' },
+            { key: 'status', label: 'Status', type: 'enum', options: ['planning', 'loading', 'in_transit', 'delivered', 'closed', 'cancelled'] },
+            { key: 'origin_name', label: 'From', type: 'text' },
+            { key: 'next_stop', label: 'Next Stop', type: 'text' },
+            { key: 'planned_date', label: 'Planned', type: 'date' },
+            { key: 'driver_name', label: 'Driver', type: 'text' },
+            { key: 'driver_phone', label: 'Driver Phone', type: 'text', inTable: false },
+            { key: 'truck_type', label: 'Truck Type', type: 'text', inTable: false },
+            { key: 'truck_number', label: 'Truck #', type: 'text', inTable: false },
+            { key: 'trailer_number', label: 'Trailer #', type: 'text', inTable: false },
+            { key: 'bol_number', label: 'BOL #', type: 'text', inTable: false },
+            { key: 'stop_count', label: 'Stops', type: 'number' },
+            { key: 'planned_count', label: 'Pieces', type: 'number' },
+            { key: 'on_board_count', label: 'On Board', type: 'number' },
+            { key: 'delivered_count', label: 'Delivered', type: 'number' },
+            { key: 'missing_count', label: 'Missing', type: 'number' },
+            { key: 'notes', label: 'Notes', type: 'text', inTable: false },
+            { key: 'departed_at', label: 'Departed', type: 'datetime', inTable: false },
+            { key: 'delivered_at', label: 'Delivered On', type: 'datetime', inTable: false },
+            { key: 'closed_at', label: 'Closed', type: 'datetime', inTable: false },
+            { key: 'created_at', label: 'Created', type: 'datetime' },
+        ],
+        searchColumns: ['load_number', 'driver_name', 'truck_number', 'bol_number'],
+    },
+    load_stop_overview: {
+        label: 'Load Stops',
+        category: 'Logistics',
+        icon: 'fa-map-signs',
+        idField: 'id',
+        orderBy: 'planned_date',
+        orderAsc: false,
+        canInsert: false,
+        canDelete: false,
+        columns: [
+            { key: '__load', label: 'Load', type: 'text', sortable: false },
+            { key: 'seq', label: 'Stop', type: 'number' },
+            { key: 'place_name', label: 'Place', type: 'text' },
+            { key: 'kind', label: 'Kind', type: 'enum', options: ['dropoff', 'pickup', 'both'] },
+            { key: 'status', label: 'Status', type: 'enum', options: ['pending', 'arrived', 'done', 'cancelled'] },
+            { key: 'planned_date', label: 'Planned', type: 'date' },
+            { key: 'arrived_at', label: 'Arrived', type: 'datetime' },
+            { key: 'arrived_source', label: 'Arrival Recorded By', type: 'enum', options: ['scan', 'tracker', 'office'], inTable: false },
+            { key: 'due_count', label: 'Due', type: 'number' },
+            { key: 'delivered_count', label: 'Delivered', type: 'number' },
+            { key: 'missing_count', label: 'Missing', type: 'number' },
+        ],
+        lookups: [{ column: 'load_id', table: 'load_overview', select: 'id,load_number', as: '__load', text: load => load.load_number }],
+        searchColumns: ['place_name'],
+    },
+    load_line_overview: {
+        label: 'Load Manifest',
+        category: 'Logistics',
+        icon: 'fa-clipboard-check',
+        idField: 'id',
+        orderBy: 'created_at',
+        orderAsc: false,
+        canInsert: false,
+        canDelete: false,
+        columns: [
+            { key: 'load_number', label: 'Load', type: 'text' },
+            { key: 'tag', label: 'Tag', type: 'text' },
+            { key: 'name', label: 'Item', type: 'text' },
+            { key: 'status', label: 'Status', type: 'enum', options: ['planned', 'on_board', 'delivered', 'missing', 'not_loaded', 'removed', 'written_off'] },
+            { key: 'pickup_place', label: 'Pick Up', type: 'text' },
+            { key: 'dropoff_place', label: 'Drop Off', type: 'text' },
+            { key: 'delivered_place', label: 'Delivered To', type: 'text', inTable: false },
+            { key: 'flag', label: 'Flag', type: 'text', inTable: false },
+            { key: 'note', label: 'Note', type: 'text', inTable: false },
+            { key: 'on_at', label: 'On Board', type: 'datetime', inTable: false },
+            { key: 'off_at', label: 'Off', type: 'datetime', inTable: false },
+            { key: 'created_at', label: 'Added', type: 'datetime' },
+        ],
+        lookups: [{ column: 'material_id', table: 'materials', select: 'id,receiving_record_id', as: '__receipt', text: material => material.receiving_record_id }],
+        searchColumns: ['load_number', 'tag', 'name'],
+        photos: [{ kind: 'count', from: 'inventory_uid' }, { kind: 'receipts', from: '__receipt' }],
+    },
+    load_companies: {
+        label: 'Load Companies',
+        category: 'Logistics',
+        icon: 'fa-building',
+        idField: 'id',
+        orderBy: 'created_at',
+        orderAsc: false,
+        canInsert: false,
+        canDelete: false,
+        columns: [
+            { key: '__load', label: 'Load', type: 'text', sortable: false },
+            { key: 'position', label: 'Order', type: 'number' },
+            { key: 'name', label: 'Company', type: 'text' },
+            { key: 'role', label: 'Role', type: 'enum', options: ['broker', 'carrier', 'dispatcher', 'other'] },
+            { key: 'contact_name', label: 'Contact', type: 'text' },
+            { key: 'phone', label: 'Phone', type: 'text' },
+            { key: 'created_at', label: 'Added', type: 'datetime' },
+        ],
+        lookups: [{ column: 'load_id', table: 'load_overview', select: 'id,load_number', as: '__load', text: load => load.load_number }],
+        searchColumns: ['name', 'contact_name'],
+    },
+
+    // ── Tracking ──
+    samsara_trackers: {
+        label: 'GPS Trackers',
+        category: 'Tracking',
+        icon: 'fa-satellite-dish',
+        idField: 'id',
+        orderBy: 'last_seen_at',
+        orderAsc: false,
+        canInsert: false,
+        canDelete: false,
+        fileName: 'gps_trackers',
+        select: 'id,name,last_latitude,last_longitude,last_accuracy_meters,last_seen_at,is_on_site,distance_from_site_km,synced_at',
+        columns: [
+            { key: 'name', label: 'Name', type: 'text' },
+            { key: 'last_seen_at', label: 'Last Seen', type: 'datetime' },
+            { key: 'last_latitude', label: 'Latitude', type: 'text' },
+            { key: 'last_longitude', label: 'Longitude', type: 'text' },
+            { key: 'last_accuracy_meters', label: 'Accuracy (m)', type: 'number', inTable: false },
+            { key: 'is_on_site', label: 'On Site', type: 'boolean' },
+            { key: 'distance_from_site_km', label: 'Distance (km)', type: 'number' },
+            { key: 'synced_at', label: 'Updated', type: 'datetime', inTable: false },
+        ],
+        searchColumns: ['name'],
+    },
 };
+// The order the groups appear in the table list.
+const CATEGORY_ORDER = ['Inventory', 'Photos', 'Initial Count', 'Logistics', 'Tracking', 'Procurement', 'Reference'];
 // Corrections to physical records use audited operations; history remains read-only.
 for (const [table, config] of Object.entries(TABLE_CONFIG)) {
     config.canDelete = false;
@@ -307,6 +668,10 @@ let state = {
     sortAsc: true,
     editRecord: null,
     isNewRecord: false,
+    loadToken: 0,
+    dataTable: null,
+    photos: null,
+    photosReady: Promise.resolve(),
 };
 
 // ── Initialization ──
@@ -325,7 +690,8 @@ function buildTableSelector() {
         categories[config.category].push({ key, label: config.label });
     }
 
-    for (const [category, tables] of Object.entries(categories)) {
+    const rank = category => (CATEGORY_ORDER.indexOf(category) + 1) || CATEGORY_ORDER.length + 1;
+    for (const [category, tables] of Object.entries(categories).sort(([a], [b]) => rank(a) - rank(b))) {
         const group = document.createElement('optgroup');
         group.label = category;
         tables.forEach(t => {
@@ -390,6 +756,16 @@ async function loadData() {
     const config = TABLE_CONFIG[tableName];
     if (!config) return;
 
+    // A later table, page or search replaces this one; its answers are then ignored. Until it loads,
+    // nothing of the last table is kept to export or open.
+    const token = ++state.loadToken;
+    state.data = [];
+    state.dataTable = null;
+    state.totalCount = 0;
+    state.photos = null;
+    const search = document.getElementById('searchInput');
+    search.disabled = !config.searchColumns.length;
+    search.placeholder = config.searchColumns.length ? 'Search across columns...' : 'This table has no search';
     const tbody = document.getElementById('tableBody');
     tbody.innerHTML = `<tr><td colspan="20" style="text-align:center;padding:2rem;"><i class="fas fa-spinner fa-spin fa-2x"></i></td></tr>`;
 
@@ -399,7 +775,7 @@ async function loadData() {
 
     try {
         // Build query
-        let query = projectSupabaseClient.from(tableName).select('*', { count: 'exact' });
+        let query = projectSupabaseClient.from(tableName).select(config.select || '*', { count: 'exact' });
         if (config.filter) query = config.filter(query);
 
         // Sort
@@ -424,15 +800,138 @@ async function loadData() {
 
         const { data, error, count } = await query;
         if (error) throw error;
+        if (token !== state.loadToken) return;
 
-        state.data = data || [];
+        const rows = data || [];
+        if (config.clean) rows.forEach(config.clean);
+        await addLookups(config, rows);
+        if (token !== state.loadToken) return;
+        state.data = rows;
+        state.dataTable = tableName;
         state.totalCount = count || 0;
+        // null while the photos load, 'error' if they could not, else one list per row.
+        state.photos = null;
+        state.photosReady = config.photos ? loadRowPhotos(config, rows, token) : Promise.resolve();
 
         renderTableHead(config);
         renderTableBody(config);
         renderPagination();
     } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="20" class="empty-state"><i class="fas fa-exclamation-triangle d-block" style="color:#DC2626;"></i><p>${err.message}</p></td></tr>`;
+        if (token !== state.loadToken) return;
+        state.photos = 'error';
+        // The server's own words can name its tables; the console keeps them.
+        console.warn(`Could not load ${tableName}:`, err?.message || err);
+        tbody.innerHTML = `<tr><td colspan="20" class="empty-state"><i class="fas fa-exclamation-triangle d-block" style="color:#DC2626;"></i><p>${escapeHtml(`This table could not be loaded${err?.code ? ` (${err.code})` : ''}. Refresh to try again.`)}</p></td></tr>`;
+    }
+}
+
+// Names for the IDs a table holds (a load's number, a category's name), looked up for the rows shown.
+// A lookup that fails leaves its column empty rather than the table.
+async function addLookups(config, rows) {
+    for (const lookup of config.lookups || []) {
+        const key = lookup.key || 'id';
+        rows.forEach(row => { row[lookup.as] = null; });
+        const ids = [...new Set(rows.map(row => row[lookup.column]).filter(id => id !== null && id !== undefined && id !== ''))];
+        if (!ids.length) continue;
+        try {
+            const found = new Map();
+            for (let i = 0; i < ids.length; i += 100) {
+                const { data, error } = await projectSupabaseClient.from(lookup.table).select(lookup.select).in(key, ids.slice(i, i + 100));
+                if (error) throw error;
+                (data || []).forEach(item => found.set(String(item[key]), item));
+            }
+            rows.forEach(row => {
+                const item = found.get(String(row[lookup.column]));
+                row[lookup.as] = item ? (lookup.text(item) ?? null) : null;
+            });
+        } catch (err) {
+            console.warn(`Could not look up ${lookup.table}:`, err?.message || err);
+        }
+    }
+}
+
+// Each row's photos: the row itself on the photo tables, else from each source the table names.
+async function loadRowPhotos(config, rows, token) {
+    let lists;
+    try {
+        if (typeof config.photos === 'string') {
+            lists = rows.map(row => row.storage_path ? [InvenioPhotos.fromRow(config.photos, row)] : []);
+        } else {
+            const found = await Promise.all(config.photos.map(source => {
+                const keys = rows.map(row => row[source.from]);
+                return source.kind === 'receipts' ? InvenioPhotos.loadForReceipts(keys) : InvenioPhotos.load(source.kind, keys);
+            }));
+            lists = rows.map(row => InvenioPhotos.merge(...config.photos.map((source, n) =>
+                row[source.from] === null || row[source.from] === undefined ? [] : found[n].get(String(row[source.from])) || [])));
+        }
+    } catch (err) {
+        console.warn('Could not load photos:', err?.message || err);
+        lists = 'error';
+    }
+    if (token !== state.loadToken) return;
+    state.photos = lists;
+    renderTableBody(config);
+}
+
+function photoCell(rowIndex) {
+    if (state.photos === null) return '<td class="text-muted" aria-busy="true">…</td>';
+    if (state.photos === 'error') return '<td class="text-muted">Unavailable</td>';
+    const photos = state.photos[rowIndex] || [];
+    return `<td>${photos.length ? InvenioPhotos.chipHtml(photos.length, rowIndex) : '<span class="text-muted">—</span>'}</td>`;
+}
+
+// The photos a row's button opens, and which one first. On the photo tables that is every photo
+// on the page, starting at the row's own, so they can be paged through.
+function photosFor(rowIndex) {
+    const config = TABLE_CONFIG[state.currentTable];
+    if (!Array.isArray(state.photos)) return { photos: [], start: 0 };
+    if (typeof config.photos === 'string') {
+        const all = state.photos.flat();
+        const own = state.photos[rowIndex]?.[0];
+        return { photos: all, start: Math.max(0, all.indexOf(own)) };
+    }
+    return { photos: state.photos[rowIndex] || [], start: 0 };
+}
+
+function rowClicked(event, rowIndex) {
+    const chip = event?.target?.closest?.('[data-photo-index]');
+    if (chip) {
+        const { photos, start } = photosFor(rowIndex);
+        InvenioPhotos.open(photos, start, chip);
+        return;
+    }
+    openEditModal(rowIndex);
+}
+
+function recordHref(config, record) {
+    if (!config.record) return '';
+    const id = record[config.record.from || 'id'];
+    if (id === null || id === undefined || id === '') return '';
+    return `record.html?type=${encodeURIComponent(config.record.type)}&id=${encodeURIComponent(id)}`;
+}
+
+// The open record's photos, once the page's photos have loaded. A reload while the record is open
+// (a search, a page) is waited for, and the record found again by its ID.
+async function showRecordPhotos(record) {
+    const config = TABLE_CONFIG[state.currentTable];
+    if (!config.photos) return;
+    const container = document.getElementById('recordPhotoStrip');
+    for (let waited = 0; ; waited += 50) {
+        const token = state.loadToken;
+        await state.photosReady;
+        if (state.editRecord !== record) return;
+        if ((token !== state.loadToken || state.photos === null) && waited < 30000) { await new Promise(resolve => setTimeout(resolve, 50)); continue; }
+        if (!Array.isArray(state.photos)) {
+            container.textContent = 'Photos could not be loaded. Refresh to try again.';
+            return;
+        }
+        const at = state.data.findIndex(row => row[config.idField] === record[config.idField]);
+        if (at === -1) {
+            container.textContent = 'This record is no longer in the list. Close it and open it again to see its photos.';
+            return;
+        }
+        await InvenioPhotos.strip(container, state.photos[at] || []);
+        return;
     }
 }
 
@@ -450,12 +949,13 @@ function renderTableHead(config) {
     const sortCol = state.sortColumn || config.orderBy;
 
     thead.innerHTML = '<tr>' + tableColumns(config).map(col => {
+        if (col.sortable === false) return `<th>${col.label}</th>`;
         const isSorted = sortCol === col.key;
         const icon = isSorted
             ? (state.sortColumn ? (state.sortAsc ? 'fa-sort-up' : 'fa-sort-down') : (config.orderAsc ? 'fa-sort-up' : 'fa-sort-down'))
             : 'fa-sort';
         return `<th class="${isSorted ? 'sorted' : ''}" onclick="sortBy('${col.key}')">${col.label} <i class="fas ${icon} sort-icon"></i></th>`;
-    }).join('') + '</tr>';
+    }).join('') + (config.photos ? '<th>Photos</th>' : '') + '</tr>';
 }
 
 function renderTableBody(config) {
@@ -464,15 +964,15 @@ function renderTableBody(config) {
     document.getElementById('recordCount').textContent = `${state.totalCount} record${state.totalCount !== 1 ? 's' : ''}`;
 
     if (state.data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${visible.length}" class="empty-state"><i class="fas fa-inbox d-block"></i><p>No records found</p></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${visible.length + (config.photos ? 1 : 0)}" class="empty-state"><i class="fas fa-inbox d-block"></i><p>No records found</p></td></tr>`;
         return;
     }
 
     tbody.innerHTML = state.data.map((row, idx) => {
-        return '<tr onclick="openEditModal(' + idx + ')">' + visible.map(col => {
+        return '<tr onclick="rowClicked(event, ' + idx + ')">' + visible.map(col => {
             const val = row[col.key];
             return `<td>${formatCell(val, col.type)}</td>`;
-        }).join('') + '</tr>';
+        }).join('') + (config.photos ? photoCell(idx) : '') + '</tr>';
     }).join('');
 }
 
@@ -480,20 +980,24 @@ function formatCell(value, type) {
     if (value === null || value === undefined) return '<span class="text-muted">—</span>';
 
     switch (type) {
-        case 'datetime':
-            return new Date(value).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
-        case 'date':
-            return value ? new Date(value + 'T00:00:00').toLocaleDateString('en-US') : '—';
+        case 'datetime': {
+            const date = new Date(value);
+            return Number.isNaN(date.getTime()) ? escapeHtml(String(value)) : date.toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
+        }
+        case 'date': {
+            const date = value ? new Date(value + 'T00:00:00') : null;
+            return !date ? '—' : Number.isNaN(date.getTime()) ? escapeHtml(String(value)) : date.toLocaleDateString('en-US');
+        }
         case 'boolean':
             return value
                 ? '<span class="status-badge" style="background:#D1FAE5;color:#065F46;">Yes</span>'
                 : '<span class="status-badge" style="background:#FEE2E2;color:#991B1B;">No</span>';
         case 'enum':
-            return `<span class="status-badge" style="background:${statusColor(value)};color:white;">${value.replaceAll('_', ' ')}</span>`;
+            return `<span class="status-badge" style="background:${statusColor(value)};color:white;">${escapeHtml(String(value).replaceAll('_', ' '))}</span>`;
         case 'json':
-            return typeof value === 'object' ? '<code>' + truncate(JSON.stringify(value), 60) + '</code>' : String(value);
+            return typeof value === 'object' ? '<code>' + escapeHtml(truncate(JSON.stringify(value), 60)) + '</code>' : escapeHtml(String(value));
         case 'number':
-            return typeof value === 'number' ? value.toLocaleString() : String(value);
+            return typeof value === 'number' ? value.toLocaleString() : escapeHtml(String(value));
         default:
             return escapeHtml(truncate(String(value), 80));
     }
@@ -505,6 +1009,10 @@ function statusColor(status) {
         accepted: '#16A34A', partially_accepted: '#D97706', rejected: '#DC2626', pending: '#94A3B8',
         good: '#16A34A', damaged: '#DC2626', mixed: '#D97706',
         ordered: '#94A3B8', received: '#16A34A', installed: '#2563EB',
+        expected: '#D97706', counted: '#2563EB', active: '#16A34A', proposed: '#D97706', archived: '#94A3B8',
+        open: '#94A3B8', sealed: '#2563EB', on_load: '#D97706', delivered: '#16A34A', unpacked: '#475569',
+        planning: '#94A3B8', loading: '#D97706', in_transit: '#2563EB', closed: '#475569', cancelled: '#475569',
+        arrived: '#2563EB', done: '#16A34A', on_board: '#2563EB', missing: '#DC2626', not_loaded: '#475569', removed: '#94A3B8',
     };
     return colors[status] || '#64748B';
 }
@@ -534,6 +1042,8 @@ function sortBy(column) {
 // ── Edit Modal ──
 
 function openEditModal(rowIndex) {
+    // A photo still open from another record closes first.
+    if (window.InvenioPhotos) InvenioPhotos.close();
     const config = TABLE_CONFIG[state.currentTable];
     const record = state.data[rowIndex];
     state.editRecord = record;
@@ -552,6 +1062,7 @@ function openEditModal(rowIndex) {
 
     const modal = new bootstrap.Modal(document.getElementById('editModal'));
     modal.show();
+    showRecordPhotos(record);
 }
 
 function openAddModal() {
@@ -578,19 +1089,20 @@ function renderEditForm(config, record) {
     if (!state.isNewRecord && record[config.idField]) {
         html += `<div class="field-group">
             <label>ID <span class="badge bg-secondary">read-only</span></label>
-            <div class="field-readonly">${record[config.idField]}</div>
+            <div class="field-readonly">${escapeHtml(record[config.idField])}</div>
         </div>`;
     }
 
     config.columns.forEach(col => {
-        const value = record[col.key] ?? '';
+        const stored = record[col.key];
+        const value = stored ?? '';
         const editable = state.isNewRecord ? (col.key !== 'created_at' && col.type !== 'datetime') : col.editable;
 
         html += `<div class="field-group">`;
         html += `<label>${col.label} ${!editable ? '<span class="badge bg-secondary">read-only</span>' : ''}</label>`;
 
         if (!editable) {
-            html += `<div class="field-readonly">${formatCell(value, col.type)}</div>`;
+            html += `<div class="field-readonly">${formatCell(stored, col.type)}</div>`;
         } else {
             switch (col.type) {
                 case 'enum':
@@ -607,10 +1119,10 @@ function renderEditForm(config, record) {
                     </select>`;
                     break;
                 case 'number':
-                    html += `<input type="number" class="form-control" data-field="${col.key}" value="${value}" step="any">`;
+                    html += `<input type="number" class="form-control" data-field="${col.key}" value="${escapeHtml(value)}" step="any">`;
                     break;
                 case 'date':
-                    html += `<input type="date" class="form-control" data-field="${col.key}" value="${value || ''}">`;
+                    html += `<input type="date" class="form-control" data-field="${col.key}" value="${escapeHtml(value || '')}">`;
                     break;
                 default:
                     html += `<input type="text" class="form-control" data-field="${col.key}" value="${escapeHtml(String(value))}">`;
@@ -620,6 +1132,11 @@ function renderEditForm(config, record) {
     });
 
     if (state.currentTable === 'materials') html += '<div class="field-group"><label for="correctionReason">Reason for correction</label><textarea id="correctionReason" class="form-control" minlength="5" required></textarea></div>';
+    if (!state.isNewRecord && config.photos) {
+        html += '<div class="field-group"><label>Photos</label><div id="recordPhotoStrip" class="photo-strip"><span class="text-muted">Loading photos…</span></div></div>';
+    }
+    const href = state.isNewRecord ? '' : recordHref(config, record);
+    if (href) html += `<div class="field-group"><a class="btn btn-outline-primary btn-sm" href="${escapeHtml(href)}"><i class="fas fa-external-link-alt me-1" aria-hidden="true"></i>Open record details</a></div>`;
     body.innerHTML = html;
 }
 
@@ -714,7 +1231,7 @@ async function deleteRecord() {
 
 function exportCSV() {
     const config = TABLE_CONFIG[state.currentTable];
-    if (!config || state.data.length === 0) return;
+    if (!config || state.dataTable !== state.currentTable || state.data.length === 0) return;
 
     const headers = config.columns.map(c => c.label);
     const rows = state.data.map(row =>
@@ -733,7 +1250,7 @@ function exportCSV() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${state.currentTable}_export.csv`;
+    a.download = `${config.fileName || state.currentTable}_export.csv`;
     a.click();
     URL.revokeObjectURL(url);
 }
@@ -744,12 +1261,20 @@ function truncate(str, max) {
     return str.length > max ? str.slice(0, max) + '...' : str;
 }
 
+// A copy of a logged value with license details hidden: the last four digits, and license fields in snapshots.
+function withoutLicense(value) {
+    if (Array.isArray(value)) return value.map(withoutLicense);
+    if (!value || typeof value !== 'object') return value;
+    return Object.fromEntries(Object.entries(value).map(([key, item]) =>
+        [key, /licen[cs]e|^last4$/i.test(key) ? '(hidden)' : withoutLicense(item)]));
+}
+
+// Text for markup, quotes included: values also go inside the edit form's value="…" attributes.
 function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+    return String(str ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 }
 
 // Make functions available globally for onclick handlers
 window.sortBy = sortBy;
 window.openEditModal = openEditModal;
+window.rowClicked = rowClicked;
