@@ -31,7 +31,7 @@
         email = String(email).trim().toLowerCase();
         token = String(token).trim();
         if (!['invite', 'recovery'].includes(type) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !/^\d{6,10}$/.test(token)) {
-            throw new Error('Enter your invited email address and the code from your newest email.');
+            throw new Error('Enter your email address and the code from your newest email.');
         }
         const { data, error } = await client.auth.verifyOtp({ email, token, type });
         if (error) throw error;
@@ -43,6 +43,13 @@
         const { error } = await client.rpc('complete_invitation');
         if (error) throw error;
     }
-    global.InvenioLoginFlow = { createLoginFlow, emailLinkHelp, verifyEmailCode, completeSignIn };
+    // One code step serves an invitation and a password reset. Say which one it is, so the
+    // "Reset password" link in the email opens a page that reads as a password reset.
+    function codeStepText(mode) {
+        return mode === 'invite'
+            ? { title: 'Enter your email code', subtitle: 'Verify your email to continue setting up your password.', emailLabel: 'Invited email address' }
+            : { title: 'Reset your password', subtitle: 'Enter your email and the code from your reset email. You choose a new password next.', emailLabel: 'Email address' };
+    }
+    global.InvenioLoginFlow = { createLoginFlow, emailLinkHelp, verifyEmailCode, completeSignIn, codeStepText };
     if (typeof module !== 'undefined') module.exports = global.InvenioLoginFlow;
 })(typeof window !== 'undefined' ? window : globalThis);
