@@ -1,0 +1,13 @@
+{
+  "$comment": "One entry per environment: a complete, separate copy of the system. Public values only; secrets stay in each environment's secret store. See docs/ENVIRONMENTS.md.",
+  "environments": {
+    "demo": {
+      "kind": "production",
+      "label": "Demo",
+      "siteUrl": "https://invenio-field-msr.netlify.app",
+      "databaseUrl": "https://lzroduricxyshgyjdkki.supabase.co",
+      "publicKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6cm9kdXJpY3h5c2hneWpka2tpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3NzgyMDIsImV4cCI6MjA4NzM1NDIwMn0.oX_nOPHGkUeaUKXHAb086MGCTjIwV2PQ1q1aDLvUCRs",
+      "defaultProjectId": "00000000-0000-0000-0000-000000000000"
+    }
+  }
+}

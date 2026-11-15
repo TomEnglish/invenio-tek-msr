@@ -34,7 +34,7 @@ jobs:
       - name: Edge function validation and behavior
         working-directory: msr
         run: |
-          deno test --allow-env=SUPABASE_URL,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_SECRET_KEY,INVITATION_TTL_SECONDS,INVITATION_EMAIL_ENABLED tests/admin-users-handler.test.ts tests/admin-users-validation.test.ts
+          deno test --allow-env=SUPABASE_URL,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_SECRET_KEY,INVITATION_TTL_SECONDS,INVITATION_EMAIL_ENABLED,SITE_URL tests/admin-users-handler.test.ts tests/admin-users-validation.test.ts
           deno check supabase/functions/admin-users/index.ts
       - name: Workbook validation and transactional import contract
         working-directory: msr
@@ -51,7 +51,9 @@ jobs:
         run: bash tests/database/run.sh
       - name: Publish only checked browser assets
         working-directory: msr
-        run: node scripts/build-site.mjs
+        # The web host builds each site for its own environment; this build of
+        # the first production in environments.json is kept as the checked artifact.
+        run: APP_ENV="$(node scripts/environments.mjs list --kind production | head -n 1)" node scripts/build-site.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: msr-browser-${{ github.sha }}
@@ -69,5 +71,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Wait for this commit and verify deployed assets and private-file exclusions
-        run: node scripts/smoke-deploy.mjs https://invenio-field-msr.netlify.app "$GITHUB_SHA" 90
+      - name: Wait for this commit on every environment's site; verify assets, private-file exclusions and that each site uses its own database
+        run: node scripts/smoke-deploy.mjs --all "$GITHUB_SHA" 90

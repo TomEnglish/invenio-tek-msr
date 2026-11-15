@@ -28,7 +28,7 @@ A full-system regression suite for the MSR dashboard, the Field mobile app, and 
 
 ### Tools
 - [ ] DevTools open on the Console tab — surfaces any JS/network errors.
-- [ ] Anon key from `supabase-config.js` and (optionally) service-role key from `supabase projects api-keys --project-ref lzroduricxyshgyjdkki` for §4 DB integrity probes.
+- [ ] Anon key from `environments.json` and (optionally) service-role key from `supabase projects api-keys --project-ref lzroduricxyshgyjdkki` for §4 DB integrity probes.
 - [ ] Two browser tabs (or two devices) for the realtime tests in §3.
 
 ### Known clean-state expectations

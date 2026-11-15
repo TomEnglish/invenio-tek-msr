@@ -43,8 +43,11 @@ supabase functions serve admin-users --env-file supabase/functions/.env.local
 Deploy the function only after the SQL migration has been applied and the function has passed local tests:
 
 ```bash
+supabase secrets set SITE_URL=<that environment's office site address>   # once per database, before the first deploy
 supabase functions deploy admin-users
 ```
+
+The function answers only the office site named by `SITE_URL` and sends invitation links only to it; without the setting it answers nothing. See `docs/ENVIRONMENTS.md`.
 
 Production secrets are set in Supabase Edge Function secrets, never in this repository:
 

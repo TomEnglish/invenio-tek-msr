@@ -1,13 +1,16 @@
 # Shared database
 
-This folder is the only home for the database that the MSR site and the Invenio Field app share (Supabase project `lzroduricxyshgyjdkki`, "InventoryApp_w_MSR"). The Field repository no longer carries migrations.
+This folder is the only home for the database schema that the MSR site and the Invenio Field app share. The Field repository no longer carries migrations.
+
+Every environment (dev, demo, each customer) has its own database built from these same migrations; see [`docs/ENVIRONMENTS.md`](../docs/ENVIRONMENTS.md). The demo production is Supabase project `lzroduricxyshgyjdkki`, "InventoryApp_w_MSR".
 
 | Folder | What it holds |
 | --- | --- |
 | `migrations/` | Every schema change, 001 onward |
 | `functions/` | Edge functions (`admin-users`) |
 | `checks/` | `schema-fingerprint.sql`, used to compare databases |
-| `seed/` | Sample data for test and development databases |
+| `seed/` | Sample data for dev databases (`dev_seed.sql`), never for a production |
+| `templates/` | Invitation and reset emails, with a placeholder for each environment's site address |
 | `repair/` | One-time fixes to migration history, run only with the owner's approval |
 | `archive/` | Superseded hand-run SQL. Never run these. |
 
@@ -50,6 +53,22 @@ On 2026-10-27 a fresh build matched production on every line: 27 tables, 560 col
 
 The script and `tests/database/run.sh` need PostgreSQL binaries on `PATH`. On macOS, run the test harness with `LC_ALL=C` and a short `TMPDIR`, because Postgres won't start without a locale and its socket path has a 103-byte limit. The fingerprint script handles both itself.
 
+## A new environment's database
+
+```bash
+DATABASE_URL='postgres://…' scripts/database.sh build <environment>        # new, empty database only
+DATABASE_URL='postgres://…' scripts/database.sh check <environment>        # read-only comparison with a fresh build
+DATABASE_URL='postgres://…' scripts/database.sh sample-data <environment>  # dev environments only
+```
+
+Each command first confirms the connection string is that environment's own database (`environments.json`). `build` applies every migration in filename order, records it in `supabase_migrations.schema_migrations` the way the platform does, and stops unless the result matches a fresh build. A fresh build is 44 tables, 4 private buckets, the starter project "Main Yard", 13 tables reporting live changes (028), and no users.
+
+The first person in a new database is created by `scripts/create-first-admin.mjs` (029). It refuses once the database has an active administrator.
+
 ## Seeds
 
-`seed/` collects the sample-data scripts from both repositories. They have **not** been checked against the current schema yet. Setting up the test environment turns them into a working `seed.sql`.
+`seed/dev_seed.sql` is the sample data for a dev database: three projects with yard records, inventory, outside shops, shop contacts, shipments and a 118-activity schedule, written in the administrator's name (never a withdrawn invitee's).
+
+It only adds rows. Each of its three parts loads when its tables are empty and is skipped when they hold anything, so loading it again never deletes or overwrites work done in dev. For a clean baseline, start a new dev database. The files it includes only insert, and have no transaction of their own.
+
+Load it only through `scripts/database.sh sample-data`, which refuses a production environment and wraps the load in one transaction. `tests/database/environment-build-test.sh` loads it into a fresh build on every test run, so it stays in step with the schema.

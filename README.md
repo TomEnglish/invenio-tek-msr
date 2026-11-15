@@ -114,7 +114,7 @@ Invenio Field MSR/
 ├── 📄 material-tracking-supabase.js    # Material tracking logic
 ├── 📄 samsara-tracking.html            # Samsara tracker map
 ├── 📄 samsara-tracking.js              # Samsara map logic
-├── 📄 supabase-config.js               # Supabase credentials (public anon key)
+├── 📄 environments.json                # Every environment's public connection values (docs/ENVIRONMENTS.md)
 ├── 🗂️  supabase/                       # The one home for the shared database (see supabase/README.md)
 │   ├── migrations/                     # Every schema change, applied in filename order
 │   ├── functions/                      # Edge functions (admin-users)
@@ -391,7 +391,7 @@ See [GITHUB_ACTIONS_SETUP.md](GITHUB_ACTIONS_SETUP.md) for setup.
 - Run `python sync_samsara_data.py` manually to test
 
 ### Material Tracking shows "Backend Disconnected"
-- Check `supabase-config.js` has correct credentials
+- Check the site's entry in `environments.json`; `supabase-config.js` is generated from it at build time
 - Verify database schema was run in Supabase SQL Editor
 - Check internet connection
 

@@ -21,4 +21,5 @@ for task_test in tests/database/*-test.sql; do
   apply_sql "$task_test"
 done
 bash tests/database/concurrency-test.sh
+bash tests/database/environment-build-test.sh
 printf 'PostgreSQL integration tests passed.\n'

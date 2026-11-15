@@ -42,6 +42,15 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         console.error('::error::Add the SUPABASE_SERVICE_ROLE_KEY repository secret (and SUPABASE_URL, if the project moves) so expired driver licenses are removed.');
         process.exitCode = 1;
     } else {
-        purgeDriverLicences({ url, key }).catch(error => { console.error(`::error::${error.message}`); process.exitCode = 1; });
+        // A workflow run takes the repository-wide secret when its environment has
+        // none of its own. A key that names another database stops here, unsent.
+        const { keyProblem } = await import('./environments.mjs');
+        const problem = keyProblem(key, new URL(url).origin, 'service_role');
+        if (problem) {
+            console.error(`::error::SUPABASE_SERVICE_ROLE_KEY ${problem}. Set this environment's own secret; nothing was sent to ${new URL(url).host}.`);
+            process.exitCode = 1;
+        } else {
+            purgeDriverLicences({ url, key }).catch(error => { console.error(`::error::${error.message}`); process.exitCode = 1; });
+        }
     }
 }

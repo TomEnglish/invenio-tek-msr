@@ -212,6 +212,17 @@
 
         body.innerHTML = shell;
 
+        // A site that is not a production says so beside the page title, so
+        // sample data is never mistaken for live data (see environments.json).
+        const site = window.SUPABASE_CONFIG;
+        if (site?.kind && site.kind !== 'production') {
+            const tag = document.createElement('span');
+            tag.className = 'environment-tag';
+            tag.textContent = site.label || site.environment;
+            tag.title = 'This is not a production site. Its data is sample data.';
+            body.querySelector('.top-header .page-title')?.after(tag);
+        }
+
         // Sidebar toggle
         const toggleBtn = document.getElementById('sidebar-toggle');
         const sidebar = document.getElementById('app-sidebar');

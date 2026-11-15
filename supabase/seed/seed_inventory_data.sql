@@ -7,10 +7,9 @@
 -- 011, which made project_id NOT NULL on those tables. shop_contacts is
 -- intentionally unscoped (vendor reference data shared across projects).
 
--- Clear existing demo data (safe to re-run)
-DELETE FROM outside_shop_inventory WHERE id > 0;
-DELETE FROM inventory_records WHERE id > 0;
-DELETE FROM shop_contacts WHERE id > 0;
+-- Part of supabase/seed/dev_seed.sql, which loads this only into a dev database
+-- whose inventory, outside shop, shop contact and shipment tables are empty.
+-- This file only inserts; it deletes and updates nothing.
 
 -- ── Shop Contacts ───────────────────────────────────────────
 INSERT INTO shop_contacts (shop_name, address, city, state, zip, contact_name, contact_phone, secondary_contact_name, secondary_contact_phone, notes) VALUES
@@ -127,23 +126,7 @@ FROM (VALUES
 ) AS osi(shop, load_name, qr_id, scanner_comments, delivery_date, item_status)
 JOIN shop_contacts sc ON sc.shop_name = osi.shop;
 
--- ── Enhanced Shipment Data (add logistics columns to existing) ──
--- Update existing shipments with mode/ship_type/origin/destination
-UPDATE shipments SET
-    mode = CASE
-        WHEN truck_type IS NOT NULL THEN 'ROAD'
-        WHEN category ILIKE '%barge%' THEN 'BARGE'
-        ELSE 'ROAD'
-    END,
-    ship_type = CASE
-        WHEN ship_from ILIKE '%riverbend%' OR ship_from IS NULL THEN 'OUTSIDE SHOP'
-        ELSE 'DIRECT SHIP'
-    END,
-    origin = COALESCE(ship_from, 'RIVERBEND YARD'),
-    destination = COALESCE(ship_to, 'CEDAR CREEK SITE'),
-    cargo_description = COALESCE(part_description, 'Cargo ' || shipment_number)
-WHERE mode IS NULL;
-
+-- ── Shipments ──────────────────────────────────────────────
 -- Insert additional shipments matching logistics dashboard content
 INSERT INTO shipments (shipment_number, cargo_description, mode, ship_type, origin, destination, status, delivery_date, rts_date, supplier, category, num_pieces, part_description, project_id) VALUES
 ('SHP-L001', '(1) Circulating Water Motor (2) Aux CW Motors (2) CT Fan Motors', 'ROAD', 'OUTSIDE SHOP', 'RIVERBEND YARD', 'HARTWELL CRATING', 'Delivered', '2025-10-15', '2025-10-10', 'Riverbend Yard', 'Cooling Tower', 5, 'CW Motors Package', '00000000-0000-0000-0000-000000000000'),

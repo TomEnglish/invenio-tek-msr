@@ -429,4 +429,28 @@ SELECT public.link_shipment_tracker(9103,'race-trk3');
 finally:
     early.close()
 assert sql("SELECT ended_reason FROM public.shipment_trackers WHERE shipment_id=9103 AND tracker_id='race-trk2'") == 'replaced'
+
+# First administrator (029). A new database: invited accounts, nobody administers.
+sql("""
+ALTER TABLE public.users DISABLE TRIGGER USER;
+UPDATE public.users SET role='field_worker',is_active=true,invitation_status='pending',invitation_expires_at=NULL;
+ALTER TABLE public.users ENABLE TRIGGER USER;
+""")
+overlap(
+    'two first-administrator commands at once leave one invitation outstanding',
+    "SET LOCAL ROLE service_role; SELECT public.bootstrap_first_admin('a1111111-1111-4111-8111-111111111111','First Lead',now()+interval '1 hour');",
+    "SET LOCAL ROLE service_role; SELECT public.bootstrap_first_admin('a2222222-2222-4222-8222-222222222222','Second Lead',now()+interval '1 hour');",
+    '00000',
+)
+assert sql("SELECT string_agg(id::text||':'||invitation_status||':'||is_active, ' ' ORDER BY id) FROM public.users WHERE role='admin'") == \
+    'a1111111-1111-4111-8111-111111111111:cancelled:false a2222222-2222-4222-8222-222222222222:pending:true'
+# The invited administrator finishes setup while another command is still running: it must then be refused.
+sql("UPDATE auth.users SET encrypted_password='test-hash',email_confirmed_at=now() WHERE id='a2222222-2222-4222-8222-222222222222'")
+overlap(
+    'a first-administrator command that overlaps the administrator finishing setup is refused',
+    "SET LOCAL ROLE authenticated; SELECT set_config('request.jwt.claim.sub','a2222222-2222-4222-8222-222222222222',true); SELECT public.complete_invitation();",
+    "SET LOCAL ROLE service_role; SELECT public.bootstrap_first_admin('f1111111-1111-4111-8111-111111111111','Late Lead',now()+interval '1 hour');",
+    '42501',
+)
+assert sql("SELECT count(*) FROM public.users WHERE role='admin' AND is_active") == '1'
 PY
