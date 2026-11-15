@@ -48,8 +48,10 @@ check_*.py
 test_*.py
 
 # Supabase
-# Note: supabase-config.js is now committed for Netlify deployment
-# The anon key is safe to expose publicly - it's designed for client-side use
+# supabase-config.js is generated per environment from environments.json: the
+# site build writes it into dist/, and `node scripts/environments.mjs config
+# <name>` writes a local copy for opening pages from this folder.
+/supabase-config.js
 .env
 .env.local
 *.db

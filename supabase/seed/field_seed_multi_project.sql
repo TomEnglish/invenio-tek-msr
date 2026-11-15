@@ -1,6 +1,8 @@
 -- ============================================
--- MULTI-PROJECT DEMO SEED DATA
--- Run this in Supabase SQL Editor to fill the dashboard with fake data across multiple projects
+-- Sample yard records for three projects (Main Yard, North Site, South Site).
+-- Part of supabase/seed/dev_seed.sql, which loads this only into a dev database
+-- whose yard tables are empty. It adds rows only: it deletes nothing, changes no existing row,
+-- and changes nobody's project access except to add the author to the sample projects.
 -- ============================================
 
 do $$
@@ -22,11 +24,14 @@ declare
   rec_n1 uuid; rec_n2 uuid;
   rec_s1 uuid; rec_s2 uuid;
 begin
-  -- 1. Grab an arbitrary user to act as the creator of these records
-  select id into demo_user from public.users limit 1;
+  -- 1. The sample records are written in the administrator's name: one who has
+  -- finished setup if there is one, otherwise the one whose invitation is
+  -- outstanding. A withdrawn or deactivated account is never used.
+  select id into demo_user from public.users
+   where role = 'admin' and is_active and invitation_status <> 'cancelled'
+   order by (invitation_status = 'accepted') desc, created_at, id limit 1;
   if demo_user is null then
-    raise notice 'No users found — create at least one user first, then re-run.';
-    return;
+    raise exception 'Create the first administrator before loading sample data (scripts/create-first-admin.mjs)';
   end if;
 
   -- 2. Create Additional Projects
@@ -35,19 +40,9 @@ begin
     (p_south, 'South Site', 'Downtown distribution and staging area')
   on conflict (id) do nothing;
 
-  -- 3. Clear Existing Demo Data from these static Project IDs so we can re-run safely
-  delete from public.user_projects where project_id in (p_main, p_north, p_south);
-  delete from public.material_issues where project_id in (p_main, p_north, p_south);
-  delete from public.material_movements where project_id in (p_main, p_north, p_south);
-  delete from public.shipments_out where project_id in (p_main, p_north, p_south);
-  delete from public.materials where project_id in (p_main, p_north, p_south);
-  delete from public.receiving_records where project_id in (p_main, p_north, p_south);
-  delete from public.qr_codes where project_id in (p_main, p_north, p_south);
-  delete from public.locations where project_id in (p_main, p_north, p_south);
-
-  -- 4. Assign all existing users to ALL projects so they can see everything
+  -- 3. The author can open the three sample projects. Nobody else's access changes.
   insert into public.user_projects (user_id, project_id)
-  select u.id, p.id from public.users u cross join public.projects p
+  select demo_user, p.id from public.projects p where p.id in (p_main, p_north, p_south)
   on conflict do nothing;
 
   -- 5. Create Locations per project
@@ -118,5 +113,4 @@ begin
   insert into public.material_issues (project_id, material_id, job_number, quantity_issued, issued_by)
   select p_main, id, 'JOB-999', 25, demo_user from public.materials where qr_code_id = qr_m1;
 
-  raise notice 'Multi-project demo data seeded successfully!';
 end $$;

@@ -12,11 +12,26 @@ import {
 
 const PROFILE_FIELDS = 'id, email, full_name, role, is_active, created_at, updated_at, invitation_status, invitation_expires_at';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://invenio-field-msr.netlify.app',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
-};
+// The office site this database serves, from the function's SITE_URL setting.
+// Each environment sets its own; nothing is assumed, so a function deployed
+// without it answers no browser and sends no invitation link elsewhere.
+export function officeSiteOrigin(): string | null {
+  const value = (Deno.env.get('SITE_URL') || '').trim().replace(/\/+$/, '');
+  let url: URL;
+  try { url = new URL(value); } catch { return null; }
+  const local = url.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(url.hostname);
+  if ((url.protocol !== 'https:' && !local) || url.origin !== value) return null;
+  return url.origin;
+}
+
+function corsHeaders(): Record<string, string> {
+  const origin = officeSiteOrigin();
+  return {
+    ...(origin ? { 'Access-Control-Allow-Origin': origin } : {}),
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
+  };
+}
 
 type Profile = {
   id: string;
@@ -51,7 +66,7 @@ type AppError = { status: number; code: string; message: string };
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders(), 'Content-Type': 'application/json' },
   });
 }
 
@@ -63,6 +78,12 @@ function getSecret(name: string): string {
   const value = Deno.env.get(name);
   if (!value) throw new Error(`${name} is not configured`);
   return value;
+}
+
+function getSiteOrigin(): string {
+  const origin = officeSiteOrigin();
+  if (!origin) throw new Error('SITE_URL is not configured');
+  return origin;
 }
 
 function getBearerToken(request: Request): string {
@@ -274,7 +295,7 @@ async function sendInvitation(adminClient: SupabaseClient, actor: Profile, profi
     invitation_status: 'pending', is_active: true,
     invitation_expires_at: new Date(Date.now() + seconds * 1000).toISOString(),
   });
-  const redirectTo = 'https://invenio-field-msr.netlify.app/login.html?setup=invite';
+  const redirectTo = `${getSiteOrigin()}/login.html?setup=invite`;
   const { error } = authUser.user?.email_confirmed_at
     ? await adminClient.auth.resetPasswordForEmail(profile.email, { redirectTo })
     : await adminClient.auth.admin.inviteUserByEmail(profile.email, { data: { full_name: profile.full_name }, redirectTo });
@@ -339,7 +360,10 @@ async function listAudit(adminClient: SupabaseClient, request: Request): Promise
   const { data: people, error: peopleError } = await adminClient.from('users').select('id,full_name,email').in('id', ids);
   if (peopleError) throw new Error(peopleError.message);
   const names = new Map((people || []).map(p => [p.id, p.full_name || p.email]));
-  return json({ data: (data || []).map(row => ({ ...row, actorName: names.get(row.actor_user_id) || 'Former user', targetName: names.get(row.target_user_id) || 'Project' })),
+  // The first administrator is created by the setup command, not by a person (migration 029).
+  const actorName = (row: { actor_user_id: string | null; details?: { firstAdministrator?: boolean } }) =>
+    row.details?.firstAdministrator ? 'First-time setup' : names.get(row.actor_user_id) || 'Former user';
+  return json({ data: (data || []).map(row => ({ ...row, actorName: actorName(row), targetName: names.get(row.target_user_id) || 'Project' })),
     pagination: { page: params.page, totalPages: Math.max(1, Math.ceil((count || 0) / params.pageSize)) } });
 }
 
@@ -358,7 +382,11 @@ async function saveProject(adminClient: SupabaseClient, actor: Profile, body: Re
 }
 
 export async function handle(request: Request, clients?: { userClient: SupabaseClient; adminClient: SupabaseClient }): Promise<Response> {
-  if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  if (!officeSiteOrigin()) {
+    console.error('admin-users is not configured: set SITE_URL to the office site address');
+    return errorResponse({ status: 500, code: 'NOT_CONFIGURED', message: 'User management is not set up for this site yet.' });
+  }
+  if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders() });
   if (!['GET', 'POST', 'PATCH'].includes(request.method)) {
     return errorResponse({ status: 405, code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed' });
   }

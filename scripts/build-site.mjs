@@ -3,14 +3,25 @@ import { execFileSync } from 'node:child_process';
 import { cpSync, readFileSync, writeFileSync, existsSync, lstatSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadEnvironments, resolveEnvironment, renderConfigScript } from './environments.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const output = join(root, 'dist');
+// `--out <folder>` builds somewhere other than dist/ (tests build side by
+// side). Only an empty folder or an earlier build is ever replaced.
+const outFlag = process.argv.indexOf('--out');
+const output = outFlag === -1 ? join(root, 'dist') : resolve(process.argv[outFlag + 1] || '');
+if (outFlag !== -1 && (!process.argv[outFlag + 1] || (existsSync(output) && readdirSync(output).length && !existsSync(join(output, 'release.json'))))) {
+    throw new Error(`Refusing to build into ${output}: name an empty folder or an earlier build`);
+}
 const browserExtensions = new Set(['.html', '.css', '.js', '.png', '.svg', '.ico', '.webmanifest']);
 const manifests = new Set(['manifest.json']);
 
+// Decide which environment this build is for before touching the output, so a
+// site with no environment keeps its last good publication.
+const environment = resolveEnvironment(loadEnvironments());
+
 rmSync(output, { recursive: true, force: true });
-mkdirSync(output);
+mkdirSync(output, { recursive: true });
 
 for (const entry of readdirSync(root, { withFileTypes: true })) {
     if (entry.isFile() && (browserExtensions.has(extname(entry.name)) || manifests.has(entry.name))) {
@@ -33,7 +44,11 @@ for (const directory of ['js', 'brand']) {
 for (const page of ['index.html', 'login.html', 'user-admin.html', 'projects.html', 'audit.html']) {
     if (!existsSync(join(output, page))) throw new Error(`Required release page missing: ${page}`);
 }
-console.log(`Built MSR browser assets in ${output}`);
+
+// The pages read their connection from this one file. It is written here, for
+// this environment only, and replaces any local copy picked up from the root.
+writeFileSync(join(output, 'supabase-config.js'), renderConfigScript(environment));
+console.log(`Built MSR browser assets for "${environment.name}" (${environment.siteUrl}) in ${output}`);
 
 const commit = process.env.COMMIT_REF || process.env.GITHUB_SHA || execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
 if (!/^[a-f0-9]{40}$/.test(commit)) throw new Error('Release commit must be a full Git SHA');
@@ -42,4 +57,4 @@ const assets = Object.fromEntries([
     'styles.css', 'js/utils/data-health.js', 'js/utils/work-summary.js', 'js/utils/pdf-export.js',
     'js/utils/auth-guard.js', 'js/utils/project-scope.js', 'js/utils/login-flow.js',
 ].map(file => [file, createHash('sha256').update(readFileSync(join(output, file))).digest('hex')]));
-writeFileSync(join(output, 'release.json'), JSON.stringify({ commit, assets }, null, 2) + '\n');
+writeFileSync(join(output, 'release.json'), JSON.stringify({ commit, environment: environment.name, assets }, null, 2) + '\n');

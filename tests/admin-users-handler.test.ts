@@ -6,6 +6,9 @@ const ADMIN = 'a1111111-1111-4111-8111-111111111111';
 const TARGET = 'f1111111-1111-4111-8111-111111111111';
 const PROJECT = 'b1111111-1111-4111-8111-111111111111';
 const VERSION = '2026-09-09T01:00:00.000Z';
+// Each environment tells the function which office site it serves.
+const SITE = 'https://office.example.test';
+Deno.env.set('SITE_URL', SITE);
 
 function equal(actual: unknown, expected: unknown, label = 'Unexpected value') {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
@@ -36,6 +39,7 @@ function setup(options: { actor?: Row | null; target?: Row; authError?: boolean;
     rpc: [] as { name: string; args: Row }[],
     queries: [] as { table: string; steps: unknown[][] }[],
     mail: [] as { kind: string; email: string }[],
+    redirects: [] as (string | undefined)[],
   };
 
   // This is an in-memory service boundary, not a replacement handler: the real
@@ -103,9 +107,9 @@ function setup(options: { actor?: Row | null; target?: Row; authError?: boolean;
       auth: {
         admin: {
           getUserById: async (id: string) => ({ data: { user: { id, last_sign_in_at: VERSION, email_confirmed_at: null } }, error: null }),
-          inviteUserByEmail: async (email: string) => { calls.mail.push({ kind: 'invite', email }); return { error: null }; },
+          inviteUserByEmail: async (email: string, options?: { redirectTo?: string }) => { calls.mail.push({ kind: 'invite', email }); calls.redirects.push(options?.redirectTo); return { error: null }; },
         },
-        resetPasswordForEmail: async (email: string) => { calls.mail.push({ kind: 'reset', email }); return { error: null }; },
+        resetPasswordForEmail: async (email: string, options?: { redirectTo?: string }) => { calls.mail.push({ kind: 'reset', email }); calls.redirects.push(options?.redirectTo); return { error: null }; },
       },
     },
   } as unknown as Clients;
@@ -301,4 +305,73 @@ Deno.test('disabled invitation email reports capability and rejects sends before
     if (previous === undefined) Deno.env.delete('INVITATION_EMAIL_ENABLED');
     else Deno.env.set('INVITATION_EMAIL_ENABLED', previous);
   }
+});
+
+Deno.test('invitation and resend emails link to the office site this function is set up for', async () => {
+  const pending = setup({ target: { invitation_status: 'pending', invitation_expires_at: '2020-01-01T00:00:00Z' } });
+  equal((await handle(request('POST', { action: 'resend_invite', userId: TARGET }), pending.clients)).status, 200);
+  equal(pending.calls.redirects, [`${SITE}/login.html?setup=invite`]);
+});
+
+Deno.test('browser answers name only the configured office site', async () => {
+  const { clients } = setup();
+  for (const response of [
+    await handle(new Request('https://example.test/functions/v1/admin-users', { method: 'OPTIONS' }), clients),
+    await handle(request(), clients),
+    await handle(request('DELETE'), clients),
+  ]) equal(response.headers.get('Access-Control-Allow-Origin'), SITE);
+});
+
+Deno.test('a trailing slash on the setting is accepted', async () => {
+  Deno.env.set('SITE_URL', `${SITE}/`);
+  try {
+    const { clients, calls } = setup({ target: { invitation_status: 'pending', invitation_expires_at: '2020-01-01T00:00:00Z' } });
+    const response = await handle(request('POST', { action: 'resend_invite', userId: TARGET }), clients);
+    equal(response.headers.get('Access-Control-Allow-Origin'), SITE);
+    equal(calls.redirects, [`${SITE}/login.html?setup=invite`]);
+  } finally { Deno.env.set('SITE_URL', SITE); }
+});
+
+for (const value of [undefined, '', 'not an address', 'http://office.example.test', 'https://office.example.test/office', 'https://office.example.test?x=1']) {
+  Deno.test(`with SITE_URL ${JSON.stringify(value)} the function answers no browser and changes nothing`, async () => {
+    if (value === undefined) Deno.env.delete('SITE_URL'); else Deno.env.set('SITE_URL', value);
+    try {
+      const { clients, calls } = setup({ target: { invitation_status: 'pending', invitation_expires_at: '2020-01-01T00:00:00Z' } });
+      for (const incoming of [
+        new Request('https://example.test/functions/v1/admin-users', { method: 'OPTIONS' }),
+        request(),
+        request('POST', { action: 'resend_invite', userId: TARGET }),
+        request('PATCH', { userId: TARGET, role: 'admin' }),
+      ]) {
+        const response = await handle(incoming, clients);
+        equal(response.status, 500);
+        equal((await response.json()).error.code, 'NOT_CONFIGURED');
+        equal(response.headers.get('Access-Control-Allow-Origin'), null);
+      }
+      equal(calls.queries.length, 0);
+      equal(calls.rpc.length, 0);
+      equal(calls.mail.length, 0);
+    } finally { Deno.env.set('SITE_URL', SITE); }
+  });
+}
+
+Deno.test('a local stack address is accepted for development', async () => {
+  Deno.env.set('SITE_URL', 'http://localhost:8092');
+  try {
+    const response = await handle(request(), setup().clients);
+    equal(response.status, 200);
+    equal(response.headers.get('Access-Control-Allow-Origin'), 'http://localhost:8092');
+  } finally { Deno.env.set('SITE_URL', SITE); }
+});
+
+Deno.test('the audit list names first-time setup, not a former user, for the first administrator', async () => {
+  const { clients, tables } = setup();
+  tables.user_admin_audit.push(
+    { id: 1, actor_user_id: null, target_user_id: TARGET, action: 'invite', details: { firstAdministrator: true }, created_at: VERSION },
+    { id: 2, actor_user_id: null, target_user_id: TARGET, action: 'update', details: {}, created_at: VERSION },
+    { id: 3, actor_user_id: ADMIN, target_user_id: TARGET, action: 'update', details: {}, created_at: VERSION },
+  );
+  const response = await handle(request('GET', undefined, '?resource=audit'), clients);
+  equal(response.status, 200);
+  equal((await response.json()).data.map((row: Row) => row.actorName), ['First-time setup', 'Former user', 'Administrator']);
 });

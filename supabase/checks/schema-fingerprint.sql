@@ -59,5 +59,10 @@ with items as (
    where n.nspname = 'public' and c.relkind = 'S'
   union all
   select 'bucket', b.id, md5(coalesce(b.public::text, '')) from storage.buckets b
+  union all
+  -- Tables that report live changes (migration 028).
+  select 'live update', pt.tablename::text, md5('')
+    from pg_publication_tables pt
+   where pt.pubname = 'supabase_realtime' and pt.schemaname = 'public'
 )
 select kind, key, h from items where not (kind = 'trigger' and key like 'storage.%')

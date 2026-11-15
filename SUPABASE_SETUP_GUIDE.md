@@ -1,5 +1,7 @@
 # Supabase Setup Guide - Material Tracking System
 
+> **Superseded for connection settings.** `supabase-config.js` is no longer edited or committed. Each site's connection comes from `environments.json` at build time; see [`docs/ENVIRONMENTS.md`](docs/ENVIRONMENTS.md). For a local copy run `node scripts/environments.mjs config <name>`.
+
 ## Overview
 
 This guide will walk you through setting up Supabase as the backend for your Material Tracking System. Supabase replaces the local Flask backend with a fully managed cloud database and API.

@@ -358,6 +358,26 @@ h3, h4, h5, h6 {
     white-space: nowrap;
 }
 
+/* Shown only on a site that is not a production (dev), beside the page title. */
+.environment-tag {
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: var(--warn-soft);
+    color: var(--warn-deep);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+/* On a page with no app header (sign-in), the same label sits in the top corner. */
+.environment-tag-corner {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 2000;
+}
+
 .sidebar-nav {
     flex: 1;
     overflow-y: auto;

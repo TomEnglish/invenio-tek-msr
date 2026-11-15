@@ -4,6 +4,8 @@ Generate Demo Data for Greenfield LNG Terminal Invenio Field MSR
 Inserts realistic construction/energy industry data into Supabase via REST API.
 """
 
+import os
+import sys
 import requests
 import random
 import json
@@ -14,8 +16,13 @@ from datetime import datetime, date, timedelta
 # =============================================================================
 # SUPABASE CONFIGURATION
 # =============================================================================
-SUPABASE_URL = "https://lzroduricxyshgyjdkki.supabase.co"
-ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6cm9kdXJpY3h5c2hneWpka2tpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3NzgyMDIsImV4cCI6MjA4NzM1NDIwMn0.oX_nOPHGkUeaUKXHAb086MGCTjIwV2PQ1q1aDLvUCRs"
+# No environment is built in. Name the database this run is for:
+#   SUPABASE_URL=https://<project>.supabase.co SUPABASE_ANON_KEY=... python3 generate_demo_data.py
+# This script deletes and replaces sample rows; point it only at a dev database.
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
+ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
+if not SUPABASE_URL.startswith("https://") or not ANON_KEY:
+    sys.exit("Set SUPABASE_URL and SUPABASE_ANON_KEY for the database to fill. There is no default.")
 BATCH_SIZE = 50
 
 HEADERS_INSERT = {

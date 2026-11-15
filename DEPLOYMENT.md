@@ -10,49 +10,17 @@ This guide walks you through deploying the Invenio Field MSR to Netlify as a sta
 
 ---
 
-## Step 1: Prepare Your Repository
+## Step 1: Connection settings come from the environment
 
-### Files to Include in Deployment:
-```
-✅ index.html
-✅ gap-analysis.html
-✅ material-tracking.html
-✅ samsara-tracking.html
-✅ material-tracking.js
-✅ samsara-tracking.js
-✅ supabase-config.js  (*** IMPORTANT - needs to be committed ***)
-✅ RPS_Logoavif.avif
-✅ netlify.toml
-```
+> Each site is one **environment** (dev, demo, or a customer); see [`docs/ENVIRONMENTS.md`](docs/ENVIRONMENTS.md). That page is the current guide. The rest of this file is older background on the web host.
 
-### Files to EXCLUDE (already in .gitignore):
-```
-❌ .env
-❌ *.py (Python scripts)
-❌ supabase/*.sql
-❌ debug_*.py, test_*.py, check_*.py
-❌ __pycache__/
-```
+`supabase-config.js` is **not** committed and is not edited by hand. `scripts/build-site.mjs` writes it into `dist/` for the environment the site belongs to, taken from `environments.json`:
 
-### **IMPORTANT: Commit supabase-config.js**
+- On the web host the build recognizes the site by the address it is publishing to. No site settings are needed.
+- Anywhere else, name the environment: `APP_ENV=dev node scripts/build-site.mjs`.
+- A build with no environment, or for an address that is not in `environments.json`, fails. The site keeps its last publication.
 
-The `supabase-config.js` file is currently in `.gitignore`, but it needs to be in your repository for Netlify to work. The Supabase anon key is **safe to expose publicly** - it's designed for client-side use.
-
-**Option A: Remove from .gitignore and commit** (Recommended)
-
-```bash
-# Edit .gitignore and remove this line:
-# supabase-config.js
-
-# Then commit the file
-git add supabase-config.js
-git commit -m "Add supabase-config.js for Netlify deployment"
-git push
-```
-
-**Option B: Use Netlify environment variables** (More complex)
-
-If you prefer not to commit the config file, you can inject it at build time using Netlify environment variables (see Step 4).
+Only browser assets are published (`netlify.toml` runs the build and publishes `dist/`). Spreadsheets, SQL, scripts and `environments.json` itself are not.
 
 ---
 
@@ -67,8 +35,7 @@ If you prefer not to commit the config file, you can inject it at build time usi
 5. Select your repository: **`TomEnglish/invenio-tek-msr`**
 6. Configure build settings:
    - **Branch to deploy:** `main`
-   - **Build command:** (leave empty)
-   - **Publish directory:** `.` (current directory)
+   - **Build command** and **Publish directory:** leave as detected; `netlify.toml` sets them (`node scripts/build-site.mjs`, `dist`)
 7. Click **"Deploy site"**
 
 ### Method 2: Deploy via Netlify CLI
@@ -93,56 +60,15 @@ netlify deploy --prod
 
 After deployment, open your Netlify site and check the browser console:
 
-```javascript
-// Should see:
-✓ Supabase configuration validated
-```
+The console should show no errors, and `/release.json` on the site should name the commit and the environment it was built for.
 
-If you see errors, verify:
-1. `supabase-config.js` was deployed
-2. The file is loaded before other scripts in your HTML files
-3. Supabase URL and anon key are correct
+If the build failed with "No environment in environments.json is published at …", the site's address has no entry yet: add it to `environments.json` (see `docs/ENVIRONMENTS.md`).
 
 ---
 
-## Step 4: (Optional) Use Environment Variables
+## Step 4: Settings on the web host
 
-If you prefer not to commit `supabase-config.js`, you can use Netlify environment variables:
-
-### In Netlify Dashboard:
-1. Go to **Site settings** → **Environment variables**
-2. Add variables:
-   ```
-   SUPABASE_URL=https://lzroduricxyshgyjdkki.supabase.co
-   SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-   ```
-
-### Create a build script (`build.sh`):
-```bash
-#!/bin/bash
-# Generate supabase-config.js at build time
-cat > supabase-config.js <<EOF
-window.SUPABASE_CONFIG = {
-    url: '${SUPABASE_URL}',
-    anonKey: '${SUPABASE_ANON_KEY}',
-    options: {
-        auth: {
-            autoRefreshToken: true,
-            persistSession: true,
-            detectSessionInUrl: true
-        },
-        realtime: { enabled: true }
-    }
-};
-EOF
-```
-
-Update `netlify.toml`:
-```toml
-[build]
-  command = "bash build.sh"
-  publish = "."
-```
+None are needed. The build takes everything from `environments.json`. `APP_ENV` may be set on a site to name its environment outright; the build refuses if that disagrees with the site's address.
 
 ---
 
@@ -188,6 +114,8 @@ Convert the sync script to a Supabase Edge Function (TypeScript/JavaScript) and 
 
 ## Step 6: Configure Custom Domain (Optional)
 
+> **Change `environments.json` first.** The build recognizes a site by its address. Before adding a domain, set that environment's `siteUrl` to the new address and follow "Changing a site's address" in [`docs/ENVIRONMENTS.md`](docs/ENVIRONMENTS.md). Otherwise the site's builds fail until it matches.
+
 ### In Netlify Dashboard:
 1. Go to **Domain settings** → **Add custom domain**
 2. Enter your domain: `msr-dashboard.yourdomain.com`
@@ -212,8 +140,8 @@ Convert the sync script to a Supabase Edge Function (TypeScript/JavaScript) and 
 ### Common Issues:
 
 **Issue: "Failed to load tracker data"**
-- Check `supabase-config.js` is deployed
-- Verify Supabase URL and anon key are correct
+- Check `/supabase-config.js` on the site names this environment and its database
+- Verify the entry in `environments.json` is correct
 - Check browser console for CORS errors
 
 **Issue: "Map doesn't load"**

@@ -1,5 +1,7 @@
 # Invenio Field MSR - Quick Start Guide
 
+> **Superseded for connection settings.** `supabase-config.js` is no longer edited or committed. Each site's connection comes from `environments.json` at build time; see [`docs/ENVIRONMENTS.md`](docs/ENVIRONMENTS.md). For a local copy run `node scripts/environments.mjs config <name>`.
+
 ## 🚀 Getting Started
 
 ### First Time Setup (One-Time, 10 minutes)

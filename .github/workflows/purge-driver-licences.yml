@@ -2,20 +2,24 @@ name: Remove expired driver licenses
 # Daily: removes driver licence numbers and photos 365 days after a load
 # closes, or after its last activity if it never closes, unless the office
 # is keeping one (migrations 022 and 023).
-# Needs the SUPABASE_SERVICE_ROLE_KEY repository secret.
+# Runs once for each production in environments.json, against that
+# environment's own database, with the SUPABASE_SERVICE_ROLE_KEY secret of the
+# repository environment of the same name (Settings > Environments). An
+# environment with no secret of its own gets the repository-wide one, which is
+# demo's, so every other production needs its own. The script refuses to send
+# a key that names another database (docs/ENVIRONMENTS.md).
 on:
   schedule:
     - cron: '17 9 * * *'
   workflow_dispatch:
 permissions:
   contents: read
-concurrency:
-  group: purge-driver-licences
-  cancel-in-progress: false
 jobs:
-  purge:
+  environments:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.list.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,8 +27,28 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Remove licenses that are due
+      - id: list
+        run: echo "matrix=$(node scripts/environments.mjs matrix --kind production)" >> "$GITHUB_OUTPUT"
+  purge:
+    needs: environments
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.environments.outputs.matrix) }}
+    environment: ${{ matrix.environment }}
+    concurrency:
+      group: purge-driver-licences-${{ matrix.environment }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Remove licenses that are due (${{ matrix.environment }})
         env:
-          SUPABASE_URL: ${{ vars.SUPABASE_URL || 'https://lzroduricxyshgyjdkki.supabase.co' }}
+          SUPABASE_URL: ${{ matrix.databaseUrl }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: node scripts/purge-driver-licences.mjs

@@ -6,14 +6,10 @@
 -- Excel-driven sync (sync_project_schedule.py + P0203-PM-120-SCH-0002.xlsx),
 -- which depended on an external file that was never in the repo.
 --
--- Idempotent: TRUNCATE + INSERT. Run once per fresh database, or any time
--- you want to reset the schedule to this committed baseline. Day-to-day
--- edits should happen via admin.html or the Supabase SQL editor.
+-- Part of supabase/seed/dev_seed.sql, which loads this only into a dev database
+-- whose schedule is empty. This file only inserts, and has no transaction of
+-- its own: the runner (scripts/database.sh sample-data) wraps the whole seed in one.
 -- ============================================================================
-
-BEGIN;
-
-TRUNCATE project_schedule RESTART IDENTITY CASCADE;
 
 INSERT INTO project_schedule (activity_id, activity_name, remaining_duration, start_date, finish_date, is_milestone, activity_type, category, status, percent_complete, is_critical, project_id) VALUES
   ('A1000', 'Project Sanction & NTP', 0, '2025-03-01', '2025-03-01', TRUE, 'Milestone', 'Milestone', 'Complete', 100, TRUE, '00000000-0000-0000-0000-000000000000'),
@@ -134,5 +130,3 @@ INSERT INTO project_schedule (activity_id, activity_name, remaining_duration, st
   ('A1130', 'Performance Test Complete', 0, '2027-05-15', '2027-05-15', TRUE, 'Milestone', 'Milestone', 'Not Started', 0, FALSE, '00000000-0000-0000-0000-000000000000'),
   ('A1140', 'Final Acceptance', 0, '2027-06-15', '2027-06-15', TRUE, 'Milestone', 'Milestone', 'Not Started', 0, TRUE, '00000000-0000-0000-0000-000000000000'),
   ('A1150', 'Plant Startup', 0, '2027-06-30', '2027-06-30', TRUE, 'Milestone', 'Milestone', 'Not Started', 0, TRUE, '00000000-0000-0000-0000-000000000000');
-
-COMMIT;

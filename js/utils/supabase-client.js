@@ -3,13 +3,14 @@
  * Provides a single source of truth for Supabase configuration and client initialization
  */
 
-// Get Supabase configuration from global config or use defaults
-const SUPABASE_URL = window.SUPABASE_CONFIG?.url || 'https://lzroduricxyshgyjdkki.supabase.co';
+// The connection comes only from supabase-config.js, which the site build
+// writes for one environment (see environments.json). There is no fallback: a
+// page without it must stop, never quietly reach some other environment's data.
+const SUPABASE_URL = window.SUPABASE_CONFIG?.url || '';
 const SUPABASE_ANON_KEY = window.SUPABASE_CONFIG?.anonKey || '';
 
-// Validate configuration
-if (!SUPABASE_ANON_KEY) {
-    console.warn('Supabase anon key not configured. Check supabase-config.js');
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('This site has no connection settings (supabase-config.js). Build it with scripts/build-site.mjs, or write a local copy with scripts/environments.mjs config <name>.');
 }
 
 // Initialize Supabase client (singleton pattern)
@@ -18,6 +19,22 @@ const supabaseClient = window.supabase.createClient(
     SUPABASE_ANON_KEY,
     window.SUPABASE_CONFIG?.options || {}
 );
+
+// A site that is not a production says so on every page (see environments.json).
+// Pages with the app header show the label beside the title (sidebar.js); a
+// page without one, such as sign-in, gets it in the top corner.
+if (window.SUPABASE_CONFIG.kind && window.SUPABASE_CONFIG.kind !== 'production') {
+    const showCornerLabel = () => {
+        if (document.querySelector('script[src*="utils/sidebar.js"]') || document.querySelector('.environment-tag')) return;
+        const tag = document.createElement('span');
+        tag.className = 'environment-tag environment-tag-corner';
+        tag.textContent = window.SUPABASE_CONFIG.label || window.SUPABASE_CONFIG.environment;
+        tag.title = 'This is not a production site. Its data is sample data.';
+        document.body.appendChild(tag);
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showCornerLabel);
+    else showCornerLabel();
+}
 
 /**
  * Get the Supabase client instance
