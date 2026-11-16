@@ -39,11 +39,12 @@ export async function purgeDriverLicences({ url, key, fetchImpl = fetch, log = c
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
     const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!url || !key) {
-        console.error('::error::Add the SUPABASE_SERVICE_ROLE_KEY repository secret (and SUPABASE_URL, if the project moves) so expired driver licenses are removed.');
+        console.error("::error::This production's repository environment has no SUPABASE_SERVICE_ROLE_KEY secret, so expired driver licenses were not removed. Store it in that environment, never repository-wide (docs/ENVIRONMENTS.md).");
         process.exitCode = 1;
     } else {
-        // A workflow run takes the repository-wide secret when its environment has
-        // none of its own. A key that names another database stops here, unsent.
+        // Were a repository-wide secret of this name ever stored, a run whose
+        // environment has none of its own would be handed that one. A key that
+        // names another database stops here, unsent.
         const { keyProblem } = await import('./environments.mjs');
         const problem = keyProblem(key, new URL(url).origin, 'service_role');
         if (problem) {
