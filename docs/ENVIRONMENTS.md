@@ -115,7 +115,16 @@ Each environment has a repository environment of the same name (Settings > Envir
 | `SUPABASE_SERVICE_ROLE_KEY` | Each production | The license-removal job (see "Secrets for scheduled jobs"). |
 | `RELEASE_DEPLOY_KEY` | Each production | The private half of a write deploy key for this repository only. The release job uses it to move `release/<name>`; the workflow's own token is not allowed to push a commit that changes a workflow file. |
 
-Anyone who can push to this repository can move a release branch by hand. Restrict pushes to `release/*` in the repository's branch rules, leaving the deploy key able to push.
+**Release branches move only by a release.** A branch rule of that name refuses every update, deletion and forced push of `release/*`, whoever tries, except by a deploy key. So a production's site changes only through the release job, which holds that production's release key. Creating a new `release/<name>` is still allowed, for a new production. An administrator can change the rule or switch it off, which is a deliberate act; the rule is there to stop a push by mistake. To make it again:
+
+```bash
+gh api -X POST "repos/{owner}/{repo}/rulesets" --input - <<'JSON'
+{ "name": "Release branches move only by a release", "target": "branch", "enforcement": "active",
+  "conditions": { "ref_name": { "include": ["refs/heads/release/*"], "exclude": [] } },
+  "bypass_actors": [ { "actor_id": null, "actor_type": "DeployKey", "bypass_mode": "always" } ],
+  "rules": [ { "type": "update", "parameters": { "update_allows_fetch_and_merge": false } }, { "type": "deletion" }, { "type": "non_fast_forward" } ] }
+JSON
+```
 
 Until an environment's `DATABASE_URL` is stored, a merge still releases to dev but says, as a warning, that the database was neither migrated nor checked. A production is never released without its database.
 
@@ -159,6 +168,8 @@ DATABASE_URL='postgres://…' DATABASE_URL_DEV='postgres://…' node scripts/rel
 ```
 
 A production release by hand is dev first too. It needs each dev database's own connection string (`DATABASE_URL_DEV` for `dev`) and checks that database before it changes anything. In the workflow that check is its own job, which the release job waits for.
+
+A production release by hand cannot finish on its own: its last step moves `release/<name>`, and the branch rule refuses that push from anyone but a deploy key. It stops there, with the database and the admin function released and the site unchanged, which the ordering above keeps safe. Run "Release to production" to finish it.
 
 ## Setting up a new environment
 
@@ -206,11 +217,9 @@ Demo was the only environment before this page existed. It has been under the re
 - **Secrets.** The repository environments `dev` and `demo` allow deployments from `main` only. Each holds its own `DATABASE_URL` and deploy token; `demo` also holds `RELEASE_DEPLOY_KEY`.
 - **Site.** `release/demo` was created at the commit demo served, and the demo site publishes that branch and no other.
 - **First release.** "Release to production" for `demo` deployed the admin function version that reads `SITE_URL` and reports which version it is, and confirmed demo entirely at the commit.
+- **Branch rule.** `release/*` can be moved only by a deploy key (see "Secrets").
 
-Still to do:
-
-1. **Move the license job's key.** Store demo's `SUPABASE_SERVICE_ROLE_KEY` in the `demo` repository environment, then delete the repository-wide secret of that name. Until then a workflow on any pushed branch can read it.
-2. **Protect the release branches.** Restrict pushes to `release/*` in the repository's branch rules, leaving the deploy keys able to push.
+Still to do: **move the license job's key.** Store demo's `SUPABASE_SERVICE_ROLE_KEY` in the `demo` repository environment, then delete the repository-wide secret of that name. Until then a workflow on any pushed branch can read it.
 
 ## Rules
 
