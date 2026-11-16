@@ -14,16 +14,18 @@ runs:
     # them line by line, so it is made with the same version.
     - name: PostgreSQL 17
       shell: bash
+      # Every download is tried again after a failure, and none may hang: a
+      # network hiccup here would otherwise fail a check or a release run.
       run: |
-        sudo apt-get update -qq
+        sudo apt-get -o Acquire::Retries=3 update -qq
         if ! apt-cache show postgresql-17 > /dev/null 2>&1; then
           sudo install -d /usr/share/postgresql-common/pgdg
-          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          sudo curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 15 --max-time 60 -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
           . /etc/os-release
           echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $VERSION_CODENAME-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
-          sudo apt-get update -qq
+          sudo apt-get -o Acquire::Retries=3 update -qq
         fi
-        sudo apt-get install -y postgresql-17
+        sudo apt-get -o Acquire::Retries=3 install -y postgresql-17
         echo /usr/lib/postgresql/17/bin >> "$GITHUB_PATH"
     # Fetched from its publisher's release and accepted only when it is the
     # exact file with this checksum. No third-party action runs in a job that
@@ -35,7 +37,7 @@ runs:
         CLI_VERSION: 2.108.0
         CLI_SHA256: 01e467428fe615952cfd576f964e4fb053fecb546a4d81dee85853ec0f3f8220
       run: |
-        curl -fsSL -o "$RUNNER_TEMP/supabase.tar.gz" "https://github.com/supabase/cli/releases/download/v$CLI_VERSION/supabase_linux_amd64.tar.gz"
+        curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 15 --max-time 180 -o "$RUNNER_TEMP/supabase.tar.gz" "https://github.com/supabase/cli/releases/download/v$CLI_VERSION/supabase_linux_amd64.tar.gz"
         echo "$CLI_SHA256  $RUNNER_TEMP/supabase.tar.gz" | sha256sum --check --quiet
         mkdir -p "$RUNNER_TEMP/supabase-cli"
         tar -xzf "$RUNNER_TEMP/supabase.tar.gz" -C "$RUNNER_TEMP/supabase-cli"

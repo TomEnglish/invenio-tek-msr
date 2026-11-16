@@ -415,6 +415,13 @@ test('the workflows release dev on every merge and a production only through the
     // No third-party action runs where secrets are: the deploy tool is fetched and checked by its checksum.
     const tools = readFileSync(join(root, '.github/actions/release-tools/action.yml'), 'utf8');
     assert.match(tools, /sha256sum --check/);
+    // A release starts by fetching its tools: every download retries, and none can hang.
+    const downloads = tools.split('\n').filter(line => /\b(curl|apt-get) /.test(line));
+    assert.ok(downloads.length >= 5, 'the tools step still has its downloads');
+    for (const line of downloads) {
+        if (/\bcurl /.test(line)) assert.match(line, /--retry \d+ --retry-all-errors .*--connect-timeout \d+ --max-time \d+/, line.trim());
+        else assert.match(line, /apt-get -o Acquire::Retries=\d+ /, line.trim());
+    }
     for (const file of [quality, release, check, tools]) {
         for (const [, action] of file.matchAll(/uses: ([^\s]+)/g)) assert.match(action, /^(actions\/|denoland\/setup-deno@|\.\/)/, action);
     }
