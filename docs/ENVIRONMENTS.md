@@ -104,7 +104,7 @@ Each environment has a repository environment of the same name (Settings > Envir
 | Secret | Where | Used for |
 | --- | --- | --- |
 | `DATABASE_URL` | Each environment | Applying migrations and checking the database. Use the session pooler connection string (port 5432, user `postgres.<project>`); the code host's runners cannot reach the direct address. Every command first confirms the string is that environment's own database. |
-| `SUPABASE_ACCESS_TOKEN` | Each environment, optional | Deploying the admin function. This token reaches everything its account can reach, so store one only from an account that belongs to this system's organization and no other. Otherwise leave it out and deploy by hand when the function changes: `SUPABASE_ACCESS_TOKEN=… node scripts/release.mjs function <name>`. |
+| `SUPABASE_ACCESS_TOKEN` | Each environment, optional | Deploying the admin function. Store a scoped token: limited to that environment's one project, with read-write access to "Edge Functions" and "Edge Function Secrets" and nothing else. Never store a full-access token, which reaches every organization its account belongs to. Without this secret, deploy by hand when the function changes: `SUPABASE_ACCESS_TOKEN=… node scripts/release.mjs function <name>`. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Each production | The license-removal job (see "Secrets for scheduled jobs"). |
 | `RELEASE_DEPLOY_KEY` | Repository | A write deploy key for this repository only. The release job uses it to move `release/<name>`; the workflow's own token is not allowed to push a commit that changes a workflow file. |
 
