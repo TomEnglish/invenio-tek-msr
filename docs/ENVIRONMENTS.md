@@ -54,11 +54,13 @@ node scripts/environments.mjs config dev
 
 The web host also builds previews of pull requests. A preview is published under the same site, so by default it uses **that site's own environment**: previews of the demo site read and write the demo database, as they always have. Once a dev environment exists, set `"previews": "<dev name>"` at the top of `environments.json` and every site's previews use dev instead.
 
+The web host builds previews only for pull requests against a branch the site publishes. A production's site publishes only `release/<name>`, so previews of pull requests against `main` come from the dev site and not from any production's site.
+
 ### Secrets for scheduled jobs
 
 Each run of the license-removal job names the repository environment of its production (Settings > Environments > `<name>`) and reads `SUPABASE_SERVICE_ROLE_KEY`. The code host hands the job that environment's secret when it has one and **otherwise the repository-wide secret of the same name**, which today is demo's. So:
 
-- demo works with no repository environment of its own;
+- demo's repository environment has no `SUPABASE_SERVICE_ROLE_KEY` of its own yet, so its runs still use the repository-wide one (see "Bringing demo onto this" for moving it);
 - every other production **must** be given its own `SUPABASE_SERVICE_ROLE_KEY` in its repository environment;
 - before anything is sent, the job reads the key: a legacy (JWT) key that names a different database stops the run with nothing sent. A new-style key (`sb_secret_…`) names no database and cannot be checked this way, so the repository environment's own secret is the only safeguard for those.
 
@@ -117,6 +119,35 @@ Anyone who can push to this repository can move a release branch by hand. Restri
 
 Until an environment's `DATABASE_URL` is stored, a merge still releases to dev but says, as a warning, that the database was neither migrated nor checked. A production is never released without its database.
 
+### Entering a secret
+
+Two different secrets are easy to confuse, and each prompt below wants exactly one of them:
+
+- **The database password** is chosen when the database is created. The database host never shows it again; if it is lost, reset it on that project's Database Settings page. It goes inside `DATABASE_URL`.
+- **The deploy token** (`sbp_…`) is an access token made on the account's Access Tokens page. It is shown once, when it is made. It is `SUPABASE_ACCESS_TOKEN`.
+
+`DATABASE_URL` is `postgresql://postgres.<project>:<password>@<pooler host>:5432/postgres`. The pooler host is on the project's Connect page under "Session pooler"; for dev and demo it is `aws-1-us-east-1.pooler.supabase.com`.
+
+Store it from a checkout of `main`. This asks for the password without showing it or keeping it in the shell's history, checks the database through that address (read-only), and stores the secret only when the check passes:
+
+```bash
+printf 'Database password, then Enter: ' && read -s PW && echo && export DATABASE_URL="postgresql://postgres.<project>:${PW}@<pooler host>:5432/postgres" && scripts/database.sh check <name> && printf '%s' "$DATABASE_URL" | gh secret set DATABASE_URL --env <name>; unset PW DATABASE_URL
+```
+
+The deploy token is pasted at a prompt, which hides it:
+
+```bash
+gh secret set SUPABASE_ACCESS_TOKEN --env <name>
+```
+
+Things that go wrong:
+
+- **"Could not connect to the `<name>` database"** with "password authentication failed" above it: the password is not that database's. A deploy token typed at the password prompt gives the same message.
+- **The command hangs, or the connection is refused:** a few wrong passwords get this computer's address blocked for a while. The project's Database Settings page lists it under "Network bans" and can lift it.
+- **Refused right after a password reset:** the pooler address may take a minute or two to learn a new password. Run it again.
+
+A secret can be listed by name afterward (`gh secret list --env <name>`) but never read back. The first run that uses it is its test.
+
 ### By hand
 
 The workflows only call the scripts, so a release can be run from a checkout of `main` with the same secrets in the shell:
@@ -133,7 +164,7 @@ A production release by hand is dev first too. It needs each dev database's own 
 
 The same steps set up dev and, later, each customer. Do them in this order.
 
-1. **Create the database** with the database host, then note its address, browser key and direct connection string.
+1. **Create the database** with the database host, then note its address, browser key and direct connection string. Save the database password where it can be found again: the host shows it only now.
 2. **Add the entry to `environments.json` on a branch** and open a pull request. Run the commands below from that branch; merge it at step 8.
 3. **Build the database from the migrations.** This works only on a new, empty database, records every migration, and ends by confirming the result matches a fresh build. If it stops part-way, delete the database, create it again and rerun.
    ```bash
@@ -145,8 +176,16 @@ The same steps set up dev and, later, each customer. Do them in this order.
    supabase secrets set INVITATION_TTL_SECONDS=3600 INVITATION_EMAIL_ENABLED=true --project-ref <ref>
    SUPABASE_ACCESS_TOKEN=… node scripts/release.mjs function <name>
    ```
-6. **Office site.** Create a site on the web host at `siteUrl` that publishes this repository. A dev site publishes `main`. A production's site publishes `release/<name>` and no other branch; create that branch at the commit of `main` the database was built from. The site needs no settings of its own. Until the entry is on the branch it publishes, its build fails and nothing is published, which is expected.
-7. **Repository environment.** Add one named `<name>` with that database's `DATABASE_URL` and, for a production, its `SUPABASE_SERVICE_ROLE_KEY` (see "Secrets").
+6. **Office site.** Create a site on the web host at `siteUrl` that publishes this repository. A dev site publishes `main`. A production's site publishes `release/<name>` and no other branch (production branch `release/<name>`, branch deploys off); create that branch at the commit of `main` the database was built from. The site needs no settings of its own. Until the entry is on the branch it publishes, its build fails and nothing is published, which is expected.
+7. **Repository environment.** Add one named `<name>` that allows deployments from `main` only:
+   ```bash
+   printf '%s' '{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}' | gh api -X PUT "repos/{owner}/{repo}/environments/<name>" --input -
+   printf '%s' '{"name":"main","type":"branch"}' | gh api -X POST "repos/{owner}/{repo}/environments/<name>/deployment-branch-policies" --input -
+   ```
+   Store that database's `DATABASE_URL` and a deploy token of its own (see "Entering a secret"), and for a production its `SUPABASE_SERVICE_ROLE_KEY`. A production also needs its own release key. This makes one, registers its public half on the repository with write access, stores its private half and keeps no copy:
+   ```bash
+   d=$(mktemp -d) && ssh-keygen -q -t ed25519 -N '' -C release-routine -f "$d/key" && gh repo deploy-key add "$d/key.pub" --title "Release routine: <name>" --allow-write && gh secret set RELEASE_DEPLOY_KEY --env <name> < "$d/key"; rm -rf "$d"
+   ```
 8. **Merge the pull request.** A dev site now builds, and every merge is released to it. A production gets its first site from the "Release to production" workflow.
 9. **First administrator.** A new database has no users, and everyone else is invited from Users & Access by an administrator. This command creates the first one and emails their invitation. It works only while the database has no active administrator; run it again to resend, or with another email to withdraw the first invitation and send a new one.
    ```bash
@@ -160,17 +199,18 @@ The same steps set up dev and, later, each customer. Do them in this order.
 
 ## Bringing demo onto this (one time)
 
-Demo was the only environment before this page existed. Done on November 15, 2026: the demo site builds from `environments.json`; migrations `028` and `029` are applied and its schema matches a fresh build; `SITE_URL` is stored on its admin function; the phone app's build profiles have `EXPO_PUBLIC_OFFICE_SITE_URL`; and the sign-in email templates needed no change.
+Demo was the only environment before this page existed. It has been under the release routine since November 16, 2026. What was done, for the record:
 
-What is left puts demo under the release routine. Until step 3, every merge to `main` still reaches demo's site at once; the run on `main` says so and checks the site there, as it did before.
+- **November 15, 2026.** The demo site builds from `environments.json`; migrations `028` and `029` were applied and its schema matches a fresh build; `SITE_URL` was stored on its admin function; the phone app's build profiles got `EXPO_PUBLIC_OFFICE_SITE_URL`; the sign-in email templates needed no change.
+- **History.** Demo's migrations had been recorded by other tools: 001 to 011 in pieces, and 019 to 025 without their `BEGIN;` and `COMMIT;` lines. Its schema matched a fresh build, so only the record differed. `scripts/database.sh align-history demo` stored each file's text as the record. The earlier records are kept in `supabase_migrations.schema_migrations_as_first_recorded`.
+- **Secrets.** The repository environments `dev` and `demo` allow deployments from `main` only. Each holds its own `DATABASE_URL` and deploy token; `demo` also holds `RELEASE_DEPLOY_KEY`.
+- **Site.** `release/demo` was created at the commit demo served, and the demo site publishes that branch and no other.
+- **First release.** "Release to production" for `demo` deployed the admin function version that reads `SITE_URL` and reports which version it is, and confirmed demo entirely at the commit.
 
-1. **History.** Demo's migrations were recorded by other tools: 001 to 011 in pieces, and 019 to 025 without their `BEGIN;` and `COMMIT;` lines. Its schema matches a fresh build, so only the record differs. This stores each file's text as the record and keeps the earlier records in `supabase_migrations.schema_migrations_as_first_recorded`:
-   ```bash
-   DATABASE_URL='postgres://…' scripts/database.sh align-history demo
-   ```
-2. **Secrets.** Add the repository environments `dev` and `demo`, each allowing deployments from `main` only, with their `DATABASE_URL`, and `RELEASE_DEPLOY_KEY` for demo (see "Secrets").
-3. **Site.** Create `release/demo` at the commit demo serves, and set the demo site's production branch to `release/demo` on the web host.
-4. **First release.** Run "Release to production" for `demo`. It deploys the admin function version that reads `SITE_URL` and reports which version it is.
+Still to do:
+
+1. **Move the license job's key.** Store demo's `SUPABASE_SERVICE_ROLE_KEY` in the `demo` repository environment, then delete the repository-wide secret of that name. Until then a workflow on any pushed branch can read it.
+2. **Protect the release branches.** Restrict pushes to `release/*` in the repository's branch rules, leaving the deploy keys able to push.
 
 ## Rules
 
