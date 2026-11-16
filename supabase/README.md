@@ -18,7 +18,7 @@ Every environment (dev, demo, each customer) has its own database built from the
 
 - **Every schema change is a new file in `migrations/`.** Don't change production from the SQL editor. Anything done by hand there is missing from every other environment.
 - **Migrations apply in filename order.** That's the order Supabase uses for new environments and branches, and the order `tests/database/run.sh` uses. A migration may only depend on files that sort before it.
-- **New migrations use a timestamp prefix** (`supabase migration new <name>` creates one). Timestamps sort after the numbered 001–018 files.
+- **A new migration takes the next number** (`030_…` after `029_…`), named `<number>_<lowercase_name>.sql`. `scripts/migrations.mjs` refuses a name or number that would apply out of order.
 - **Never edit a migration that has run in production**, except to bring a definition back in line with what production actually has (as was done for 009).
 
 ## History: the 2026-10-27 renumbering
@@ -53,15 +53,20 @@ On 2026-10-27 a fresh build matched production on every line: 27 tables, 560 col
 
 The script and `tests/database/run.sh` need PostgreSQL binaries on `PATH`. On macOS, run the test harness with `LC_ALL=C` and a short `TMPDIR`, because Postgres won't start without a locale and its socket path has a 103-byte limit. The fingerprint script handles both itself.
 
-## A new environment's database
+## An environment's database
 
 ```bash
 DATABASE_URL='postgres://…' scripts/database.sh build <environment>        # new, empty database only
-DATABASE_URL='postgres://…' scripts/database.sh check <environment>        # read-only comparison with a fresh build
+DATABASE_URL='postgres://…' scripts/database.sh migrate <environment>      # apply the migrations it does not have yet
+DATABASE_URL='postgres://…' scripts/database.sh check <environment>        # read-only: history is the files, schema matches a fresh build
 DATABASE_URL='postgres://…' scripts/database.sh sample-data <environment>  # dev environments only
 ```
 
 Each command first confirms the connection string is that environment's own database (`environments.json`). `build` applies every migration in filename order, records it in `supabase_migrations.schema_migrations` the way the platform does, and stops unless the result matches a fresh build. A fresh build is 44 tables, 4 private buckets, the starter project "Main Yard", 13 tables reporting live changes (028), and no users.
+
+`migrate` is how a release reaches a database (`docs/ENVIRONMENTS.md`, "Releasing"). It refuses unless the history recorded so far is exactly the first migration files: same numbers, names and text. Then it applies the rest, each in one transaction with its history record. So a migration must be one transaction (`BEGIN;` first, `COMMIT;` last), and one that has been released is never edited.
+
+`align-history` is a one-time repair for a database whose history was recorded by other tools. It only works when the schema already matches a fresh build and the history lists the same migrations as the files. It stores each file's text as the record and keeps the earlier records in `supabase_migrations.schema_migrations_as_first_recorded`.
 
 The first person in a new database is created by `scripts/create-first-admin.mjs` (029). It refuses once the database has an active administrator.
 

@@ -1,0 +1,69 @@
+name: Environments check
+# Daily, and on request: is every environment still entirely at the commit its
+# site publishes? The site, the admin function and, where the repository
+# environment holds DATABASE_URL, the database's history and schema. This is
+# what shows a change made by hand in one environment.
+# Dev is compared with main. A production is compared with its own release
+# branch, or with main for as long as it has none and so still publishes main.
+on:
+  schedule:
+    - cron: '43 10 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      plan: ${{ steps.plan.outputs.plan }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - id: plan
+        run: echo "plan=$(node scripts/release.mjs plan)" >> "$GITHUB_OUTPUT"
+  check:
+    name: ${{ matrix.environment }}
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.plan).all }}
+    environment: ${{ matrix.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Which branch does its site publish?
+        id: published
+        env:
+          ENVIRONMENT: ${{ matrix.environment }}
+          BRANCH: ${{ matrix.branch }}
+        run: |
+          published=$(node scripts/release.mjs published "$ENVIRONMENT")
+          if [ "$published" != "$BRANCH" ]; then
+            echo "::warning::$ENVIRONMENT has no $BRANCH branch yet, so its site still publishes main and every merge reaches it at once (docs/ENVIRONMENTS.md). It is checked against main."
+          fi
+          echo "branch=$published" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.published.outputs.branch }}
+          persist-credentials: false
+      - uses: ./.github/actions/release-tools
+      - name: Site, admin function and database
+        env:
+          ENVIRONMENT: ${{ matrix.environment }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::warning::The $ENVIRONMENT database was not checked: its repository environment has no DATABASE_URL secret."
+            node scripts/release.mjs check "$ENVIRONMENT" --skip-database --attempts 6
+          else
+            node scripts/release.mjs check "$ENVIRONMENT" --attempts 6
+          fi

@@ -211,7 +211,7 @@ test('workflows read environments from the list and scope secrets to each one', 
     assert.match(purge, /SUPABASE_URL: \$\{\{ matrix\.databaseUrl \}\}/);
     assert.match(purge, /fail-fast: false/);
     const quality = readFileSync(join(root, '.github/workflows/quality.yml'), 'utf8');
-    assert.match(quality, /smoke-deploy\.mjs --all "\$GITHUB_SHA"/);
+    assert.match(quality, /release\.mjs plan\)/);
     assert.match(quality, /--allow-env=[A-Z_,]*SITE_URL/);
 });
 

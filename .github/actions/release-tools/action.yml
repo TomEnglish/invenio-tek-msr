@@ -1,0 +1,43 @@
+name: Release tools
+description: Node, PostgreSQL 17 and, when asked, the command line that deploys the admin function.
+inputs:
+  cli:
+    description: Also install the command line used to deploy the admin function
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+    # The hosted databases run PostgreSQL 17. A fresh build is compared with
+    # them line by line, so it is made with the same version.
+    - name: PostgreSQL 17
+      shell: bash
+      run: |
+        sudo apt-get update -qq
+        if ! apt-cache show postgresql-17 > /dev/null 2>&1; then
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $VERSION_CODENAME-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+        fi
+        sudo apt-get install -y postgresql-17
+        echo /usr/lib/postgresql/17/bin >> "$GITHUB_PATH"
+    # Fetched from its publisher's release and accepted only when it is the
+    # exact file with this checksum. No third-party action runs in a job that
+    # holds an environment's secrets.
+    - if: inputs.cli == 'true'
+      name: The command line that deploys the admin function
+      shell: bash
+      env:
+        CLI_VERSION: 2.108.0
+        CLI_SHA256: 01e467428fe615952cfd576f964e4fb053fecb546a4d81dee85853ec0f3f8220
+      run: |
+        curl -fsSL -o "$RUNNER_TEMP/supabase.tar.gz" "https://github.com/supabase/cli/releases/download/v$CLI_VERSION/supabase_linux_amd64.tar.gz"
+        echo "$CLI_SHA256  $RUNNER_TEMP/supabase.tar.gz" | sha256sum --check --quiet
+        mkdir -p "$RUNNER_TEMP/supabase-cli"
+        tar -xzf "$RUNNER_TEMP/supabase.tar.gz" -C "$RUNNER_TEMP/supabase-cli"
+        "$RUNNER_TEMP/supabase-cli/supabase" --version
+        echo "$RUNNER_TEMP/supabase-cli" >> "$GITHUB_PATH"

@@ -9,6 +9,7 @@ import {
   type UserRole,
   ValidationError,
 } from './validation.ts';
+import { FUNCTION_RELEASE } from './release.ts';
 
 const PROFILE_FIELDS = 'id, email, full_name, role, is_active, created_at, updated_at, invitation_status, invitation_expires_at';
 
@@ -30,6 +31,8 @@ function corsHeaders(): Record<string, string> {
     ...(origin ? { 'Access-Control-Allow-Origin': origin } : {}),
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
+    // Which version this is, on every response (release.ts).
+    'X-Function-Release': FUNCTION_RELEASE,
   };
 }
 

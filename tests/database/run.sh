@@ -22,4 +22,5 @@ for task_test in tests/database/*-test.sql; do
 done
 bash tests/database/concurrency-test.sh
 bash tests/database/environment-build-test.sh
+bash tests/database/release-migrate-test.sh
 printf 'PostgreSQL integration tests passed.\n'
