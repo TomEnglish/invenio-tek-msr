@@ -241,6 +241,10 @@ test('the license job refuses a key that names another environment\'s database, 
     const browser = run('https://acmedb.invalid', key('acmedb'));
     assert.match(browser.stderr, /has the "anon" role/);
     for (const result of [wrong, browser]) assert.doesNotMatch(result.stdout + result.stderr, /eyJ|\.y\b/);
+    // With no key at all, the message sends the reader to the production's own store, never a repository-wide one.
+    const none = run('https://acmedb.invalid', '');
+    assert.equal(none.status, 1);
+    assert.match(none.stderr, /repository environment has no SUPABASE_SERVICE_ROLE_KEY secret.*never repository-wide/);
     const purge = readFileSync(join(root, 'scripts/purge-driver-licences.mjs'), 'utf8');
     assert.ok(purge.indexOf('keyProblem(key') < purge.indexOf('purgeDriverLicences({ url, key })'), 'the check comes before the run');
 });

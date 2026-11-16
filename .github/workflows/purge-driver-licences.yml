@@ -4,10 +4,11 @@ name: Remove expired driver licenses
 # is keeping one (migrations 022 and 023).
 # Runs once for each production in environments.json, against that
 # environment's own database, with the SUPABASE_SERVICE_ROLE_KEY secret of the
-# repository environment of the same name (Settings > Environments). An
-# environment with no secret of its own gets the repository-wide one, which is
-# demo's, so every other production needs its own. The script refuses to send
-# a key that names another database (docs/ENVIRONMENTS.md).
+# repository environment of the same name (Settings > Environments). Every
+# production has its own; there is no repository-wide secret of that name and
+# there must never be one, because a run whose environment has none would be
+# handed it. The script refuses to send a key that names another database
+# (docs/ENVIRONMENTS.md).
 on:
   schedule:
     - cron: '17 9 * * *'

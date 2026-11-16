@@ -58,10 +58,10 @@ The web host builds previews only for pull requests against a branch the site pu
 
 ### Secrets for scheduled jobs
 
-Each run of the license-removal job names the repository environment of its production (Settings > Environments > `<name>`) and reads `SUPABASE_SERVICE_ROLE_KEY`. The code host hands the job that environment's secret when it has one and **otherwise the repository-wide secret of the same name**, which today is demo's. So:
+Each run of the license-removal job names the repository environment of its production (Settings > Environments > `<name>`) and reads `SUPABASE_SERVICE_ROLE_KEY` from it. The code host hands a job its environment's secret when there is one and **otherwise a repository-wide secret of the same name**, on any pushed branch. So:
 
-- demo's repository environment has no `SUPABASE_SERVICE_ROLE_KEY` of its own yet, so its runs still use the repository-wide one (see "Bringing demo onto this" for moving it);
-- every other production **must** be given its own `SUPABASE_SERVICE_ROLE_KEY` in its repository environment;
+- there is no repository-wide `SUPABASE_SERVICE_ROLE_KEY`, and there must never be one;
+- every production has its own in its repository environment. A production without one fails its run with a message that says so, and nothing is sent;
 - before anything is sent, the job reads the key: a legacy (JWT) key that names a different database stops the run with nothing sent. A new-style key (`sb_secret_…`) names no database and cannot be checked this way, so the repository environment's own secret is the only safeguard for those.
 
 ### Changing a site's address
@@ -130,10 +130,11 @@ Until an environment's `DATABASE_URL` is stored, a merge still releases to dev b
 
 ### Entering a secret
 
-Two different secrets are easy to confuse, and each prompt below wants exactly one of them:
+Three different secrets are easy to confuse, and each prompt below wants exactly one of them:
 
 - **The database password** is chosen when the database is created. The database host never shows it again; if it is lost, reset it on that project's Database Settings page. It goes inside `DATABASE_URL`.
 - **The deploy token** (`sbp_…`) is an access token made on the account's Access Tokens page. It is shown once, when it is made. It is `SUPABASE_ACCESS_TOKEN`.
+- **The service key** (`service_role`: a long string starting `eyJ`, or a new-style `sb_secret_…`) is on the project's API Keys page. It is `SUPABASE_SERVICE_ROLE_KEY`. Prefer the `eyJ` kind where the project still has it: it names its database, so the license job can refuse it before sending it anywhere else.
 
 `DATABASE_URL` is `postgresql://postgres.<project>:<password>@<pooler host>:5432/postgres`. The pooler host is on the project's Connect page under "Session pooler"; for dev and demo it is `aws-1-us-east-1.pooler.supabase.com`.
 
@@ -143,11 +144,14 @@ Store it from a checkout of `main`. This asks for the password without showing i
 printf 'Database password, then Enter: ' && read -s PW && echo && export DATABASE_URL="postgresql://postgres.<project>:${PW}@<pooler host>:5432/postgres" && scripts/database.sh check <name> && printf '%s' "$DATABASE_URL" | gh secret set DATABASE_URL --env <name>; unset PW DATABASE_URL
 ```
 
-The deploy token is pasted at a prompt, which hides it:
+The deploy token and the service key are each pasted at a prompt, which hides them:
 
 ```bash
 gh secret set SUPABASE_ACCESS_TOKEN --env <name>
+gh secret set SUPABASE_SERVICE_ROLE_KEY --env <name>
 ```
+
+After storing a service key, run "Remove expired driver licenses" once by hand. It does what the daily run does, and its last line says how many licenses were due.
 
 Things that go wrong:
 
@@ -218,8 +222,9 @@ Demo was the only environment before this page existed. It has been under the re
 - **Site.** `release/demo` was created at the commit demo served, and the demo site publishes that branch and no other.
 - **First release.** "Release to production" for `demo` deployed the admin function version that reads `SITE_URL` and reports which version it is, and confirmed demo entirely at the commit.
 - **Branch rule.** `release/*` can be moved only by a deploy key (see "Secrets").
+- **License job's key.** Demo's `SUPABASE_SERVICE_ROLE_KEY` is in the `demo` repository environment, and the repository-wide secret of that name is deleted.
 
-Still to do: **move the license job's key.** Store demo's `SUPABASE_SERVICE_ROLE_KEY` in the `demo` repository environment, then delete the repository-wide secret of that name. Until then a workflow on any pushed branch can read it.
+Nothing is left to do.
 
 ## Rules
 
