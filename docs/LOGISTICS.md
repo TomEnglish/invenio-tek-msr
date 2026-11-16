@@ -32,9 +32,12 @@ Phase 1 of logistics. Migration `supabase/migrations/021_places_and_handling_uni
   - Names are trimmed, 60 characters at most, and unique among a project's active racks ignoring case. This is a check, not an index: older data has repeats, which stay until one is renamed or retired.
   - A rack's place is an active yard or site the project can use, and the same place as the plan of any area linked to it.
   - A rack can't be retired while loose items are on it (`item_positions.location_id`) or an active area is linked to it. A retired rack takes no receipt, transfer or correction ("That rack is retired; choose another rack", 22023).
+  - A rack's place can't change while loose items on it are recorded at another place.
   - Racks are never deleted. Every insert and update is in `audit_log` (`rack_created`, `rack_updated`); these stay out of `list_project_activity`.
+  - Retiring a rack takes its link off items that are in a crate or on a load (they aren't on the rack, though their record still named it), so they can't come back to it. The rack's audit entry lists them under `unlinked_items`.
 - **Pickers.** Office Receiving and the Site Maps rack list leave retired racks out. `location_areas` gained `rack_active`, `rack_place_id` and `rack_place_name`; `v_yard_overview` lists active racks only.
-- **Setup checklist.** `project_setup_status(project_id?)` reports, per project, its own and shared yards, active racks, hold-area racks and active site plans, to office staff for their projects and to administrators for all. `js/utils/yard-setup.js` turns a row into the four steps shown on Projects and on Racks. A link with `?project=<id>` opens a page on that project when it is one of the person's own.
+- **Setup checklist.** `project_setup_status(project_id?)` reports, per project, its own yards, the shared yards that exist and the shared ones it has racks or a site plan at, active racks, hold-area racks and active site plans, to office staff for their projects and to administrators for all. `js/utils/yard-setup.js` turns a row into the four steps shown on Projects and on Racks. A project has its yard when it has one of its own or uses a shared one.
+- **Links that name a project.** `?project=<id>` opens a page on that project when it is one of the person's own. It is used once and then leaves the address (`dropAddressParameter`), so a reload, or choosing another project in the selector, isn't overridden. Places' `?add=yard` is one-time in the same way.
 - **Site plans and areas** can't be made inactive while crates or loose items are recorded on them (030).
 
 ## Crates (`handling-units.html`)

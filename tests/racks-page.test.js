@@ -31,7 +31,7 @@ const PLACES = [
     { id: 'shop', name: 'Rewind Shop', kind: 'outside_shop', project_id: null, is_active: true },
 ];
 const AREAS = [{ location_id: 'r2', zone_id: 'z2', site_map_id: 'map1', area: 'T1 Pipe Racks › Rack 2', place_name: 'Laydown Yard' }];
-const STATUS = { project_id: PROJECT_ID, is_member: true, own_yards: 1, shared_yards: 1, racks: 4, hold_racks: 1, site_plans: 0 };
+const STATUS = { project_id: PROJECT_ID, is_member: true, own_yards: 1, shared_yards: 1, shared_yards_used: 0, racks: 4, hold_racks: 1, site_plans: 0 };
 
 /**
  * In-memory racks, like 030: office staff of the project write; names are trimmed and unique among a project's
@@ -337,7 +337,11 @@ test('the setup checklist shows what the project still needs, links to the right
         { state: 'To do', title: 'A hold-area rack', link: null },
         { state: 'To do', title: 'A site plan', link: 'site-maps.html?project=p1' },
     ]);
-    assert.ok(page.$('setupSteps').textContent.includes('No yard or site of its own yet. 2 shared yards or sites are available to every project.'));
+    assert.ok(page.$('setupSteps').textContent.includes('No yard or site of its own yet. 2 shared yards or sites are available: tie a rack or a site plan to one to use it.'));
+    // A project that works at a shared yard has its yard: with its racks tied to one, that step is done.
+    const atShared = await openPage({ status: { ...STATUS, own_yards: 0, shared_yards: 2, shared_yards_used: 1 } });
+    assert.deepEqual(atShared.steps().map(step => step.state), ['Done', 'Done', 'Done', 'To do']);
+    assert.ok(atShared.$('setupSteps').textContent.includes('Uses 1 shared yard or site.'));
 
     const done = await openPage({ status: { ...STATUS, site_plans: 1 } });
     assert.equal(done.$('setupPanel').hidden, true, 'nothing left: no checklist');

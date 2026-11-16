@@ -122,7 +122,7 @@ function fakeLeaflet() {
 
 async function openPage({ role = 'admin', rows = PLACES, search = '' } = {}) {
     const server = fakeServer(rows, { role });
-    const leaflet = fakeLeaflet(), confirms = [];
+    const leaflet = fakeLeaflet(), confirms = [], dropped = [];
     const { document, Option } = fakeDocument();
     const context = {
         document, Option, console, setTimeout, structuredClone, Intl, URLSearchParams, location: { search },
@@ -130,7 +130,7 @@ async function openPage({ role = 'admin', rows = PLACES, search = '' } = {}) {
         SITE_CONFIG: { LATITUDE: 28.954, LONGITUDE: -95.359 },
         InvenioAuthReady: Promise.resolve(true), InvenioInventory: inventory, InvenioLogistics: logistics, InvenioCurrentProfile: { role },
         InvenioProjectScope: { availableProjects: [{ id: PROJECT_ID, name: 'North Yard', status: 'active' }, { id: 'p2', name: 'Closed Yard', status: 'closed' }],
-            getActiveProjectId: () => PROJECT_ID, activeProject: { id: PROJECT_ID, status: 'active' } },
+            getActiveProjectId: () => PROJECT_ID, activeProject: { id: PROJECT_ID, status: 'active' }, dropAddressParameter: name => dropped.push(name) },
         supabaseClient: server.client,
         projectSupabaseClient: { from: () => { throw new Error('places are shared by every project; use supabaseClient'); } },
     };
@@ -149,7 +149,7 @@ async function openPage({ role = 'admin', rows = PLACES, search = '' } = {}) {
     const status = () => $('placeStatus').textContent;
     const listMap = leaflet.maps[0], formMap = () => leaflet.maps.at(-1);
     const fields = () => Object.fromEntries(content.querySelector('dl').childNodes.map(pair => [pair.childNodes[0].textContent, pair.childNodes[1].textContent]));
-    return { server, document, context, $, drawer, content, names, view, action, input, fill, submit, status, leaflet, listMap, formMap, confirms, fields };
+    return { server, document, context, $, drawer, content, names, view, action, input, fill, submit, status, leaflet, listMap, formMap, confirms, fields, dropped };
 }
 
 test('lists active places by name, filters by kind and words, switches to retired, and maps the matches', async () => {
@@ -489,11 +489,13 @@ test('the setup checklist link (?add=yard) opens a new yard for the project that
     assert.equal(page.input('project_id').value, PROJECT_ID);
     assert.equal(page.input('project_id').parentNode.hidden, false, 'the project choice shows for a yard');
     assertFocus(page, page.input('name'), 'the kind is already chosen, so typing starts at the name');
+    assert.deepEqual(page.dropped, ['add'], 'the form opens once: a reload does not bring it back');
     page.fill({ name: 'Laydown Yard' });
     await page.submit();
     assert.deepEqual([page.server.writes()[0].values.kind, page.server.writes()[0].values.name, page.server.writes()[0].values.project_id], ['yard', 'Laydown Yard', PROJECT_ID]);
     const field = await openPage({ role: 'field_worker', search: '?add=yard' });
     assert.equal(field.drawer.open, undefined, 'a field worker is not shown the form');
+    assert.deepEqual((await openPage()).dropped, [], 'an ordinary visit changes nothing in the address');
 });
 
 test('retiring warns what keeps a place in use, and shows the database\'s list of what is still there (030)', async () => {

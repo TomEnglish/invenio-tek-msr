@@ -453,4 +453,24 @@ overlap(
     '42501',
 )
 assert sql("SELECT count(*) FROM public.users WHERE role='admin' AND is_active") == '1'
+
+
+# Two people adding a rack of the same name to a project at once (030): the
+# second waits, then is refused, so the project never has two.
+overlap(
+    'two racks with the same name cannot be added to a project at once',
+    f"INSERT INTO public.locations(project_id,zone,row,rack) VALUES('{first_project}','RACE','1','1');",
+    f"INSERT INTO public.locations(project_id,zone,row,rack) VALUES('{first_project}','race','1','1 ');",
+    '23505',
+)
+assert sql(f"SELECT count(*) FROM public.locations WHERE project_id='{first_project}' AND lower(zone)='race'") == '1'
+# A project's yard and a shared place taking the same name at once (030): no
+# index covers that pair, so the check takes turns.
+overlap(
+    'a project yard and a shared place cannot take the same name at once',
+    f"INSERT INTO public.places(kind,name,project_id) VALUES('yard','Race Yard','{first_project}');",
+    "INSERT INTO public.places(kind,name) VALUES('vendor','race yard');",
+    '23505',
+)
+assert sql("SELECT count(*) FROM public.places WHERE lower(name)='race yard'") == '1'
 PY

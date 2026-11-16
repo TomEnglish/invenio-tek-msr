@@ -330,7 +330,9 @@
         const yards = state.inventory.places.filter(p=>['yard','site'].includes(p.kind) && p.is_active!==false);
         return state.projects.filter(p=>p.status!=='archived' && (!projectId || p.id===projectId)).map(p => {
             const racks = state.inventory.locations.filter(r=>r.project_id===p.id && r.is_active!==false);
+            const plans = state.inventory.site_maps.filter(m=>m.project_id===p.id && m.is_active!==false);
             return { project_id:p.id, is_member:true, own_yards:yards.filter(y=>y.project_id===p.id).length, shared_yards:yards.filter(y=>!y.project_id).length,
+                shared_yards_used:yards.filter(y=>!y.project_id && (racks.some(r=>r.place_id===y.id) || plans.some(m=>m.place_id===y.id))).length,
                 racks:racks.length, hold_racks:racks.filter(r=>r.is_hold_area).length, site_plans:state.inventory.site_maps.filter(m=>m.project_id===p.id && m.is_active!==false).length };
         });
     }

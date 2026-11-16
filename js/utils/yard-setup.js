@@ -82,12 +82,14 @@
     function setupSteps(status, projectId = status?.project_id) {
         const count = key => Number(status?.[key]) || 0;
         const to = page => `${page}${page.includes('?') ? '&' : '?'}project=${encodeURIComponent(projectId || '')}`;
-        const own = count('own_yards'), shared = count('shared_yards'), racks = count('racks'), hold = count('hold_racks'), plans = count('site_plans');
+        const own = count('own_yards'), shared = count('shared_yards'), used = count('shared_yards_used'), racks = count('racks'), hold = count('hold_racks'), plans = count('site_plans');
         return [
-            { key: 'yard', done: own > 0, title: 'A yard or site',
+            // A project has a yard when it has one of its own, or has racks or a site plan at a shared one.
+            { key: 'yard', done: own > 0 || used > 0, title: 'A yard or site',
                 detail: own ? `${plural(own, 'yard or site', 'yards or sites')} of its own.`
-                    : shared ? `No yard or site of its own yet. ${plural(shared, 'shared yard or site is', 'shared yards or sites are')} available to every project.`
-                        : 'No yard or site yet. Crates and loads need a place to be at.',
+                    : used ? `Uses ${plural(used, 'shared yard or site', 'shared yards or sites')}.`
+                        : shared ? `No yard or site of its own yet. ${plural(shared, 'shared yard or site is', 'shared yards or sites are')} available: tie a rack or a site plan to one to use it.`
+                            : 'No yard or site yet. Crates and loads need a place to be at.',
                 href: to('places.html?add=yard'), action: 'Add a yard or site' },
             { key: 'racks', done: racks > 0, title: 'Racks',
                 detail: racks ? `${plural(racks, 'active rack', 'active racks')}.` : 'No racks yet. Nothing can be received until the project has a rack.',

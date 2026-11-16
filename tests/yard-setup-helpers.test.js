@@ -68,8 +68,13 @@ test('the setup checklist says what a project has and lacks, and its links carry
     assert.equal(empty[1].detail, 'No racks yet. Nothing can be received until the project has a rack.');
     assert.equal(setup.setupSummary(empty), 'Setup: 4 of 4 left (yard or site, racks, hold-area rack, site plan)');
     const shared = setup.setupSteps({ project_id: 'p1', own_yards: 0, shared_yards: 1, racks: 1, hold_racks: 0, site_plans: 2 });
-    assert.equal(shared[0].done, false, 'a shared yard is not the project\'s own');
-    assert.equal(shared[0].detail, 'No yard or site of its own yet. 1 shared yard or site is available to every project.');
+    assert.equal(shared[0].done, false, 'a shared yard the project has nothing at is not its yard');
+    assert.equal(shared[0].detail, 'No yard or site of its own yet. 1 shared yard or site is available: tie a rack or a site plan to one to use it.');
+    // A project that works at a shared yard (it has racks or a site plan there) has its yard.
+    const atShared = setup.setupSteps({ project_id: 'p1', own_yards: 0, shared_yards: 3, shared_yards_used: 1, racks: 4, hold_racks: 1, site_plans: 1 });
+    assert.equal(atShared[0].done, true);
+    assert.equal(atShared[0].detail, 'Uses 1 shared yard or site.');
+    assert.equal(setup.setupSummary(atShared), 'Set up: yard, racks and site plan');
     assert.equal(shared[1].detail, '1 active rack.');
     assert.equal(shared[3].detail, '2 active site plans.');
     assert.equal(setup.setupSummary(shared), 'Setup: 2 of 4 left (yard or site, hold-area rack)');
@@ -93,15 +98,28 @@ test('a link can name the project to open on, but only one of this person\'s own
     const projects = [{ id: 'a', name: 'A', status: 'active' }, { id: 'b', name: 'B', status: 'active' }];
     const client = { from: () => ({ select: () => ({ eq: async () => ({ data: projects.map(item => ({ project_id: item.id, projects: item })), error: null }) }) }) };
     const stored = new Map();
-    const context = { URLSearchParams, localStorage: { getItem: key => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value) }, location: { search: '' } };
+    // A page address the way a browser keeps it: replaceState rewrites it without a reload.
+    const address = new URL('https://office.example.test/racks.html');
+    const context = { URL, URLSearchParams, localStorage: { getItem: key => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value) },
+        location: { get href() { return address.href; }, get search() { return address.search; } },
+        history: { state: null, replaceState(state, title, to) { const next = new URL(to, address.href); address.search = next.search; address.hash = next.hash; } } };
     context.window = context;
     vm.createContext(context);
     vm.runInContext(fs.readFileSync('js/utils/project-scope.js', 'utf8'), context);
-    const open = async search => { context.location.search = search; await context.InvenioProjectScope.initializeProjectScope(client, 'u1'); return context.InvenioProjectScope.getActiveProjectId(); };
+    const api = context.InvenioProjectScope;
+    const load = async () => { await api.initializeProjectScope(client, 'u1'); return api.getActiveProjectId(); };
+    const open = (search, hash = '') => { address.search = search; address.hash = hash; return load(); };
     assert.equal(await open(''), 'a', 'with nothing chosen, the first project');
-    assert.equal(await open('?project=b'), 'b', 'the link opens its project');
-    assert.equal(await open(''), 'b', 'and it stays chosen, as if picked in the selector');
-    assert.equal(await open('?project=zz'), 'b', 'a project this person is not on is ignored');
+    assert.equal(await open('?map=m1&project=b', '#top'), 'b', 'the link opens its project');
+    assert.equal(address.search + address.hash, '?map=m1#top', 'the project leaves the address; the rest of it stays');
+    assert.equal(await load(), 'b', 'and it stays chosen, as if picked in the selector');
+    // The selector saves the new choice and reloads the page: the link must not bring its project back.
+    api.setActiveProjectId('a');
+    assert.equal(await load(), 'a', 'choosing another project in the selector sticks after the reload');
+    assert.equal(await open('?project=zz'), 'a', 'a project this person is not on is ignored');
+    assert.equal(address.search, '', 'and it too leaves the address');
+    address.search = '?add=yard&x=1'; api.dropAddressParameter('add');
+    assert.equal(address.search, '?x=1', 'a page can drop its own one-time parameter');
     assert.equal(typeof scope.setActiveProjectId, 'function');
 });
 

@@ -115,13 +115,14 @@ SELECT pg_temp.expect_error($q$UPDATE public.locations SET project_id='b2222222-
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_user('01111111-1111-4111-8111-111111111111');
 SELECT pg_temp.assert_true((SELECT count(*)=1 AND bool_and(project_id='b1111111-1111-4111-8111-111111111111' AND is_member AND own_yards=2 AND shared_yards=1
- AND racks=3 AND hold_racks=1 AND site_plans=0) FROM public.project_setup_status()),'Office staff see what their own projects have set up');
+ AND shared_yards_used=1 AND racks=3 AND hold_racks=1 AND site_plans=0) FROM public.project_setup_status()),
+ 'Office staff see what their own projects have set up, with the shared yard they have a rack at');
 SELECT pg_temp.as_user('a1111111-1111-4111-8111-111111111111');
 -- (The starter project the migrations create is listed too.)
 SELECT pg_temp.assert_true((SELECT count(*) FILTER (WHERE project_id IN ('b1111111-1111-4111-8111-111111111111','b2222222-2222-4222-8222-222222222222'))=2
  FROM public.project_setup_status()),'An administrator sees every project, assigned to it or not');
-SELECT pg_temp.assert_true((SELECT NOT is_member AND own_yards=1 AND shared_yards=1 AND racks=0 AND hold_racks=0 AND site_plans=0
- FROM public.project_setup_status('b2222222-2222-4222-8222-222222222222')),'A project with only a yard shows what it still lacks');
+SELECT pg_temp.assert_true((SELECT NOT is_member AND own_yards=1 AND shared_yards=1 AND shared_yards_used=0 AND racks=0 AND hold_racks=0 AND site_plans=0
+ FROM public.project_setup_status('b2222222-2222-4222-8222-222222222222')),'A project with only a yard shows what it still lacks; a shared yard it has nothing at is not its yard');
 SELECT pg_temp.as_user('f1111111-1111-4111-8111-111111111111');
 SELECT pg_temp.assert_true((SELECT count(*)=0 FROM public.project_setup_status()),'Field users are not shown setup');
 RESET ROLE;
@@ -158,6 +159,12 @@ SELECT pg_temp.assert_true((SELECT location_id IS NULL FROM public.materials WHE
  'A packed item no longer points at the retired rack');
 SELECT pg_temp.assert_true((SELECT count(*)=1 FROM public.audit_log WHERE action='rack_updated' AND entity_id='c1111111-1111-4111-8111-111111111111'
  AND details#>>'{before,is_active}'='true' AND details#>>'{after,is_active}'='false'),'Retiring a rack is in the audit log');
+SELECT pg_temp.assert_true((SELECT jsonb_array_length(details->'unlinked_items')=1 AND details#>>'{unlinked_items,0,tag}'='YS-2'
+ AND details#>>'{unlinked_items,0,material_id}'=(SELECT result->>'material_id' FROM results WHERE name='ys2')
+ FROM public.audit_log WHERE action='rack_updated' AND entity_id='c1111111-1111-4111-8111-111111111111'),
+ 'The audit entry names the packed item whose rack link was taken away');
+SELECT pg_temp.assert_true((SELECT count(*)=0 FROM public.audit_log WHERE action='rack_updated' AND details ? 'unlinked_items'
+ AND entity_id<>'c1111111-1111-4111-8111-111111111111'),'An ordinary rack change lists no items');
 SELECT pg_temp.expect_message($q$SELECT pg_temp.receive('YS-3','c1111111-1111-4111-8111-111111111111')$q$,
  'That rack is retired; choose another rack','Nothing is received onto a retired rack');
 SELECT pg_temp.expect_error($q$SELECT pg_temp.op('transfer',jsonb_build_object('materialId',(SELECT result->>'material_id' FROM results WHERE name='ys1'),
@@ -263,6 +270,68 @@ SELECT pg_temp.assert_true((SELECT NOT is_active FROM public.places WHERE id='9c
  'With nothing left there, a place is retired');
 SELECT pg_temp.expect_error($q$UPDATE public.locations SET place_id='9c222222-2222-4222-8222-222222222222' WHERE id='c3333333-3333-4333-8333-333333333333'$q$,
  '22023','A rack cannot be put at a retired place');
+RESET ROLE;
+
+-- A rack doesn't move to another yard while items on it are recorded at the first: here the item came to the
+-- rack through its area on the Laydown plan, and the area was then set to No rack.
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_user('01111111-1111-4111-8111-111111111111');
+INSERT INTO public.locations(id,project_id,zone,row,rack,place_id) VALUES
+ ('c5555555-5555-4555-8555-555555555555','b1111111-1111-4111-8111-111111111111','T3','1','1','9c111111-1111-4111-8111-111111111111');
+INSERT INTO public.site_map_zones(id,map_id,project_id,name,shape,location_id) VALUES
+ ('2c555555-5555-4555-8555-555555555555','5c111111-1111-4111-8111-111111111111','b1111111-1111-4111-8111-111111111111','Bay 4',
+  '[[0.45,0],[0.9,0],[0.9,0.4]]','c5555555-5555-4555-8555-555555555555');
+SELECT pg_temp.op('transfer',jsonb_build_object('materialId',(SELECT result->>'material_id' FROM results WHERE name='ys1'),
+ 'fromLocationId','c3333333-3333-4333-8333-333333333333','toLocationId','c5555555-5555-4555-8555-555555555555','reason','To bay 4'));
+UPDATE public.site_map_zones SET location_id=NULL WHERE id='2c555555-5555-4555-8555-555555555555';
+SELECT pg_temp.expect_message($q$UPDATE public.locations SET place_id='9c555555-5555-4555-8555-555555555555' WHERE id='c5555555-5555-4555-8555-555555555555'$q$,
+ 'T3 · Row 1, Rack 1 holds items recorded at another place; move them first','A rack does not leave the yard its items are recorded at');
+RESET ROLE;
+
+-- Racks that shared a name before 030 keep working: they can be edited, even with a stray space on an unchanged
+-- name, and the empty one retired; it then can't come back over the other.
+ALTER TABLE public.locations DISABLE TRIGGER locations_guard;
+INSERT INTO public.locations(id,project_id,zone,row,rack) VALUES
+ ('c6666666-6666-4666-8666-666666666666','b1111111-1111-4111-8111-111111111111','OLD','1','1'),
+ ('c7777777-7777-4777-8777-777777777777','b1111111-1111-4111-8111-111111111111','OLD','1','1');
+ALTER TABLE public.locations ENABLE TRIGGER locations_guard;
+SET LOCAL ROLE authenticated;
+UPDATE public.locations SET capacity=12,zone='OLD ' WHERE id='c6666666-6666-4666-8666-666666666666';
+SELECT pg_temp.assert_true((SELECT capacity=12 AND zone='OLD' FROM public.locations WHERE id='c6666666-6666-4666-8666-666666666666'),
+ 'An older duplicate can be edited, and a stray space is tidied, not treated as a rename');
+SELECT pg_temp.expect_error($q$INSERT INTO public.locations(project_id,zone,row,rack) VALUES('b1111111-1111-4111-8111-111111111111','old','1','1')$q$,
+ '23505','No third rack takes the name');
+UPDATE public.locations SET is_active=false WHERE id='c7777777-7777-4777-8777-777777777777';
+SELECT pg_temp.expect_error($q$UPDATE public.locations SET is_active=true WHERE id='c7777777-7777-4777-8777-777777777777'$q$,
+ '23505','Once one of the pair is retired, it cannot be restored over the other');
+RESET ROLE;
+
+-- Office staff of another project can't change this project's racks or read its setup, and the database's own
+-- helpers aren't callable from a browser.
+UPDATE public.users SET role='office_staff' WHERE id='f2222222-2222-4222-8222-222222222222';
+DELETE FROM public.user_projects WHERE user_id='f2222222-2222-4222-8222-222222222222';
+INSERT INTO public.user_projects(user_id,project_id) VALUES('f2222222-2222-4222-8222-222222222222','b2222222-2222-4222-8222-222222222222');
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_user('f2222222-2222-4222-8222-222222222222');
+DO $$ DECLARE changed bigint;
+BEGIN
+ UPDATE public.locations SET capacity=1 WHERE id='c3333333-3333-4333-8333-333333333333';
+ GET DIAGNOSTICS changed=ROW_COUNT;
+ PERFORM pg_temp.assert_true(changed=0,'Office staff of another project cannot edit a rack');
+ UPDATE public.locations SET is_active=false WHERE id='c2222222-2222-4222-8222-222222222222';
+ GET DIAGNOSTICS changed=ROW_COUNT;
+ PERFORM pg_temp.assert_true(changed=0,'Office staff of another project cannot retire a rack');
+END $$;
+SELECT pg_temp.assert_true((SELECT count(*)=0 FROM public.locations WHERE project_id='b1111111-1111-4111-8111-111111111111'),
+ 'Another project''s racks are not readable');
+SELECT pg_temp.assert_true((SELECT count(*)=0 FROM public.project_setup_status('b1111111-1111-4111-8111-111111111111'))
+ AND (SELECT count(*)=1 AND bool_and(project_id='b2222222-2222-4222-8222-222222222222') FROM public.project_setup_status()),
+ 'Office staff are shown the setup of their own projects only');
+SELECT pg_temp.expect_error($q$SELECT * FROM public.stock_recorded(NULL,NULL,NULL,NULL,NULL)$q$,'42501','The stock count is not callable from a browser');
+SELECT pg_temp.expect_error($q$SELECT public.rack_label('a','b','c')$q$,'42501','Nor is the rack name helper');
+RESET ROLE;
+SET LOCAL ROLE anon;
+SELECT pg_temp.expect_error($q$SELECT * FROM public.project_setup_status()$q$,'42501','Setup is not readable without signing in');
 RESET ROLE;
 
 -- A shared yard another project has racks at can't be claimed by this one (022's guard, now counting racks).

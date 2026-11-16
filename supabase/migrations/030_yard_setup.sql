@@ -6,9 +6,13 @@
 --
 -- Works with the site and the app already published: both read racks with
 -- every column and add them with zone, row, rack, hold area and capacity
--- only, so the new columns take their defaults. A retired rack still shows
--- in an older picker; choosing it is refused here with a reason (22023, which
--- the app treats as "needs a decision").
+-- only, so the new columns take their defaults. What they newly meet is a
+-- refusal, each a plain sentence they show as it is:
+--  * a retired rack still shows in an older picker; choosing it is refused
+--    (22023, which the app keeps as "needs a decision");
+--  * adding a rack whose zone, row and rack an active rack of the project
+--    already has is refused (23505), as is a capacity below 1 or a name over
+--    60 characters (22023). Before, such a rack was added.
 BEGIN;
 
 -- ---------------------------------------------------------------------------
@@ -71,9 +75,12 @@ begin
  if tg_op='UPDATE' and new.project_id is distinct from old.project_id then
   raise exception 'A rack stays in its project' using errcode='22023';
  end if;
+ -- Tidy first, so a stray space typed onto an unchanged name is not a rename.
+ if tg_op='INSERT' or new.zone is distinct from old.zone or new."row" is distinct from old."row" or new.rack is distinct from old.rack then
+  new.zone:=btrim(new.zone); new."row":=btrim(new."row"); new.rack:=btrim(new.rack);
+ end if;
  v_renamed:=tg_op='INSERT' or new.zone is distinct from old.zone or new."row" is distinct from old."row" or new.rack is distinct from old.rack;
  if v_renamed then
-  new.zone:=btrim(new.zone); new."row":=btrim(new."row"); new.rack:=btrim(new.rack);
   if coalesce(new.zone,'')='' or coalesce(new."row",'')='' or coalesce(new.rack,'')='' then
    raise exception 'Enter the zone, row and rack' using errcode='22023';
   end if;
@@ -106,6 +113,10 @@ begin
   if found then
    raise exception '% is linked to the area %, on a plan of %; choose that place, or set the area to No rack first',v_label,v_area,v_at using errcode='22023';
   end if;
+  if tg_op='UPDATE' and exists(select 1 from public.item_positions i where i.project_id=new.project_id and i.position='at_place' and i.crate_id is null
+    and i.location_id=new.id and i.place_id is not null and i.place_id<>new.place_id) then
+   raise exception '% holds items recorded at another place; move them first',v_label using errcode='22023';
+  end if;
  end if;
  if tg_op='UPDATE' and old.is_active and not new.is_active then
   select s.items into v_items from public.stock_recorded(old.project_id,null,null,null,old.id) s;
@@ -117,20 +128,30 @@ begin
   if found then
    raise exception '% can''t be retired yet: it is linked to the area %; on Site Maps, set that area to No rack first',v_label,v_area using errcode='22023';
   end if;
-  -- An item packed in a crate or riding on a load isn't on a rack; it must not come back to this one.
-  update public.materials m set location_id=null where m.location_id=old.id and m.status='in_yard';
  end if;
  return new;
 end $$;
 create trigger locations_guard before insert or update on public.locations
  for each row execute function public.location_guard();
 
+-- Every change to a rack is in the audit log. An item packed in a crate or
+-- riding on a load isn't on a rack, though its record may still name the one
+-- it came from; it must not come back to a retired rack, so retiring takes
+-- that link away and the rack's entry lists the items (unlinked_items).
 create function public.location_audit() returns trigger
 language plpgsql security definer set search_path=public,pg_temp as $$
+declare v_unlinked jsonb;
 begin
+ if tg_op='UPDATE' and old.is_active and not new.is_active then
+  with cleared as (
+   update public.materials m set location_id=null where m.location_id=new.id and m.status='in_yard' returning m.id,m.qr_code_id)
+  select jsonb_agg(jsonb_build_object('material_id',c.id,'tag',q.code_value) order by q.code_value) into v_unlinked
+  from cleared c left join public.qr_codes q on q.id=c.qr_code_id;
+ end if;
  insert into public.audit_log(user_id,action,entity_type,entity_id,details,project_id)
  values(auth.uid(),case when tg_op='INSERT' then 'rack_created' else 'rack_updated' end,'rack',new.id,
-  jsonb_build_object('before',case when tg_op='UPDATE' then to_jsonb(old) end,'after',to_jsonb(new)),new.project_id);
+  jsonb_build_object('before',case when tg_op='UPDATE' then to_jsonb(old) end,'after',to_jsonb(new))
+   ||case when v_unlinked is not null then jsonb_build_object('unlinked_items',v_unlinked) else '{}'::jsonb end,new.project_id);
  return null;
 end $$;
 create trigger locations_audit after insert or update on public.locations
@@ -307,16 +328,20 @@ group by l.id, l.project_id, l.zone, l.row, l.rack, l.is_hold_area, l.capacity;
 
 -- ---------------------------------------------------------------------------
 -- What a project has of what it needs before work can start: a yard or site
--- of its own (shared ones are counted apart), racks, a hold-area rack and a
--- site plan. Office staff see their projects; administrators see every
--- project that isn't archived, and whether they are assigned to it.
+-- (its own, or a shared one it has racks or a site plan at; shared ones that
+-- exist are counted apart), racks, a hold-area rack and a site plan. Office
+-- staff see their projects; administrators see every project that isn't
+-- archived, and whether they are assigned to it.
 -- ---------------------------------------------------------------------------
 create function public.project_setup_status(p_project_id uuid default null)
-returns table(project_id uuid,is_member boolean,own_yards integer,shared_yards integer,racks integer,hold_racks integer,site_plans integer)
+returns table(project_id uuid,is_member boolean,own_yards integer,shared_yards integer,shared_yards_used integer,racks integer,hold_racks integer,site_plans integer)
 language sql stable security definer set search_path=public as $$
  select p.id,public.has_project_access(p.id),
   (select count(*) from public.places y where y.project_id=p.id and y.kind in ('yard','site') and y.is_active)::integer,
   (select count(*) from public.places y where y.project_id is null and y.kind in ('yard','site') and y.is_active)::integer,
+  (select count(*) from public.places y where y.project_id is null and y.kind in ('yard','site') and y.is_active
+    and (exists(select 1 from public.locations l where l.place_id=y.id and l.project_id=p.id and l.is_active)
+     or exists(select 1 from public.site_maps m where m.place_id=y.id and m.project_id=p.id and m.is_active)))::integer,
   (select count(*) from public.locations l where l.project_id=p.id and l.is_active)::integer,
   (select count(*) from public.locations l where l.project_id=p.id and l.is_active and l.is_hold_area)::integer,
   (select count(*) from public.site_maps m where m.project_id=p.id and m.is_active)::integer

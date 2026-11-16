@@ -371,7 +371,9 @@
     try { await load(); }
     catch (error) { message(`Could not load places: ${logistics.errorMessage(error)}`); }
     // The setup checklist links here with ?add=yard: start a new yard for the project that is open.
+    // It opens once: the parameter leaves the address, so a reload doesn't bring the form back.
     if (office && new URLSearchParams(window.location?.search || '').get('add') === 'yard') {
+        InvenioProjectScope.dropAddressParameter?.('add');
         const active = InvenioProjectScope.getActiveProjectId();
         openForm(null, { kind: 'yard', project_id: workable.some(item => item.id === active) ? active : '' });
     }
