@@ -169,7 +169,7 @@ What is left puts demo under the release routine. Until step 3, every merge to `
 - **No customer-specific code.** A difference between customers is a setting stored in that customer's database, never a branch or a copy of the code.
 - **Schema changes are migrations.** Nothing is changed by hand in any environment; `scripts/database.sh check` shows it if someone does.
 - **Dev first.** A change runs on dev before it reaches any production. The release routine refuses otherwise.
-- **A migration is named `<number>_<lowercase_name>.sql`**, with a later number than the one before it, and is one transaction: `BEGIN;` as its first statement and `COMMIT;` as its last line. `tests/release.test.js` fails otherwise.
+- **A migration is named `<number>_<lowercase_name>.sql`**, with a later number than the one before it, and is one transaction: `BEGIN;` as its first statement, `COMMIT;` as its last, and no other transaction statement. `tests/release.test.js` fails otherwise.
 - **A released migration is never edited.** The history check compares its text and stops the next release. Correct it with a new migration.
 - **A change to the admin function comes with its stamp**: run `node scripts/release.mjs stamp` and commit the result.
 - **A table a page listens to for live changes** must be added to the publication by a migration (see `028_live_updates.sql`); `tests/live-updates.test.js` fails otherwise.

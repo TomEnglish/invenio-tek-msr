@@ -82,7 +82,7 @@ refused "failing plain migration" "Stopped at 99999_half_made; it was not applie
 nothing_left "plain"
 # One that could commit half of itself is refused before anything runs.
 printf 'BEGIN;\ncreate table public.half_made (id int);\nCOMMIT;\nBEGIN;\nselect 1/0;\nCOMMIT;\n' > "$half"
-refused "migration with two transactions" "must either have no BEGIN; or COMMIT; line" env DATABASE_URL="$(url rel_dev)" "$work/next/scripts/database.sh" migrate devlocal
+refused "migration with two transactions" "must either have no transaction statement of its own" env DATABASE_URL="$(url rel_dev)" "$work/next/scripts/database.sh" migrate devlocal
 nothing_left "two transactions"
 # A good one is applied and recorded with the file's own text.
 printf -- '-- Made by the release test.\nBEGIN;\ncreate table public.half_made (id int);\nCOMMIT;\n' > "$half"

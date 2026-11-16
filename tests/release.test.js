@@ -261,7 +261,16 @@ test('every migration is one transaction: none of its own, or BEGIN; first and C
     for (const mixed of ['BEGIN;\nselect 1;\n', 'select 1;\nCOMMIT;\n', 'BEGIN;\nselect 1;\nCOMMIT;\nselect 2;\n', 'select 0;\nBEGIN;\nselect 1;\nCOMMIT;\n', 'BEGIN;\nselect 1;\nCOMMIT;\nBEGIN;\nselect 2;\nCOMMIT;\n']) {
         assert.equal(migrationShape(mixed), 'mixed', mixed);
     }
-    assert.equal(withoutCommit('-- note\nBEGIN;\nselect 1;\n\nCOMMIT;\n'), '-- note\nBEGIN;\nselect 1;\n\n');
+    assert.equal(migrationShape('BEGIN; select 1; COMMIT;\n'), 'wrapped');
+    // Only top-level statements count: not a function body, a string or a comment.
+    assert.equal(migrationShape("BEGIN;\ncreate function f() returns void language plpgsql as $body$\nBEGIN\n  perform 1;\nCOMMIT;\nEND;\n$body$;\nselect 'x;\nCOMMIT;\ny', E'it\\'s;\nCOMMIT;\n';\n/* COMMIT; */\n-- COMMIT;\nCOMMIT;\n"), 'wrapped');
+    assert.equal(migrationShape('select case when true then 1 else 2 end;\nselect $1, \'a$b$c\';\n'), 'plain');
+    // Any other way of starting, ending or splitting a transaction is refused.
+    for (const mixed of ['START TRANSACTION;\nselect 1;\nCOMMIT;\n', 'select 1;\nEND;\n', 'BEGIN;\nselect 1;\nROLLBACK;\n', 'BEGIN;\nsavepoint a;\nselect 1;\nCOMMIT;\n', 'BEGIN ISOLATION LEVEL SERIALIZABLE;\nselect 1;\nCOMMIT;\n', 'BEGIN;\nselect 1;\nCOMMIT']) {
+        assert.equal(migrationShape(mixed), 'mixed', mixed);
+    }
+    assert.equal(withoutCommit('-- note\nBEGIN;\nselect 1;\n\nCOMMIT;\n-- done\n'), '-- note\nBEGIN;\nselect 1;\n\n');
+    assert.equal(withoutCommit("BEGIN;\nselect '\nCOMMIT;\n';\nCOMMIT;\n"), "BEGIN;\nselect '\nCOMMIT;\n';\n", 'a COMMIT; inside a string is not the one left out');
     assert.throws(() => withoutCommit('select 1;\n'), /Only a migration wrapped/);
 });
 
@@ -280,7 +289,7 @@ test('migration files must be named and numbered so their order is the history\'
         only({'003 Bad Name.sql': 'select 1;\n'});
         assert.throws(() => migrationFiles(directory), /must be named <number>_<lowercase_name>\.sql/);
         only({'004_two_transactions.sql': 'BEGIN;\nselect 1;\nCOMMIT;\nBEGIN;\nselect 2;\nCOMMIT;\n'});
-        assert.throws(() => migrationFiles(directory), /must either have no BEGIN; or COMMIT; line/);
+        assert.throws(() => migrationFiles(directory), /must either have no transaction statement of its own, or start with BEGIN; and end with COMMIT;/);
     } finally { rmSync(directory, {recursive: true, force: true}); }
 });
 

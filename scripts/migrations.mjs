@@ -4,7 +4,7 @@
 //
 //   node scripts/migrations.mjs list                 version|name|md5|shape, in filename order
 //   node scripts/migrations.mjs shape <file>         plain | wrapped
-//   node scripts/migrations.mjs without-commit <file>   a wrapped migration up to its COMMIT; line
+//   node scripts/migrations.mjs without-commit <file>   a wrapped migration up to its final COMMIT;
 //   node scripts/migrations.mjs pending               files the history on stdin does not have yet
 //   node scripts/migrations.mjs differing             files whose recorded text differs (names must match)
 //
@@ -18,33 +18,96 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const MIGRATIONS = join('supabase', 'migrations');
 const FILE = /^([0-9]+)_([a-z0-9_]+)\.sql$/;
-const isBegin = line => /^\s*BEGIN\s*;\s*$/i.test(line);
-const isCommit = line => /^\s*COMMIT\s*;\s*$/i.test(line);
-
 // Text is compared without its trailing newlines: the history stores a file
 // with or without the last one, depending on the tool that recorded it.
 export const textChecksum = text => createHash('md5').update(text.replace(/\n+$/, '')).digest('hex');
 
-// How a migration handles its own transaction. A migration and its history
-// record must commit together, which is only possible for these two shapes:
-//   plain    no BEGIN; or COMMIT; line (001 to 011)
-//   wrapped  BEGIN; is its first statement and COMMIT; its last line
-// Anything else ("mixed") could commit half of a migration, and is refused.
-export function migrationShape(text) {
-    const lines = text.split('\n');
-    const begins = lines.filter(isBegin).length;
-    const commits = lines.filter(isCommit).length;
-    if (!begins && !commits) return 'plain';
-    const statements = lines.filter(line => line.trim() && !line.trim().startsWith('--'));
-    return begins === 1 && commits === 1 && isBegin(statements[0]) && isCommit(statements.at(-1)) ? 'wrapped' : 'mixed';
+// The SQL with every comment, quoted string and dollar-quoted body blanked
+// out (same length, same line breaks). What is left is top-level SQL, so a
+// COMMIT; inside a function body or a comment is not mistaken for the
+// migration's own.
+export function topLevelSql(text) {
+    const blank = chunk => chunk.replace(/[^\n]/g, ' ');
+    const wordBefore = index => /[A-Za-z_0-9]/.test(text[index - 1] || '');
+    let out = '';
+    let i = 0;
+    while (i < text.length) {
+        let stop = i;
+        if (text.startsWith('--', i)) {
+            const end = text.indexOf('\n', i);
+            stop = end === -1 ? text.length : end;
+        } else if (text.startsWith('/*', i)) {
+            let depth = 1;
+            stop = i + 2;
+            while (stop < text.length && depth) {
+                if (text.startsWith('/*', stop)) { depth += 1; stop += 2; }
+                else if (text.startsWith('*/', stop)) { depth -= 1; stop += 2; }
+                else stop += 1;
+            }
+        } else if (text[i] === "'" || text[i] === '"') {
+            const quote = text[i];
+            // Only an E'...' string treats a backslash as an escape.
+            const escapes = quote === "'" && /[Ee]/.test(text[i - 1] || '') && !wordBefore(i - 1);
+            stop = i + 1;
+            while (stop < text.length) {
+                if (escapes && text[stop] === '\\') stop += 2;
+                else if (text[stop] === quote && text[stop + 1] === quote) stop += 2;
+                else if (text[stop] === quote) { stop += 1; break; }
+                else stop += 1;
+            }
+        } else {
+            const tag = wordBefore(i) ? null : /^\$([A-Za-z_][A-Za-z_0-9]*)?\$/.exec(text.slice(i, i + 80));
+            if (tag) {
+                const end = text.indexOf(tag[0], i + tag[0].length);
+                stop = end === -1 ? text.length : end + tag[0].length;
+            }
+        }
+        if (stop > i) { out += blank(text.slice(i, Math.min(stop, text.length))); i = Math.min(stop, text.length); }
+        else { out += text[i]; i += 1; }
+    }
+    return out;
 }
 
-// A wrapped migration without its final COMMIT; line, so the history record
-// can be added inside the migration's own transaction.
+// Top-level statements, each with where it starts in the text.
+function topLevelStatements(text) {
+    const sql = topLevelSql(text);
+    const found = [];
+    let start = 0;
+    for (let i = 0; i <= sql.length; i++) {
+        if (i < sql.length && sql[i] !== ';') continue;
+        const raw = sql.slice(start, i);
+        if (raw.trim()) found.push({ text: raw.trim().replace(/\s+/g, ' '), start: start + raw.length - raw.trimStart().length, ended: i < sql.length });
+        start = i + 1;
+    }
+    return found;
+}
+
+const TRANSACTION = /^(BEGIN|START\s+TRANSACTION|COMMIT|END|ROLLBACK|ABORT|SAVEPOINT|RELEASE|PREPARE\s+TRANSACTION)\b/i;
+function readShape(text) {
+    const statements = topLevelStatements(text);
+    const control = statements.filter(statement => TRANSACTION.test(statement.text));
+    if (!control.length) return { shape: 'plain' };
+    const last = statements.at(-1);
+    return control.length === 2 && /^BEGIN$/i.test(statements[0].text) && /^COMMIT$/i.test(last.text) && last.ended
+        ? { shape: 'wrapped', commitAt: last.start }
+        : { shape: 'mixed' };
+}
+
+// How a migration handles its own transaction. A migration and its history
+// record must commit together, which is only possible for these two shapes:
+//   plain    no transaction statement of its own (001 to 011)
+//   wrapped  BEGIN; is its first statement and COMMIT; its last, and it has
+//            no other transaction statement
+// Anything else ("mixed") could commit half of a migration, and is refused.
+export const migrationShape = text => readShape(text).shape;
+export const SHAPE_RULE = 'must either have no transaction statement of its own, or start with BEGIN; and end with COMMIT;';
+
+// A wrapped migration up to its final COMMIT;, so the history record can be
+// added inside the migration's own transaction.
 export function withoutCommit(text) {
-    if (migrationShape(text) !== 'wrapped') throw new Error('Only a migration wrapped in BEGIN; and COMMIT; has a COMMIT; line to leave out');
-    const lines = text.split('\n');
-    return lines.slice(0, lines.findLastIndex(isCommit)).join('\n') + '\n';
+    const { shape, commitAt } = readShape(text);
+    if (shape !== 'wrapped') throw new Error('Only a migration wrapped in BEGIN; and COMMIT; has a COMMIT; to leave out');
+    return text.slice(0, commitAt);
 }
 
 // Every migration, in the order it is applied: filename order, which must
@@ -56,7 +119,7 @@ export function migrationFiles(directory = join(root, MIGRATIONS)) {
         if (!match) throw new Error(`A migration must be named <number>_<lowercase_name>.sql: ${file}`);
         const text = readFileSync(join(directory, file), 'utf8');
         const shape = migrationShape(text);
-        if (shape === 'mixed') throw new Error(`${file} must either have no BEGIN; or COMMIT; line, or start with BEGIN; and end with COMMIT;`);
+        if (shape === 'mixed') throw new Error(`${file} ${SHAPE_RULE}`);
         return { file, path: join(MIGRATIONS, file), version: match[1], name: match[2], md5: textChecksum(text), shape };
     });
     files.forEach((entry, index) => {
@@ -113,7 +176,7 @@ function main([command, argument]) {
         const text = readFileSync(argument, 'utf8');
         if (command === 'without-commit') { process.stdout.write(withoutCommit(text)); return; }
         const shape = migrationShape(text);
-        if (shape === 'mixed') throw new Error(`${argument} must either have no BEGIN; or COMMIT; line, or start with BEGIN; and end with COMMIT;`);
+        if (shape === 'mixed') throw new Error(`${argument} ${SHAPE_RULE}`);
         console.log(shape);
         return;
     }
