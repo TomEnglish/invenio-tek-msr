@@ -150,3 +150,15 @@ refused "migrate another environment's database" 'DATABASE_URL is not the "acme"
 refused "align another environment's database" 'DATABASE_URL is not the "acme" database' env DATABASE_URL="$(url rel_dev)" scripts/database.sh align-history acme
 [ "$(count rel_empty "select to_regclass('public.projects') is null")" = t ] || fail "a refused release changes nothing"
 passed "a release refuses an empty database and another environment's database"
+
+# A database that does not answer is reported as that, never as empty, without
+# history or different from the migrations.
+closed_port=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1]); s.close()')
+for command in check migrate build align-history sample-data; do
+  refused "$command against a database that does not answer" "Could not connect to the devlocal database" \
+    env DATABASE_URL="postgresql://127.0.0.1:$closed_port/rel_dev" PGCONNECT_TIMEOUT=5 scripts/database.sh "$command" devlocal
+  if grep -Eq 'is empty|no migration history|differs from a fresh build|already holds|Build the' "$work/out"; then
+    cat "$work/out" >&2; fail "$command: a database that does not answer was described as something else"
+  fi
+done
+passed "a database that does not answer is reported as unreachable, by every command"

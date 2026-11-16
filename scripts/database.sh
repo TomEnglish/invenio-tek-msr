@@ -60,12 +60,26 @@ unset password
 
 run_sql() { psql -X -q -v ON_ERROR_STOP=1 -d "$address" "$@"; }
 ask() { run_sql -A -t -c "$1"; }
-holds_schema() { [ "$(ask "select to_regclass('public.projects') is not null or to_regclass('public.users') is not null")" = t ]; }
+
+# Every answer below is compared with an expected one, so no answer at all
+# would read as "no": an unreachable database would be reported as empty, or
+# as different from the migrations. The connection is confirmed first.
+ask 'select 1' > /dev/null \
+  || fail "Could not connect to the $environment database; the database client's message is above. Check the password and the address in DATABASE_URL. Nothing was read or changed."
+
+holds_schema() {
+  local answer
+  answer=$(ask "select to_regclass('public.projects') is not null or to_regclass('public.users') is not null") \
+    || fail "Could not read the $environment database. Nothing was changed."
+  [ "$answer" = t ]
+}
 
 # One line per recorded migration: number|name|md5 of its text|parts stored.
 recorded_history() {
-  [ "$(ask "select to_regclass('supabase_migrations.schema_migrations') is not null")" = t ] \
-    || { echo "The $environment database has no migration history." >&2; return 1; }
+  local present
+  present=$(ask "select to_regclass('supabase_migrations.schema_migrations') is not null") \
+    || { echo "Could not read the $environment database's migration history." >&2; return 1; }
+  [ "$present" = t ] || { echo "The $environment database has no migration history." >&2; return 1; }
   ask "select version || '|' || coalesce(name, '') || '|' || coalesce(md5(rtrim(statements[1], E'\n')), '') || '|' || coalesce(array_length(statements, 1), 0)
          from supabase_migrations.schema_migrations order by version collate \"C\""
 }
@@ -97,8 +111,11 @@ history_matches_files() {
 }
 
 schema_matches_fresh_build() {
-  env -u DATABASE_URL scripts/schema-fingerprint.sh > "$work/fresh"
-  scripts/schema-fingerprint.sh > "$work/live"
+  # A fingerprint that could not be taken must not be compared as an empty one.
+  env -u DATABASE_URL scripts/schema-fingerprint.sh > "$work/fresh" \
+    || { echo "Could not build a fresh copy of the migrations to compare the $environment database with." >&2; return 1; }
+  scripts/schema-fingerprint.sh > "$work/live" \
+    || { echo "Could not read the $environment database's schema, so it was not compared." >&2; return 1; }
   if diff "$work/fresh" "$work/live" > "$work/diff"; then
     echo "The $environment database matches a fresh build of the migrations on every line."
   else
