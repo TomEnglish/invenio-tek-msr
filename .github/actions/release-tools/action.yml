@@ -1,0 +1,31 @@
+name: Release tools
+description: Node, PostgreSQL 17 and, when asked, the command line that deploys the admin function.
+inputs:
+  cli:
+    description: Also install the command line used to deploy the admin function
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+    # The hosted databases run PostgreSQL 17. A fresh build is compared with
+    # them line by line, so it is made with the same version.
+    - name: PostgreSQL 17
+      shell: bash
+      run: |
+        sudo apt-get update -qq
+        if ! apt-cache show postgresql-17 > /dev/null 2>&1; then
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $VERSION_CODENAME-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+        fi
+        sudo apt-get install -y postgresql-17
+        echo /usr/lib/postgresql/17/bin >> "$GITHUB_PATH"
+    - if: inputs.cli == 'true'
+      uses: supabase/setup-cli@v1
+      with:
+        version: 2.108.0

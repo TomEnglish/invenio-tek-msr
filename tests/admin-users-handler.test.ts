@@ -1,4 +1,5 @@
 import { handle } from '../supabase/functions/admin-users/index.ts';
+import { FUNCTION_RELEASE } from '../supabase/functions/admin-users/release.ts';
 
 type Clients = NonNullable<Parameters<typeof handle>[1]>;
 type Row = Record<string, unknown>;
@@ -320,6 +321,19 @@ Deno.test('browser answers name only the configured office site', async () => {
     await handle(request(), clients),
     await handle(request('DELETE'), clients),
   ]) equal(response.headers.get('Access-Control-Allow-Origin'), SITE);
+});
+
+Deno.test('every answer says which version of the function it came from, set up or not', async () => {
+  const { clients } = setup();
+  const preflight = () => handle(new Request('https://example.test/functions/v1/admin-users', { method: 'OPTIONS' }), clients);
+  equal(/^[a-f0-9]{64}$/.test(FUNCTION_RELEASE), true);
+  for (const response of [await preflight(), await handle(request(), clients), await handle(request('DELETE'), clients)]) {
+    equal(response.headers.get('X-Function-Release'), FUNCTION_RELEASE);
+  }
+  // The release check reads this even from a function whose site address is missing.
+  Deno.env.delete('SITE_URL');
+  try { equal((await preflight()).headers.get('X-Function-Release'), FUNCTION_RELEASE); }
+  finally { Deno.env.set('SITE_URL', SITE); }
 });
 
 Deno.test('a trailing slash on the setting is accepted', async () => {
