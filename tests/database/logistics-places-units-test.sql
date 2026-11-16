@@ -357,8 +357,15 @@ UPDATE public.places SET notes='Gate code at the office' WHERE id='9a333333-3333
 SELECT set_config('request.jwt.claim.sub','a1111111-1111-4111-8111-111111111111',true);
 SELECT pg_temp.assert_true((SELECT count(*)=1 FROM public.audit_log WHERE action='place_updated' AND entity_id='9a333333-3333-4333-8333-333333333333'),
  'Changes to places are in the audit log');
+-- 030: nobody retires a place while a crate is recorded there.
+SELECT pg_temp.expect_error($q$UPDATE public.places SET is_active=false WHERE id='9a333333-3333-4333-8333-333333333333'$q$,
+ '22023','Not even an administrator retires a place while a crate is there');
+RESET ROLE;
+UPDATE public.handling_units SET status='unpacked' WHERE code='HU-OTHER2';
+SET LOCAL ROLE authenticated;
 UPDATE public.places SET is_active=false WHERE id='9a333333-3333-4333-8333-333333333333';
-SELECT pg_temp.assert_true((SELECT NOT is_active FROM public.places WHERE id='9a333333-3333-4333-8333-333333333333'),'An administrator can retire a shared place');
+SELECT pg_temp.assert_true((SELECT NOT is_active FROM public.places WHERE id='9a333333-3333-4333-8333-333333333333'),
+ 'An administrator can retire a shared place once nothing is there');
 RESET ROLE;
 
 ROLLBACK;

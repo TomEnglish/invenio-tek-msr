@@ -16,16 +16,40 @@
         $('setupProjects').hidden = !InvenioUserAccess.canAccessAdminPages(InvenioCurrentProfile);
     }
     if ($('projectForm')) {
-        let projects = [];
+        let projects = [], setupRows = new Map();
+        const yardSetup = window.InvenioYardSetup;
+        // Under an active project: what it has of what it needs before work can start (030), with a link for each
+        // missing step. The links carry the project, so they open on it; they are offered only to its members.
+        function setupBlock(project, status) {
+            const steps = yardSetup.setupSteps(status, project.id), left = steps.filter(step => !step.done);
+            const block = element('div', '', 'project-setup small mt-1');
+            block.append(element('div', yardSetup.setupSummary(steps), left.length ? 'fw-semibold' : 'text-muted'));
+            if (!left.length) return block;
+            const list = element('ul', '', 'mb-0 ps-3');
+            for (const step of left) {
+                const item = element('li', `${step.detail} `);
+                if (status.is_member) { const link = element('a', step.action); link.href = step.href; item.append(link); }
+                list.append(item);
+            }
+            block.append(list);
+            if (!status.is_member) block.append(element('div', 'You are not assigned to this project. Add it to your own projects on Users & Access to set it up.', 'text-muted'));
+            return block;
+        }
         async function load() {
-            const result = await client.listProjects();
+            const [result, setup] = await Promise.all([
+                client.listProjects(),
+                // The directory still works when the checklist can't be read (before 030, or offline).
+                yardSetup && supabaseClient.rpc ? Promise.resolve(supabaseClient.rpc('project_setup_status')).catch(error => ({ error })) : { data: [] },
+            ]);
             projects = result.data;
+            setupRows = new Map((setup?.data || []).map(row => [row.project_id, row]));
             $('projectDirectory').replaceChildren();
             if (!projects.length) $('projectDirectory').textContent = 'No projects yet. Create the first project to assign your team.';
             for (const project of projects) {
                 const row = element('div', '', 'd-flex justify-content-between align-items-center border-bottom py-3 gap-3');
                 const text = element('div', '');
                 text.append(element('strong', project.name), element('div', project.status, 'small text-muted'));
+                if (project.status === 'active' && setupRows.has(project.id)) text.append(setupBlock(project, setupRows.get(project.id)));
                 const edit = element('button', 'Edit', 'btn btn-sm btn-outline-primary');
                 edit.type = 'button';
                 edit.onclick = () => {
@@ -44,9 +68,12 @@
             event.preventDefault();
             if ($('projectStatus').value === 'archived' && !confirm('Archive this project? Operational access will stop; its records will be retained.')) return;
             $('projectSave').disabled = true;
+            const created = !$('projectId').value;
             try {
                 await client.saveProject({ projectId: $('projectId').value || undefined, name: $('projectName').value, description: $('projectDescription').value, status: $('projectStatus').value });
-                await load(); $('projectNew').click(); window.InvenioUnsavedChanges = false; message('Project saved. Reload a working page to refresh the project selector.', true);
+                await load(); $('projectNew').click(); window.InvenioUnsavedChanges = false;
+                message(created ? 'Project created. What it still needs before work can start is listed under it: a yard or site, racks and a site plan.'
+                    : 'Project saved. Reload a working page to refresh the project selector.', true);
             } catch (error) { message(error.message); }
             finally { $('projectSave').disabled = false; }
         };

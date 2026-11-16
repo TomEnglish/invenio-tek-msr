@@ -11,6 +11,7 @@
         { label: 'Inventory',       icon: 'fa-warehouse',         href: 'inventory.html' },
         { label: 'Outside Shops',   icon: 'fa-store',             href: 'outside-shop-inventory.html' },
         { label: 'Places',          icon: 'fa-map-pin',           href: 'places.html' },
+        { label: 'Racks',           icon: 'fa-th-large',          href: 'racks.html' },
         { label: 'Crates',          icon: 'fa-box',               href: 'handling-units.html' },
         { label: 'Loads',           icon: 'fa-truck-moving',      href: 'loads.html' },
         { label: 'Gap Analysis',    icon: 'fa-clipboard-check',   href: 'gap-analysis.html', section: 'Planning' },
@@ -52,6 +53,7 @@
         'inventory-categories.html': 'Inventory Categories',
         'site-maps.html': 'Site Maps',
         'places.html': 'Places',
+        'racks.html': 'Racks',
         'handling-units.html': 'Crates',
         'loads.html': 'Loads',
     };

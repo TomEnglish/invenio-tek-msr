@@ -192,7 +192,7 @@
 
     async function setActive(place, active) {
         if (lock.busy) { drawerStatus.textContent = STILL_SAVING; return; }
-        if (!active && !confirm(`Retire ${place.name}? It stays on record and can be restored, but it is no longer offered for new crates and loads.`)) return;
+        if (!active && !confirm(`Retire ${place.name}? It stays on record and can be restored, but it is no longer offered for new crates and loads. A place can't be retired while stock, open loads, active racks or active site plans are still there.`)) return;
         drawerStatus.textContent = active ? 'Restoring…' : 'Retiring…';
         const view = shown;
         const result = await inv.writeThenReload(lock, [async () => {
@@ -212,7 +212,8 @@
         openPlace(place.id, { focus: nowActive ? 'retire' : 'restore', note: text + stale });
     }
 
-    function openForm(place) {
+    /** The form to edit a place or add one. `preset` starts a new place off, as the setup checklist's link does. */
+    function openForm(place, preset = {}) {
         shown++;
         form?.map?.remove();
         const state = form = { place, dirty: false, map: null, marker: null, circle: null };
@@ -228,11 +229,11 @@
         };
         const kind = add('kind', 'Kind', el('select', '', 'form-select'));
         kind.append(new Option('Choose a kind', ''), ...Object.entries(logistics.PLACE_KINDS).map(([value, label]) => new Option(label, value)));
-        kind.value = place?.kind || '';
+        kind.value = place?.kind || preset.kind || '';
         text('name', 'Name').required = true;
         const project = add('project_id', 'Project', el('select', '', 'form-select'));
         project.append(new Option('None (shared by every project)', ''), ...workable.map(item => new Option(item.name, item.id)));
-        project.value = place?.project_id || '';
+        project.value = place?.project_id || preset.project_id || '';
         const showProject = () => { project.parentNode.hidden = !logistics.PROJECT_KINDS.has(kind.value); };
         kind.onchange = () => { showProject(); state.circle?.setStyle({ color: KIND_COLOURS[kind.value] || KIND_COLOURS.other }); markDirty(); };
         showProject();
@@ -347,7 +348,7 @@
         state.map.on('click', event => setPoint(event.latlng));
         setTimeout(() => state.map?.invalidateSize(), 0);
         syncPoint();
-        (place ? inputs.name : kind).focus();
+        (place || preset.kind ? inputs.name : kind).focus();
     }
 
     // ---- Wiring -----------------------------------------------------------------------------
@@ -369,4 +370,11 @@
     $('addPlace').onclick = () => openForm(null);
     try { await load(); }
     catch (error) { message(`Could not load places: ${logistics.errorMessage(error)}`); }
+    // The setup checklist links here with ?add=yard: start a new yard for the project that is open.
+    // It opens once: the parameter leaves the address, so a reload doesn't bring the form back.
+    if (office && new URLSearchParams(window.location?.search || '').get('add') === 'yard') {
+        InvenioProjectScope.dropAddressParameter?.('add');
+        const active = InvenioProjectScope.getActiveProjectId();
+        openForm(null, { kind: 'yard', project_id: workable.some(item => item.id === active) ? active : '' });
+    }
 })();

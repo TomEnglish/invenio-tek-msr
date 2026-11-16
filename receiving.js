@@ -458,7 +458,8 @@ async function loadLocations() {
 
         if (error) throw error;
 
-        wizardState.locations = data || [];
+        // Retired racks (030) stay on record but take nothing new, so they aren't offered.
+        wizardState.locations = (data || []).filter(loc => loc.is_active !== false);
         renderLocationList();
     } catch (err) {
         errorEl.textContent = 'Failed to load locations: ' + err.message;
@@ -468,11 +469,16 @@ async function loadLocations() {
     }
 }
 
+// Rack names are typed by office staff; show them as text, never as markup.
+function locationText(value) {
+    return String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+}
+
 function renderLocationList() {
     const list = document.getElementById('locationList');
 
     if (wizardState.locations.length === 0) {
-        list.innerHTML = '<p class="text-muted text-center py-3">No locations configured.</p>';
+        list.innerHTML = '<p class="text-muted text-center py-3">No racks yet. Office staff add them on the <a href="racks.html">Racks</a> page.</p>';
         return;
     }
 
@@ -485,7 +491,7 @@ function renderLocationList() {
             <div class="location-card ${selected}" data-id="${loc.id}" onclick="selectLocation('${loc.id}')">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <strong>${loc.zone}</strong> - Row ${loc.row}, Rack ${loc.rack}
+                        <strong>${locationText(loc.zone)}</strong> - Row ${locationText(loc.row)}, Rack ${locationText(loc.rack)}
                         ${holdBadge}
                     </div>
                     ${selected ? '<i class="fas fa-check-circle" style="color: var(--primary-blue); font-size: 1.2rem;"></i>' : ''}

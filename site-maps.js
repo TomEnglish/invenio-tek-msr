@@ -43,18 +43,20 @@
         return data;
     }
     // The project's racks, each with the active area it is linked to (022's location_areas, project-scoped). A failure
-    // leaves no racks to choose and says so to the office.
+    // leaves no racks to choose and says so to the office. Every column is read, so 030's rack_active and the rack's
+    // own yard come when the database has them; before 030 every rack counts as active.
     async function loadLocations() {
         const rows = [];
         for (let from = 0; ; from += 1000) {
-            const { data, error } = await projectSupabaseClient.from('location_areas').select('location_id,rack_zone,rack_row,rack,is_hold_area,zone_id,site_map_id,area')
+            const { data, error } = await projectSupabaseClient.from('location_areas').select('*')
                 .order('location_id').range(from, from + 999);
             if (error) { locations = []; racksError = error; renderRacks(); return; }
             rows.push(...data);
             if (data.length < 1000) break;
         }
         const collator = new Intl.Collator(undefined, { numeric: true });
-        locations = rows.map(row => ({ id: row.location_id, zone: row.rack_zone, row: row.rack_row, rack: row.rack, is_hold_area: row.is_hold_area, zone_id: row.zone_id, site_map_id: row.site_map_id, area: row.area }))
+        locations = rows.map(row => ({ id: row.location_id, zone: row.rack_zone, row: row.rack_row, rack: row.rack, is_hold_area: row.is_hold_area, zone_id: row.zone_id, site_map_id: row.site_map_id, area: row.area,
+            active: row.rack_active !== false, place_id: row.rack_place_id || null, place_name: row.rack_place_name || '' }))
             .sort((a, b) => collator.compare(a.zone, b.zone) || collator.compare(a.row, b.row) || collator.compare(a.rack, b.rack));
         racksError = null; renderRacks();
         if (editor?.rackSelect) fillRackChoices(editor.rackSelect);
@@ -68,10 +70,12 @@
     }
     const placeLabel = id => { const place = places.find(item => item.id === id); return place ? `${place.name}${place.is_active === false ? ' (retired)' : ''}` : 'Unavailable'; };
 
-    // Racks no active area is linked to yet, so the office can work through them.
+    // Active racks no active area is linked to yet, so the office can work through them. Retired racks (030) are
+    // out of use and aren't listed.
     function renderRacks() {
         const panel = $('rackStatus'); panel.replaceChildren();
-        panel.hidden = !office || (!racksError && !locations.length);
+        const inUse = locations.filter(item => item.active);
+        panel.hidden = !office || (!racksError && !inUse.length);
         if (panel.hidden) return;
         const title = el('h3', 'Racks without an area', 'h6'); title.id = 'rackStatusTitle'; panel.append(title);
         if (racksError) {
@@ -79,9 +83,9 @@
             panel.append(el('p', missing ? 'Rack links need migration 022 in this database.' : `Racks could not be loaded: ${inv.errorMessage(racksError)}`, 'small text-danger mb-0'));
             return;
         }
-        const free = locations.filter(item => !item.zone_id);
-        if (!free.length) { panel.append(el('p', `All ${locations.length} ${locations.length === 1 ? 'rack is' : 'racks are'} linked to an area.`, 'small text-muted mb-0')); return; }
-        panel.append(el('p', `${free.length} of ${locations.length} ${locations.length === 1 ? 'rack is' : 'racks are'} not linked to an area yet. Edit an area to choose its rack.`, 'small text-muted'));
+        const free = inUse.filter(item => !item.zone_id);
+        if (!free.length) { panel.append(el('p', `All ${inUse.length} ${inUse.length === 1 ? 'rack is' : 'racks are'} linked to an area.`, 'small text-muted mb-0')); return; }
+        panel.append(el('p', `${free.length} of ${inUse.length} ${inUse.length === 1 ? 'rack is' : 'racks are'} not linked to an area yet. Edit an area to choose its rack.`, 'small text-muted'));
         const list = el('ul', '', 'small mb-0');
         for (const item of free.slice(0, 20)) list.append(el('li', `${locationLabel(item.id)}${item.is_hold_area ? ' (hold area)' : ''}`));
         if (free.length > 20) list.append(el('li', `and ${free.length - 20} more`, 'text-muted'));
@@ -288,7 +292,7 @@
             return;
         }
         const inside = inv.descendantIds(tree.byId, zone.id).size - 1;
-        if (!confirm(`Make ${zone.name} inactive? Field crews will no longer see it${inside ? ` or the ${inside} ${inside === 1 ? 'area' : 'areas'} inside it` : ''}. Items already counted there keep their location.`)) return;
+        if (!confirm(`Make ${zone.name} inactive? Field crews will no longer see it${inside ? ` or the ${inside} ${inside === 1 ? 'area' : 'areas'} inside it` : ''}. It can't be made inactive while crates or items are still recorded there.`)) return;
         void saveZoneChanges([{ id: zone.id, values: { is_active: false } }], `${zone.name} is inactive.`, undefined, true);
     }
 
@@ -400,14 +404,19 @@
         }
     }
 
-    /** Fill the rack choices, keeping the one chosen. A rack another active area has is shown with it and can't be chosen. */
+    /**
+     * Fill the rack choices, keeping the one chosen. A rack another active area has is shown with it and can't be
+     * chosen; nor can a rack at a yard or site other than the one this plan draws (030). Retired racks are left out,
+     * except the one this area already names.
+     */
     function fillRackChoices(select) {
         const wanted = select.options.length ? select.value : editor.zone?.location_id || '';
         const linkedTo = item => `${item.area || 'another area'}${item.site_map_id && item.site_map_id !== current.id ? ` on ${maps.find(map => map.id === item.site_map_id)?.name || 'another plan'}` : ''}`;
-        select.replaceChildren(new Option('No rack', ''), ...locations.map(item => {
+        select.replaceChildren(new Option('No rack', ''), ...locations.filter(item => item.active || item.id === wanted).map(item => {
             const elsewhere = Boolean(item.zone_id) && item.zone_id !== editor.zone?.id;
-            const option = new Option(`${locationLabel(item.id)}${item.is_hold_area ? ' (hold area)' : ''}${elsewhere ? `: linked to ${linkedTo(item)}` : ''}`, item.id);
-            option.disabled = elsewhere && item.id !== wanted;
+            const away = Boolean(item.place_id && current.place_id && item.place_id !== current.place_id);
+            const option = new Option(`${locationLabel(item.id)}${item.is_hold_area ? ' (hold area)' : ''}${item.active ? '' : ' (retired)'}${elsewhere ? `: linked to ${linkedTo(item)}` : away ? `: at ${item.place_name || 'another yard or site'}` : ''}`, item.id);
+            option.disabled = (elsewhere || away) && item.id !== wanted;
             return option;
         }));
         if (wanted && !locations.some(item => item.id === wanted)) select.append(new Option('Linked rack (unavailable)', wanted));
@@ -431,7 +440,7 @@
         form.append(parentNote, el('p', '', 'small zone-warning zone-outline-warning'));
         const location = field(form, 'Rack', el('select', '', 'form-select'), 'zoneLocation');
         editor.rackSelect = location; fillRackChoices(location);
-        form.append(el('p', 'A rack is linked to one area: items received or moved to the rack go to that area. To move a rack to this area, choose No rack on its current area first.', 'small text-muted'));
+        form.append(el('p', 'A rack is linked to one area: items received or moved to the rack go to that area. To move a rack to this area, choose No rack on its current area first. Racks are added and retired on the Racks page.', 'small text-muted'));
         form.append(el('p', 'Drag a point to move it, click a small midpoint to add one, or right-click a point to remove it. Areas cannot be deleted; make one inactive to hide it from field crews.', 'small text-muted'));
         const actions = el('div', '', 'd-flex gap-2');
         const save = el('button', 'Save area', 'btn btn-primary'); save.type = 'submit';
@@ -595,7 +604,7 @@
     async function toggleActive() {
         if (stillSaving()) return;
         const next = !current.is_active;
-        if (!next && !confirm(`Make ${current.name} inactive? Field crews will no longer see it when they count.`)) return;
+        if (!next && !confirm(`Make ${current.name} inactive? Field crews will no longer see it when they count. It can't be made inactive while crates or items are still recorded on it.`)) return;
         lock.busy = true;
         try {
             const { error } = await projectSupabaseClient.from('site_maps').update({ is_active: next }).eq('id', current.id);

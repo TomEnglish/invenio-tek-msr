@@ -57,6 +57,12 @@
         place(6,'Old Pipe Yard','yard',{is_active:false,city:'Angleton',state:'TX',latitude:29.169,longitude:-95.431}),
         place(7,'West Yard gate','yard',{project_id:'b3333333-3333-4333-8333-333333333333',city:'Sweeny',state:'TX',latitude:29.04,longitude:-95.698}),
     ];
+    // Racks (locations). 030: each is active or retired and may be at a yard or site. A1 and A2 are at the project's
+    // yard, the hold-area rack has no yard yet, and one rack is retired.
+    const rackRow = (n, zone, row, rack, extra = {}) => ({ id:`d${n}${n}${n}${n}${n}${n}${n}-${n}${n}${n}${n}-4${n}${n}${n}-8${n}${n}${n}-${String(n).repeat(12)}`, project_id:project.id, zone, row, rack,
+        is_hold_area:false, capacity:null, is_active:true, place_id:null, created_at:'2026-10-20T12:00:00Z', updated_at:'2026-10-20T12:00:00Z', ...extra });
+    state.inventory.locations ||= [rackRow(1,'A','1','1',{place_id:place(1).id,capacity:40}), rackRow(2,'A','1','2',{place_id:place(1).id}),
+        rackRow(3,'H','1','1',{is_hold_area:true}), rackRow(4,'<b>B</b>','1','1',{is_active:false,place_id:place(1).id})];
     const unit = (code, extra = {}) => ({ id:`h${code.slice(3,7)}000-0000-4000-8000-000000000000`, project_id:project.id, code, kind:'crate', description:null, is_high_value:false, status:'open',
         parent_id:null, parent_code:null, place_id:null, place_name:null, site_map_id:null, zone_id:null, location:null, item_count:0, unit_count:0, sealed_at:null,
         created_at:'2026-10-28T14:00:00Z', updated_at:'2026-10-28T14:00:00Z', ...extra });
@@ -246,8 +252,9 @@
                 const rows = state.shipmentTrackers.filter(r=>this.filters.every(f=>f(r))).slice(this.start,this.end+1).map(row=>({...row}));
                 return Promise.resolve({data:rows,error:null}).then(resolve,reject);
             }
-            let rows = this.table==='users' ? [me,{id:'f1111111-1111-4111-8111-111111111111',full_name:'Jordan Field',role:'field_worker'}] : this.table==='projects' ? state.projects : this.table==='user_projects' ? (sessionStorage.getItem('fixtureNoProjects') ? [] : state.projects.map(p=>({user_id:me.id,project_id:p.id,projects:p}))) : this.table==='receiving_records'||this.table==='materials' ? state.records : this.table==='locations' ? racks : this.table==='location_areas' ? racks.map(rack=>{ const zone=state.inventory.site_map_zones.find(z=>z.location_id===rack.id&&z.is_active!==false);
-                return {location_id:rack.id,project_id:rack.project_id,rack_zone:rack.zone,rack_row:rack.row,rack:rack.rack,is_hold_area:rack.is_hold_area,zone_id:zone?.id||null,site_map_id:zone?.map_id||null,area:zone?.name||null}; }) : [];
+            let rows = this.table==='users' ? [me,{id:'f1111111-1111-4111-8111-111111111111',full_name:'Jordan Field',role:'field_worker'}] : this.table==='projects' ? state.projects : this.table==='user_projects' ? (sessionStorage.getItem('fixtureNoProjects') ? [] : state.projects.map(p=>({user_id:me.id,project_id:p.id,projects:p}))) : this.table==='receiving_records'||this.table==='materials' ? state.records : this.table==='location_areas' ? state.inventory.locations.map(rack=>{ const zone=state.inventory.site_map_zones.find(z=>z.location_id===rack.id&&z.is_active!==false);
+                return {location_id:rack.id,project_id:rack.project_id,rack_zone:rack.zone,rack_row:rack.row,rack:rack.rack,is_hold_area:rack.is_hold_area,zone_id:zone?.id||null,site_map_id:zone?.map_id||null,area:zone?.name||null,
+                    rack_active:rack.is_active!==false,rack_place_id:rack.place_id||null,rack_place_name:state.inventory.places.find(p=>p.id===rack.place_id)?.name||null}; }) : [];
             const mode = new URLSearchParams(location.search).get('fixture');
             if (reportRows[this.table]) rows = mode==='empty' ? [] : reportRows[this.table];
             if ((mode==='error' && this.table==='purchase_orders' || mode==='work-error' && this.table==='receiving_records') || (mode==='gps-error' && this.table==='samsara_trackers')) return Promise.resolve({data:null,error:{message:'Fixture source unavailable'}}).then(resolve,reject);
@@ -277,15 +284,23 @@
         inventory() {
             const table = state.inventory[this.table];
             // Sibling names are unique, ignoring case: categories among non-archived rows, map areas among active ones (020).
-            const live = row => ['site_map_zones','places'].includes(this.table) ? row.is_active!==false : row.status!=='archived';
+            const live = row => ['site_map_zones','places','locations'].includes(this.table) ? row.is_active!==false : row.status!=='archived';
+            // 030: a project's active racks have unique names; a rack linked to an active area can't be retired.
+            const rackName = row => `${row.zone} · Row ${row.row}, Rack ${row.rack}`;
+            const rackClash = row => this.table==='locations' && live(row) && table.some(c=>c.id!==row.id && live(c) && c.project_id===row.project_id && rackName(c).toLowerCase()===rackName(row).toLowerCase());
+            const rackTaken = row => ({data:null,error:{code:'23505',message:`Another active rack is already called ${rackName(row)}`}});
             const clash = row => ['inventory_categories','site_map_zones','places'].includes(this.table) && live(row) && table.some(c=>c.id!==row.id && live(c) && (c.map_id||null)===(row.map_id||null) && (c.parent_id||null)===(row.parent_id||null) && c.name.toLowerCase()===row.name.toLowerCase());
-            const defaults = { inventory_categories:{status:'active'}, site_map_zones:{parent_id:null,is_active:true}, places:{is_active:true,geofence_radius_m:300} }[this.table] || {};
+            const defaults = { inventory_categories:{status:'active'}, site_map_zones:{parent_id:null,is_active:true}, places:{is_active:true,geofence_radius_m:300},
+                locations:{is_active:true,is_hold_area:false,capacity:null,place_id:null} }[this.table] || {};
             // 021: only office staff write places, and only for places outside a project or in one of theirs.
-            if (this.table==='places' && this.write && me.role==='field_worker') return {data:null,error:{code:'42501',message:'new row violates row-level security policy for table "places"'}};
+            if (['places','locations'].includes(this.table) && this.write && me.role==='field_worker') return {data:null,error:{code:'42501',message:`new row violates row-level security policy for table "${this.table}"`}};
             if (this.table==='places' && this.write) Object.assign(this.write.insert?.[0]||this.write.update, {updated_at:new Date().toISOString()});
+            if (this.table==='locations' && this.write) (this.write.insert||[this.write.update]).forEach(values => { values.updated_at = new Date().toISOString(); });
             if (this.write?.insert) {
                 const added = this.write.insert.map(values => ({ id: crypto.randomUUID(), sort_order: 0, created_at: new Date().toISOString(), ...defaults, ...values }));
                 if (added.some(clash)) return {data:null,error:{code:'23505',message:'duplicate key value violates unique constraint'}};
+                const repeat = added.find((row,index) => rackClash(row) || (this.table==='locations' && added.some((other,at) => at<index && rackName(other).toLowerCase()===rackName(row).toLowerCase())));
+                if (repeat) return rackTaken(repeat);
                 table.push(...added); save();
                 return {data:this.one?added[0]:added,error:null};
             }
@@ -293,6 +308,12 @@
             const rows = table.filter(r=>this.filters.every(f=>f(r)) && (!this.write || mine(r)));
             if (this.write?.update) {
                 if (rows.some(row => clash({...row,...this.write.update}))) return {data:null,error:{code:'23505',message:'duplicate key value violates unique constraint'}};
+                const renamed = rows.find(row => rackClash({...row,...this.write.update}));
+                if (renamed) return rackTaken({...renamed,...this.write.update});
+                if (this.table==='locations' && this.write.update.is_active===false) for (const row of rows.filter(live)) {
+                    const linked = state.inventory.site_map_zones.find(z=>z.location_id===row.id && z.is_active!==false);
+                    if (linked) return {data:null,error:{code:'22023',message:`${rackName(row)} can't be retired yet: it is linked to the area ${linked.name}; on Site Maps, set that area to No rack first`}};
+                }
                 // 020's guard: an area can't end up inside itself.
                 const above = id => { const ids = []; for (let node = table.find(r=>r.id===id); node && ids.length < 50; node = table.find(r=>r.id===node.parent_id)) ids.push(node.id); return ids; };
                 if (this.table==='site_map_zones' && this.write.update.parent_id && rows.some(row => above(this.write.update.parent_id).includes(row.id))) return {data:null,error:{code:'22023',message:'An area cannot be placed inside itself'}};
@@ -303,10 +324,18 @@
             return {data:this.one?page[0]||null:page,error:null};
         }
     }
-    // Racks (locations); 022's location_areas pairs each with its active area.
-    const racks = [{id:'d1111111-1111-4111-8111-111111111111',project_id:project.id,zone:'A',row:'1',rack:'1',is_hold_area:false},
-        {id:'d2222222-2222-4222-8222-222222222222',project_id:project.id,zone:'A',row:'1',rack:'2',is_hold_area:false},
-        {id:'d3333333-3333-4333-8333-333333333333',project_id:project.id,zone:'H',row:'1',rack:'1',is_hold_area:true}];
+    // 030's project_setup_status: what each project has of what it needs before work can start.
+    function setupStatus(projectId) {
+        if (!['office_staff','admin'].includes(me.role)) return [];
+        const yards = state.inventory.places.filter(p=>['yard','site'].includes(p.kind) && p.is_active!==false);
+        return state.projects.filter(p=>p.status!=='archived' && (!projectId || p.id===projectId)).map(p => {
+            const racks = state.inventory.locations.filter(r=>r.project_id===p.id && r.is_active!==false);
+            const plans = state.inventory.site_maps.filter(m=>m.project_id===p.id && m.is_active!==false);
+            return { project_id:p.id, is_member:true, own_yards:yards.filter(y=>y.project_id===p.id).length, shared_yards:yards.filter(y=>!y.project_id).length,
+                shared_yards_used:yards.filter(y=>!y.project_id && (racks.some(r=>r.place_id===y.id) || plans.some(m=>m.place_id===y.id))).length,
+                racks:racks.length, hold_racks:racks.filter(r=>r.is_hold_area).length, site_plans:state.inventory.site_maps.filter(m=>m.project_id===p.id && m.is_active!==false).length };
+        });
+    }
     window.fixture = { state, me, calls: [] };
     window.supabase = { createClient: () => ({
         from: table => new Query(table), channel: () => new Query(''),
@@ -315,6 +344,7 @@
             window.fixture.calls.push({name,payload});
             if(name==='project_staff' && new URLSearchParams(location.search).get('fixture')==='staff-error') return {data:null,error:{message:'Fixture staff unavailable'}};
             if(name==='project_staff') return success([{id:me.id,full_name:me.full_name}]);
+            if(name==='project_setup_status') return success(setupStatus(payload?.p_project_id));
             if(name==='apply_field_operation' && payload.p_action!=='exception') return loadCall(() => loadsModel.apply(payload.p_action, payload.p_payload));
             if(['record_driver_licence','attach_driver_licence_photo','driver_licences_due_for_removal','remove_driver_licence','remove_driver_licence_photo',
                 'driver_licences_due_soon','keep_driver_licence','release_driver_licence_hold'].includes(name)) return loadCall(() => loadsModel.call(name, payload));
