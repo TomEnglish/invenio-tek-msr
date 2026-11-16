@@ -148,9 +148,13 @@
         if (error) throw new Error('Unable to load project access. Please try again.');
         api.availableProjects = (data || []).map(row => row.projects)
             .filter(project => project && project.status !== 'archived');
-        let saved;
+        let saved, asked;
         try { saved = global.localStorage?.getItem(`invenio-project-${userId}`); } catch (_) {}
-        const selected = api.availableProjects.find(project => project.id === saved) || api.availableProjects[0];
+        // A link can name the project to open on (?project=<id>), as the setup checklist does. It is used only when
+        // it is one of this person's projects; then it becomes their chosen project, as if picked in the selector.
+        try { asked = new URLSearchParams(global.location?.search || '').get('project'); } catch (_) {}
+        const find = id => api.availableProjects.find(project => project.id === id);
+        const selected = find(asked) || find(saved) || api.availableProjects[0];
         if (selected) setActiveProjectId(selected.id);
         return getActiveProjectId();
     }

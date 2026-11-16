@@ -42,7 +42,7 @@
 </head>
 
 <body data-required-role="admin" data-project-optional="true">
-<section class="user-admin-header"><div><h1>Projects</h1><p>Manage project details and availability. New projects are assigned to you automatically.</p></div></section>
+<section class="user-admin-header"><div><h1>Projects</h1><p>Manage project details and availability. New projects are assigned to you automatically. Each active project lists what it still needs before work can start.</p></div></section>
 <div id="pageMessage" class="alert d-none" role="status"></div>
 <div class="row g-4"><div class="col-lg-7"><section class="user-card p-3"><h2 class="h5">Project directory</h2><div id="projectDirectory">Loading projects...</div></section></div>
 <div class="col-lg-5"><section class="user-card p-3"><h2 class="h5" id="projectFormTitle">Create project</h2>
@@ -57,11 +57,12 @@
     <script src="js/utils/formatting.js?v=20260424f"></script>
     <script src="js/utils/branding.js?v=20261010portal"></script>
     <script src="js/utils/supabase-client.js?v=20260424f"></script>
-    <script src="js/utils/project-scope.js?v=20260908a"></script>
+    <script src="js/utils/project-scope.js?v=20261116racks"></script>
     <script src="js/utils/user-access.js?v=20260908a"></script>
     <script src="js/utils/auth-guard.js?v=20260908a"></script>
-    <script src="js/utils/sidebar.js?v=20261010portal"></script>
+    <script src="js/utils/sidebar.js?v=20261116racks"></script>
     <script src="js/utils/admin-users-client.js?v=20260908a"></script>
-    <script src="admin-pages.js?v=20261102us"></script>
+    <script src="js/utils/yard-setup.js?v=20261116racks"></script>
+    <script src="admin-pages.js?v=20261116racks"></script>
 </body>
 </html>

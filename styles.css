@@ -1434,6 +1434,9 @@ button.category-toggle:hover { background:var(--primary-soft); color:var(--prima
 .crate-tree-level .table { margin:.5rem 0 0; }
 .crate-tree-items td.mono { white-space:nowrap; }
 .crate-contents-row > td { padding:.75rem 1rem; background:var(--raised); }
+/* Project setup checklist (Racks page) */
+.setup-steps { list-style:none; margin:0; padding:0; display:grid; gap:.5rem; }
+.setup-step { display:flex; flex-wrap:wrap; align-items:baseline; gap:.375rem .625rem; }
 @media (max-width:1024px) { .places-layout { grid-template-columns:1fr; } }
 @media (max-width:600px) { .place-form-grid { grid-template-columns:1fr; } }
 /* Loads and Outside Shops (logistics) */

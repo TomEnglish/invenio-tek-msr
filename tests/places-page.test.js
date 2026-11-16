@@ -120,12 +120,12 @@ function fakeLeaflet() {
     return leaflet;
 }
 
-async function openPage({ role = 'admin', rows = PLACES } = {}) {
+async function openPage({ role = 'admin', rows = PLACES, search = '' } = {}) {
     const server = fakeServer(rows, { role });
     const leaflet = fakeLeaflet(), confirms = [];
     const { document, Option } = fakeDocument();
     const context = {
-        document, Option, console, setTimeout, structuredClone, Intl,
+        document, Option, console, setTimeout, structuredClone, Intl, URLSearchParams, location: { search },
         confirm: text => { confirms.push(text); return context.confirmAnswer ?? true; }, L: leaflet.L,
         SITE_CONFIG: { LATITUDE: 28.954, LONGITUDE: -95.359 },
         InvenioAuthReady: Promise.resolve(true), InvenioInventory: inventory, InvenioLogistics: logistics, InvenioCurrentProfile: { role },
@@ -479,4 +479,29 @@ test('tying a shared yard or site to one project while others use it is refused 
     await page.submit();
     assert.equal(page.status(), "Could not save: Coastal Terminal site is in use by other projects, so it can't belong to one project");
     assert.equal(page.server.place('Coastal Terminal site').project_id, null);
+});
+
+test('the setup checklist link (?add=yard) opens a new yard for the project that is open; nobody else gets a form', async () => {
+    const page = await openPage({ role: 'office_staff', search: '?add=yard&project=p1' });
+    assert.equal(page.drawer.open, true);
+    assert.equal(page.content.querySelector('h2').textContent, 'Add place');
+    assert.equal(page.input('kind').value, 'yard');
+    assert.equal(page.input('project_id').value, PROJECT_ID);
+    assert.equal(page.input('project_id').parentNode.hidden, false, 'the project choice shows for a yard');
+    page.fill({ name: 'Laydown Yard' });
+    await page.submit();
+    assert.deepEqual([page.server.writes()[0].values.kind, page.server.writes()[0].values.name, page.server.writes()[0].values.project_id], ['yard', 'Laydown Yard', PROJECT_ID]);
+    const field = await openPage({ role: 'field_worker', search: '?add=yard' });
+    assert.equal(field.drawer.open, undefined, 'a field worker is not shown the form');
+});
+
+test('retiring warns what keeps a place in use, and shows the database\'s list of what is still there (030)', async () => {
+    const page = await openPage();
+    const refusal = { code: '22023', message: "Gulf Valve Supply can't be retired yet: it still has 1 crate, 2 loose items and 1 open load" };
+    page.server.fail = request => request.op === 'update' ? refusal : null;
+    await page.view('Gulf Valve Supply');
+    page.action('Retire').click(); await settle();
+    assert.match(page.confirms.at(-1), /A place can't be retired while stock, open loads, active racks or active site plans are still there\.$/);
+    assert.equal(page.status(), `Could not retire Gulf Valve Supply: ${refusal.message}`);
+    assert.equal(page.server.place('Gulf Valve Supply').is_active, true);
 });

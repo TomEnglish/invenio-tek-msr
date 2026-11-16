@@ -50,7 +50,9 @@ function fakeServer(zones, { image = false, places = PLACES, locations = [], map
             const zone = server.zones.find(other => other.location_id === item.id && other.is_active !== false);
             const map = zone && server.maps.find(other => other.id === zone.map_id);
             return { location_id: item.id, project_id: item.project_id, rack_zone: item.zone, rack_row: item.row, rack: item.rack, is_hold_area: item.is_hold_area,
-                zone_id: zone?.id || null, site_map_id: zone?.map_id || null, area: zone ? path(zone) : null, place_id: map?.place_id || null };
+                zone_id: zone?.id || null, site_map_id: zone?.map_id || null, area: zone ? path(zone) : null, place_id: map?.place_id || null,
+                // 030: whether the rack is active, and the yard or site it is at.
+                rack_active: item.is_active !== false, rack_place_id: item.place_id || null, rack_place_name: server.places.find(other => other.id === item.place_id)?.name || null };
         }),
         // The page's .or() is "project_id is null or this project"; it orders by name.
         places: request => server.places.filter(item => !request.or || !item.project_id || request.or.includes(`project_id.eq.${item.project_id}`))
@@ -501,6 +503,37 @@ test('the area editor lists the racks, marks the ones other areas have, and the 
     page.control('Rack 1', 'Edit Rack 1').click();
     assert.equal(page.formField('zoneLocation').value, 'l1');
     assert.equal(page.formField('zoneLocation').options[1].disabled, false);
+});
+
+test('retired racks are not offered or counted, and a rack at another yard or site cannot be chosen (030)', async () => {
+    const racks = [...RACKS, rack('l4', 'C', '1', '1', { is_active: false }), rack('l5', 'D', '1', '1', { place_id: 's1' }), rack('l6', 'D', '1', '2', { place_id: 'y1' })];
+    const page = await openPage(racked(), { image: true, locations: racks, otherMaps: [SOUTH], map: { place_id: 'y1' } });
+    assert.deepEqual(rackPanel(page), ['3 of 5 racks are not linked to an area yet. Edit an area to choose its rack.',
+        'B · Row 2, Rack 1 (hold area)', 'D · Row 1, Rack 1', 'D · Row 1, Rack 2'], 'the retired rack is neither counted nor listed');
+    page.control('Rack 2', 'Edit Rack 2').click();
+    assert.deepEqual(optionTexts(page.formField('zoneLocation')), ['No rack', 'A · Row 1, Rack 1: linked to T1 Pipe Racks › Rack 1 [disabled]',
+        'A · Row 1, Rack 2: linked to Far bay on South plan [disabled]', 'B · Row 2, Rack 1 (hold area)',
+        'D · Row 1, Rack 1: at Coastal Terminal site [disabled]', 'D · Row 1, Rack 2']);
+    assert.match(page.$('zoneEditor').textContent, /Racks are added and retired on the Racks page\./);
+    // An area that already names a retired rack still shows it, so saving the area doesn't drop the link unnoticed.
+    const kept = await openPage(racked().map(zone => zone.id === 'r2' ? { ...zone, location_id: 'l4' } : zone), { image: true, locations: racks, otherMaps: [SOUTH] });
+    kept.control('Rack 2', 'Edit Rack 2').click();
+    assert.ok(optionTexts(kept.formField('zoneLocation')).includes('C · Row 1, Rack 1 (retired)'));
+    assert.equal(kept.formField('zoneLocation').value, 'l4');
+});
+
+test('making an area or a plan inactive warns that stock must be moved first, and shows the database\'s refusal (030)', async () => {
+    const refusal = { code: '22023', message: "T1 Pipe Racks can't be made inactive yet: it still has 1 crate and 2 loose items recorded there; move them first" };
+    const page = await openPage(plan, { image: true });
+    page.server.fail = request => request.op === 'update' && request.values?.is_active === false ? refusal : null;
+    page.control('T1 Pipe Racks', 'Make inactive: T1 Pipe Racks').click();
+    await settle();
+    assert.match(page.confirms.at(-1), /It can't be made inactive while crates or items are still recorded there\.$/);
+    assert.equal(page.$('pageMessage').textContent, `Could not save: ${refusal.message}`);
+    page.$('mapActions').querySelectorAll('button').find(node => node.textContent === 'Make inactive').click();
+    await settle();
+    assert.match(page.confirms.at(-1), /It can't be made inactive while crates or items are still recorded on it\.$/);
+    assert.equal(page.$('pageMessage').textContent, `Could not save: ${refusal.message}`);
 });
 
 test('a rack linked elsewhere meanwhile is refused with that reason, told apart from a name clash', async () => {
