@@ -1,5 +1,6 @@
 {
   "$comment": "One entry per environment: a complete, separate copy of the system. Public values only; secrets stay in each environment's secret store. See docs/ENVIRONMENTS.md.",
+  "previews": "dev",
   "environments": {
     "demo": {
       "kind": "production",
@@ -7,6 +8,14 @@
       "siteUrl": "https://invenio-field-msr.netlify.app",
       "databaseUrl": "https://lzroduricxyshgyjdkki.supabase.co",
       "publicKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6cm9kdXJpY3h5c2hneWpka2tpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE3NzgyMDIsImV4cCI6MjA4NzM1NDIwMn0.oX_nOPHGkUeaUKXHAb086MGCTjIwV2PQ1q1aDLvUCRs",
+      "defaultProjectId": "00000000-0000-0000-0000-000000000000"
+    },
+    "dev": {
+      "kind": "dev",
+      "label": "Dev",
+      "siteUrl": "https://invenio-field-msr-dev.netlify.app",
+      "databaseUrl": "https://qmqwpbvxlnblwhjodwgr.supabase.co",
+      "publicKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtcXdwYnZ4bG5ibHdoam9kd2dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ3ODQ1OTEsImV4cCI6MjExMDM2MDU5MX0.-126frQMHwEhXP6J_IKo2IgFyTCxtGKzX2FYbVjCj8I",
       "defaultProjectId": "00000000-0000-0000-0000-000000000000"
     }
   }
