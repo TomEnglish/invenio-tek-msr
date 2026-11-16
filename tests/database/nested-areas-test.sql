@@ -79,8 +79,15 @@ BEGIN
 END $$;
 RESET ROLE;
 
--- Retiring a parent takes its sub-areas out of use too.
+-- 030: an area can't be made inactive while an item is recorded in it or in an area inside it.
+SELECT pg_temp.expect_error($query$
+ UPDATE public.site_map_zones SET is_active=false WHERE id='2b111111-1111-4111-8111-111111111111'
+$query$,'22023','An area holding a counted item cannot be made inactive');
+-- Retiring a parent takes its sub-areas out of use too. Areas retired before 030 may still hold items, so that
+-- state is built the way it was made then, with the newer check switched off.
+ALTER TABLE public.site_map_zones DISABLE TRIGGER site_map_zones_setup_guard;
 UPDATE public.site_map_zones SET is_active=false WHERE id='2b111111-1111-4111-8111-111111111111';
+ALTER TABLE public.site_map_zones ENABLE TRIGGER site_map_zones_setup_guard;
 SELECT pg_temp.assert_true(NOT public.site_map_zone_is_live('2b222222-2222-4222-8222-222222222222'),
  'An area under a retired parent is out of use');
 SET LOCAL ROLE authenticated;
@@ -179,8 +186,11 @@ BEGIN
  $query$),'22023','Moving an area with sub-areas cannot push them past twenty levels');
 END $$;
 
--- Once every area is retired, a count needs no location again.
+-- Once every area is retired, a count needs no location again. (Items are still recorded in Bay A, as could
+-- happen before 030, so its check is switched off to build that state.)
+ALTER TABLE public.site_map_zones DISABLE TRIGGER site_map_zones_setup_guard;
 UPDATE public.site_map_zones SET is_active=false WHERE project_id='b1111111-1111-4111-8111-111111111111';
+ALTER TABLE public.site_map_zones ENABLE TRIGGER site_map_zones_setup_guard;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','f1111111-1111-4111-8111-111111111111',true);
 INSERT INTO results VALUES('all_retired',public.apply_field_operation(
