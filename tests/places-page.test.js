@@ -488,6 +488,7 @@ test('the setup checklist link (?add=yard) opens a new yard for the project that
     assert.equal(page.input('kind').value, 'yard');
     assert.equal(page.input('project_id').value, PROJECT_ID);
     assert.equal(page.input('project_id').parentNode.hidden, false, 'the project choice shows for a yard');
+    assertFocus(page, page.input('name'), 'the kind is already chosen, so typing starts at the name');
     page.fill({ name: 'Laydown Yard' });
     await page.submit();
     assert.deepEqual([page.server.writes()[0].values.kind, page.server.writes()[0].values.name, page.server.writes()[0].values.project_id], ['yard', 'Laydown Yard', PROJECT_ID]);

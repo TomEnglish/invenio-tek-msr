@@ -348,7 +348,7 @@
         state.map.on('click', event => setPoint(event.latlng));
         setTimeout(() => state.map?.invalidateSize(), 0);
         syncPoint();
-        (place ? inputs.name : kind).focus();
+        (place || preset.kind ? inputs.name : kind).focus();
     }
 
     // ---- Wiring -----------------------------------------------------------------------------

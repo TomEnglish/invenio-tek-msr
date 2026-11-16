@@ -135,14 +135,14 @@
     <thead><tr><th style="width:24%">Role</th><th style="width:20%">Works in</th><th>Can</th></tr></thead>
     <tbody>
       <tr><td>Field worker <span class="who crew">Crew</span></td><td>Field app</td><td>Scan, receive deliveries, count, move and issue stock, pack and move crates, start a load for a truck that turns up, check drivers in, load out, depart once the license is on file, unload and finish stops at our own yards and sites.</td></tr>
-      <tr><td>Office staff <span class="who office">Office</span></td><td>Office site, and the app</td><td>Everything a crew can, plus: places, site maps and crate labels; planning loads; letting a truck leave without the license (with a reason); confirming deliveries at outside shops and vendors; marking pieces found, writing them off, closing and canceling loads; driver licenses; exceptions and holds; importing the expected list; shipping stock out; linking GPS trackers to shipments.</td></tr>
+      <tr><td>Office staff <span class="who office">Office</span></td><td>Office site, and the app</td><td>Everything a crew can, plus: places, racks, site maps and crate labels; planning loads; letting a truck leave without the license (with a reason); confirming deliveries at outside shops and vendors; marking pieces found, writing them off, closing and canceling loads; driver licenses; exceptions and holds; importing the expected list; shipping stock out; linking GPS trackers to shipments.</td></tr>
       <tr><td>Administrator <span class="who admin">Admin</span></td><td>Office site</td><td>Everything office staff can, plus users and access, projects, the Data Browser, the admin audit, correcting material records, editing or deleting PO &amp; Installation links, and undoing a write-off.</td></tr>
     </tbody>
   </table>
   <p>The screens only hide buttons a person can't use; the database itself enforces every role (appendix A5). When this guide says <strong>office</strong>, it means office staff and administrators alike.</p>
 
   <h3>Projects</h3>
-  <p>Every record belongs to a project, and each person works only in the projects they are assigned to. Two things are shared by every project: <strong>places</strong> (yards, sites, outside shops and vendors) and <strong>crate labels</strong>, whose HU- codes are unique across all projects.</p>
+  <p>Every record belongs to a project, and each person works only in the projects they are assigned to. Two things are shared by every project: <strong>places</strong> (outside shops and vendors always; a yard or site either belongs to one project or is shared) and <strong>crate labels</strong>, whose HU- codes are unique across all projects.</p>
   <ul>
     <li><strong>Active</strong>: people can work in it.</li>
     <li><strong>Completed</strong>: read only. Pages say “This project is read-only.”</li>
@@ -412,7 +412,7 @@
     <thead><tr><th style="width:20%">Group</th><th>Pages</th></tr></thead>
     <tbody>
       <tr><td>Top</td><td><span class="ui">Dashboard</span> (project tiles, “Work needing attention”, “Expected arrivals”, <span class="ui">Export PDF</span>) and <span class="ui">Work Inbox</span> (chapter 18).</td></tr>
-      <tr><td>Logistics</td><td><span class="ui">Outside Shops</span>, <span class="ui">Places</span>, <span class="ui">Crates</span> and <span class="ui">Loads</span> (chapters 13 to 16, 18). <span class="ui">Shipments</span> lists the PO &amp; Shipment Log with where each shipment is now (below). <span class="ui">Inventory</span> (formerly Yard Inventory) is an older, read-only view of the count records, now with their photos.</td></tr>
+      <tr><td>Logistics</td><td><span class="ui">Outside Shops</span>, <span class="ui">Places</span>, <span class="ui">Racks</span>, <span class="ui">Crates</span> and <span class="ui">Loads</span> (chapters 13 to 16, 18). <span class="ui">Shipments</span> lists the PO &amp; Shipment Log with where each shipment is now (below). <span class="ui">Inventory</span> (formerly Yard Inventory) is an older, read-only view of the count records, now with their photos.</td></tr>
       <tr><td>Planning</td><td><span class="ui">PO &amp; Installation</span> links PO items to install tags; administrators can edit or delete a link. <span class="ui">Gap Analysis</span>, <span class="ui">Delivery Dates</span> and <span class="ui">Schedule</span> are older, read-only pages.</td></tr>
       <tr><td>Field</td><td><span class="ui">Receiving</span> (a six-step receipt for use at a desk; photos are JPEG or PNG, up to 10 MB each), <span class="ui">GPS Tracking</span> (tracker positions and the shipment each tracker rides with, appendix A9). <span class="ui">Site Plan</span> is a demonstration page, not Site Maps.</td></tr>
       <tr><td>Initial Count</td><td><span class="ui">Initial Inventory</span>, <span class="ui">Inventory Categories</span> and <span class="ui">Site Maps</span> (chapters 13 and 17).</td></tr>
@@ -436,23 +436,30 @@
   <p class="for"><span class="who office">Office</span></p>
   <p class="lede">Where things are rests on three layers: <strong>places</strong> (the yard, site, shop or vendor), <strong>site maps</strong> (a plan of one yard or site, divided into named <strong>areas</strong>), and <strong>racks</strong>, the older receiving locations, each linked to an area.</p>
   <h3>Places</h3>
-  <p>Places are shared by every project. Everyone sees the list and the map; office staff edit. Nothing is deleted, and names are unique among active places.</p>
+  <p>Everyone sees the list and the map; office staff edit. Outside shops and vendors are shared by every project. A yard or site belongs to one project or is shared by all. Nothing is deleted. An active place's name is unique within its project, so two projects can each have a “Laydown Yard”; shared places are unique among themselves, and a project's place can't take a shared place's name.</p>
   <ol class="steps">
     <li>On <span class="ui">Places</span>, press <span class="ui">Add place</span>. Choose the <span class="ui">Kind</span> (Yard, Site, Outside shop, Vendor, Other) and a <span class="ui">Name</span>. A yard or site can belong to one project, or be shared by every project.</li>
     <li>Fill the <span class="ui">Address</span>, <span class="ui">Contacts</span> and <span class="ui">Notes</span>.</li>
     <li>Under <span class="ui">Map point</span>, click the map, drag the pin or type coordinates. Set the <span class="ui">Arrival radius (meters)</span> (25 to 20,000; 300 if left blank) for trackers later.</li>
     <li>Press <span class="ui">Add place</span>, or <span class="ui">Save changes</span> when editing.</li>
   </ol>
-  <p><span class="ui">Retire</span> takes a place out of use for new crates and loads; it stays on record and <span class="ui">Restore</span> brings it back. If someone else edits the same place while your form is open, the page tells you to reopen it rather than overwrite their change.</p>
+  <p><span class="ui">Retire</span> takes a place out of use for new crates and loads; it stays on record and <span class="ui">Restore</span> brings it back. A place can't be retired while anything is still there: the page lists what is left, for example “Laydown Yard can't be retired yet: it still has 2 crates, 5 loose items, 1 open load, 14 active racks and 1 active site plan”. Move the stock, close or cancel the loads, make its site plans inactive and retire its racks, then retire the place. If someone else edits the same place while your form is open, the page tells you to reopen it rather than overwrite their change.</p>
   <h3>Site maps and areas</h3>
   <ol class="steps">
     <li>On <span class="ui">Site Maps</span>, press <span class="ui">New map</span>. Give it a name, choose the <span class="ui">Place</span> it draws, and upload the <span class="ui">Plan image</span> (PNG, JPG or WEBP). Press <span class="ui">Create map</span>.</li>
     <li>Press <span class="ui">Draw area</span> and click each corner, then <span class="ui">Finish area</span>. Name it, pick a color, choose what it sits <span class="ui">Inside</span> (another area, or the top level) and its <span class="ui">Rack</span>, and <span class="ui">Save area</span>.</li>
     <li>Use <span class="ui">Add area inside…</span> on a row to nest areas, for example Laydown A › Bay 3.</li>
   </ol>
-  <p>Areas are never deleted. <span class="ui">Make inactive</span> hides an area, and everything inside it, from crews. A plan tied to a place supplies the areas used at that place; a plan tied to no place can be used at any of the project's yards and sites.</p>
+  <p>Areas are never deleted. <span class="ui">Make inactive</span> hides an area, and everything inside it, from crews. An area or a whole plan can't be made inactive while crates or loose items are still recorded there; the page says how many, and they are moved first. A plan tied to a place supplies the areas used at that place; a plan tied to no place can be used at any of the project's yards and sites.</p>
   <h3>Racks</h3>
-  <p>Each area links to at most one rack, and each rack to one area. Receiving still records a rack; the link lets the count, crates and receipts all point at the same area. <span class="ui">Racks without an area</span> lists any rack not yet linked: work through it until it is empty. Racks themselves are added in <span class="ui">Data Browser</span> › <span class="ui">Locations</span> (appendix A7); include at least one hold-area rack.</p>
+  <p>A rack is a storage location inside a yard or site, named by zone, row and rack. Racks belong to one project: the <span class="ui">Racks</span> page lists the racks of the project that is open, named at the top of the page. Everyone on the project sees them; office staff add, edit, retire and restore them while the project is active.</p>
+  <ol class="steps">
+    <li>On <span class="ui">Racks</span>, press <span class="ui">Add rack</span>. Enter the <span class="ui">Zone</span>, <span class="ui">Row</span> and <span class="ui">Rack</span>. To add several at once, also enter <span class="ui">Through rack number</span>: Rack 1 through 10 adds ten racks, 100 at most.</li>
+    <li>Choose its <span class="ui">Yard or site</span> (optional; the project's own yard is chosen for you when it has just one), check <span class="ui">Hold area</span> for a rack that keeps stock on hold, and give a <span class="ui">Capacity</span> if you track one.</li>
+    <li>Press <span class="ui">Add rack</span>. Two active racks in a project can't share a zone, row and rack.</li>
+  </ol>
+  <p><span class="ui">Retire</span> takes a rack out of use: it leaves the rack lists in Receiving and on Site Maps, and nothing more can be received or moved onto it, but it stays on every record that names it, and <span class="ui">Restore</span> brings it back. A rack can't be retired while items are on it, or while an active area is linked to it: move the items, or set that area's rack to <span class="ui">No rack</span> on Site Maps, first.</p>
+  <p>Each area links to at most one rack, and each rack to one area. Receiving still records a rack; the link lets the count, crates and receipts all point at the same area. A rack at one yard can't be linked to an area on another yard's plan. On Site Maps, <span class="ui">Racks without an area</span> lists any active rack not yet linked: work through it until it is empty. Include at least one hold-area rack.</p>
 </section>
 
 <section class="chapter">
@@ -683,7 +690,7 @@
     <dt>Missing</dt><dd>A piece due at a finished stop that wasn't scanned off.</dd>
     <dt>Over-the-air update</dt><dd>New app screens sent to phones without a store download.</dd>
     <dt>Place</dt><dd>A yard, site, outside shop, vendor or other location, shared by every project.</dd>
-    <dt>Rack</dt><dd>A receiving location (zone, row, rack), linked to at most one area.</dd>
+    <dt>Rack</dt><dd>A storage location in a yard or site (zone, row, rack), linked to at most one area. Retired when it is no longer used.</dd>
     <dt>Refused</dt><dd>A step the database turned down, with the reason. It waits in Sync for a decision.</dd>
     <dt>Site map</dt><dd>A plan of one yard or site, with its areas.</dd>
     <dt>Step</dt><dd>One change sent to the database, applied exactly once (A4).</dd>
@@ -804,7 +811,7 @@
   <ul>
     <li>Row-level security is on for every table. People read only the projects they are assigned to; places are readable by every active user.</li>
     <li>Writes go through checked functions that test the role and project themselves (<code>is_office_user</code>, <code>has_project_access</code>, <code>can_work_project</code>). The screens hiding a button is a convenience, never the control.</li>
-    <li>History is never deleted: places retire, areas go inactive, loads close, tracker links end; the audit log can't be changed. The one exception is an administrator deleting a PO &amp; Installation link, which takes its status history with it after the audit log has recorded both.</li>
+    <li>History is never deleted: places and racks retire, areas go inactive, loads close, tracker links end; the audit log can't be changed. The one exception is an administrator deleting a PO &amp; Installation link, which takes its status history with it after the audit log has recorded both.</li>
     <li>Completed projects are read-only and archived projects are hidden, in the database as well as on screen.</li>
   </ul>
   <h3>Driver licenses</h3>
@@ -827,11 +834,12 @@
 
 <section class="chapter">
   <h2 data-toc="a-setup"><span class="n">A6</span>Setting up a new project</h2>
+  <p class="lede">Everything below is done on the office screens. Under each active project, the Projects page lists what it still needs before work can start (a yard or site, racks, a hold-area rack and a site plan), each with a link that opens the right page on that project. The Racks page shows the same list for the project that is open, until nothing is left on it.</p>
   <ol class="steps">
-    <li><strong>Projects:</strong> press <span class="ui">New project</span>; leave the status Active.</li>
+    <li><strong>Projects:</strong> press <span class="ui">New project</span>; leave the status Active. You are assigned to it automatically.</li>
     <li><strong>Users &amp; Access:</strong> invite people, or check the new project for existing users.</li>
-    <li><strong>Places:</strong> add or confirm the yard or site (tied to the project, or shared), plus the outside shops and vendors it works with, each with a map point and arrival radius.</li>
-    <li><strong>Racks:</strong> in <span class="ui">Data Browser</span> › <span class="ui">Locations</span>, press <span class="ui">Add</span> for each rack (zone, row, rack, hold area, capacity). Include at least one hold-area rack.</li>
+    <li><strong>Places:</strong> follow <span class="ui">Add a yard or site</span>, which opens a new yard for this project, and give it a map point and arrival radius. Add each of the project's yards and sites, plus any outside shops and vendors it works with that aren't listed yet.</li>
+    <li><strong>Racks:</strong> switch to the project (the checklist's links do this for you), then on <span class="ui">Racks</span> press <span class="ui">Add rack</span> for each rack or run of racks, choosing its yard or site. Include at least one hold-area rack. Nothing can be received until the project has a rack.</li>
     <li><strong>Site Maps:</strong> press <span class="ui">New map</span>, tie it to the yard or site, upload the plan, draw the areas (nested as crews name them), set each area's rack, and work through <span class="ui">Racks without an area</span> until it is empty.</li>
     <li><strong>Counting</strong> (if there is an initial count): set up <span class="ui">Inventory Categories</span> and <span class="ui">Import expected tags</span>.</li>
     <li><strong>Crates:</strong> <span class="ui">Print crate labels</span> for the first weeks of packing.</li>
@@ -848,8 +856,8 @@
     <thead><tr><th style="width:22%">Function</th><th>What it does</th></tr></thead>
     <tbody>
       <tr><td>Users &amp; Access</td><td>Invite, edit, deactivate; resend or cancel invitations; filter by role, status and project; open a person's history (chapter 19). Backed by the <code>admin-users</code> function.</td></tr>
-      <tr><td>Projects</td><td>Create, edit, complete (read-only) or archive (hidden). Completing or archiving is refused while loads are open.</td></tr>
-      <tr><td>Data Browser</td><td>Browse any table for the active project, 25 to 100 rows at a time, and export the table on screen as CSV. History tables and the newer data (counts, categories, site maps, places, crates, loads, trackers) are read-only, and nothing can be deleted. A row with photos shows how many; press it to open them. An opened record shows its photos and <span class="ui">Open record details</span>. License tables and fields are never shown (A5). Material records can be corrected with a reason of at least five characters. <span class="ui">Locations</span> is the only table with <span class="ui">Add</span>: it is where racks are made.</td></tr>
+      <tr><td>Projects</td><td>Create, edit, complete (read-only) or archive (hidden). Completing or archiving is refused while loads are open. Each active project lists what it still needs before work can start (A6); the links are offered for projects you are assigned to.</td></tr>
+      <tr><td>Data Browser</td><td>Browse any table for the active project, 25 to 100 rows at a time, and export the table on screen as CSV. History tables and the newer data (counts, categories, site maps, places, racks, crates, loads, trackers) are read-only, and nothing can be deleted. A row with photos shows how many; press it to open them. An opened record shows its photos and <span class="ui">Open record details</span>. License tables and fields are never shown (A5). Material records can be corrected with a reason of at least five characters. <span class="ui">Locations</span> lists the racks, read-only, with whether each is active; racks are added, edited and retired on the <span class="ui">Racks</span> page (chapter 13).</td></tr>
       <tr><td>PO &amp; Installation links</td><td><span class="ui">Edit</span> changes a link's PO and installation details; <span class="ui">Delete</span> removes a link. Each asks why (5 to 500 characters). An edit records the old and new values with the reason, and isn't saved if someone changed the same detail since the form opened. A delete records the link, its status history and any tracker on it, then removes the link and its history and unhooks the tracker. Office staff still change a link's status with <span class="ui">Update</span>.</td></tr>
       <tr><td>Activity &amp; Audit</td><td>Administrator changes (users and projects) with person, time and old and new values, 25 a page. Operational history (counts, crates, loads) is in Data Browser › <span class="ui">Audit Log</span>, and on the app's Activity tab.</td></tr>
       <tr><td>Auth settings</td><td>Held by the sign-in service: email codes last 3,600 seconds; the redirect allowlist has <code>/login.html</code> and <code>/login.html?setup=invite</code>; templates and subjects as in <code>docs/INVITATION_RECOVERY.md</code>.</td></tr>
@@ -910,11 +918,13 @@
     <li>Moving a crate, correcting a location, departing, finishing a stop and editing a load close the screen without a confirmation message; Sync shows the step.</li>
     <li>A planned date or a license's expiration date can't be cleared once set.</li>
     <li>The app can put a receipt on hold but not release it; release it on the office site.</li>
+    <li>The app's rack lists (Receiving, Transfer and the office Locations tab) still show retired racks. Choosing one is refused with “That rack is retired; choose another rack”. The office Locations tab can add a rack but not edit or retire one, and gives it no yard; use the Racks page.</li>
   </ul>
   <h3>Office site</h3>
   <ul>
     <li>Activity &amp; Audit shows administrator changes only; operational history is in Data Browser › Audit Log.</li>
-    <li>Racks can be added only in Data Browser › Locations.</li>
+    <li>Racks are retired one at a time, and a yard or site can't be retired until its racks are retired and its site plans are inactive.</li>
+    <li>A few older racks share a zone, row and rack. They keep working; a new or renamed rack can't repeat an active one, so rename or retire one of each pair when convenient.</li>
     <li><span class="ui">Print the last N labels again</span> is lost when the page reloads; reprint from the reserved range before leaving the page.</li>
     <li>The arrival radius has no effect until trackers are connected.</li>
     <li>Tracker positions are only as fresh as the legacy tracker sync (A9), so “Live GPS” on Shipments depends on that job running.</li>

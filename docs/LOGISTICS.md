@@ -4,7 +4,7 @@ Phase 1 of logistics. Migration `supabase/migrations/021_places_and_handling_uni
 
 ## Places (`places.html`)
 
-- **Shared by every project.** The page reads and writes `places` with the unscoped `supabaseClient`. `places` is deliberately not in `PROJECT_SCOPED_TABLES`.
+- **One list for every project.** The page reads and writes `places` with the unscoped `supabaseClient`. `places` is deliberately not in `PROJECT_SCOPED_TABLES`. Shops and vendors are shared; a yard or site belongs to one project or is shared.
 - **Who sees what.** Every active user sees the list, the map and each place's details. Office staff add, edit, retire and restore places.
   - A yard or site can be tied to one of the office user's active projects.
   - A place tied to a project the user isn't on is read-only for them, and the page says why.
@@ -18,8 +18,24 @@ Phase 1 of logistics. Migration `supabase/migrations/021_places_and_handling_uni
   - Chrome lets a page refuse Escape only once per user action, so the drawer may close anyway. When it does, the page asks again and reopens the drawer with the changes if you keep them.
   - While a save is running, the drawer stays open.
 - **Retiring and naming.** Nothing is deleted; a retired place is listed under **Retired** and can be restored.
-  - Names are unique among active places, ignoring case. Restoring a place whose name an active place now uses is refused with that reason.
+  - Names are unique among a project's active places, ignoring case (030): two projects can each have a "Laydown Yard". Shared places are unique among themselves, and a project's place can't take a shared place's name, so a name never means two places to one crew. Restoring a place whose name is now taken is refused with that reason.
+  - A place can't be retired while anything is still there (030): crates, loose items, an open load that starts or stops there, an active rack or an active site plan. The refusal lists what is left.
+- **From the setup checklist.** `places.html?add=yard` opens the form for a new yard tied to the open project.
 - **Shop Contacts.** Places replaces Shop Contacts in the sidebar. The old page and its data are untouched. (Outside Shops was rebuilt in phase 2; see below.)
+
+## Racks (`racks.html`, migration 030)
+
+- **A project's storage locations.** Racks are `locations` rows: zone, row, rack, hold area, capacity, and since 030 `is_active`, `place_id` (the yard or site it is at, optional) and `updated_at`. The page reads and writes them through the project scope, for the project that is open; the page and the form name that project.
+- **Who sees what.** Everyone on the project sees the list. Office staff add, edit, retire and restore racks while the project is active (013's policies; nothing new).
+- **Adding several.** "Through rack number" adds a run (1 through 10, `08` through `11`), 100 at most, as one insert: all of them or none.
+- **Rules the database keeps** (triggers in 030, so the Data Browser, the app and any other writer get them too):
+  - Names are trimmed, 60 characters at most, and unique among a project's active racks ignoring case. This is a check, not an index: older data has repeats, which stay until one is renamed or retired.
+  - A rack's place is an active yard or site the project can use, and the same place as the plan of any area linked to it.
+  - A rack can't be retired while loose items are on it (`item_positions.location_id`) or an active area is linked to it. A retired rack takes no receipt, transfer or correction ("That rack is retired; choose another rack", 22023).
+  - Racks are never deleted. Every insert and update is in `audit_log` (`rack_created`, `rack_updated`); these stay out of `list_project_activity`.
+- **Pickers.** Office Receiving and the Site Maps rack list leave retired racks out. `location_areas` gained `rack_active`, `rack_place_id` and `rack_place_name`; `v_yard_overview` lists active racks only.
+- **Setup checklist.** `project_setup_status(project_id?)` reports, per project, its own and shared yards, active racks, hold-area racks and active site plans, to office staff for their projects and to administrators for all. `js/utils/yard-setup.js` turns a row into the four steps shown on Projects and on Racks. A link with `?project=<id>` opens a page on that project when it is one of the person's own.
+- **Site plans and areas** can't be made inactive while crates or loose items are recorded on them (030).
 
 ## Crates (`handling-units.html`)
 
