@@ -1,9 +1,10 @@
 name: Environments check
 # Daily, and on request: is every environment still entirely at the commit its
-# site publishes? Dev is compared with main and each production with its own
-# release branch: the site, the admin function and, where the repository
+# site publishes? The site, the admin function and, where the repository
 # environment holds DATABASE_URL, the database's history and schema. This is
 # what shows a change made by hand in one environment.
+# Dev is compared with main. A production is compared with its own release
+# branch, or with main for as long as it has none and so still publishes main.
 on:
   schedule:
     - cron: '43 10 * * *'
@@ -26,7 +27,7 @@ jobs:
       - id: plan
         run: echo "plan=$(node scripts/release.mjs plan)" >> "$GITHUB_OUTPUT"
   check:
-    name: ${{ matrix.environment }} is at ${{ matrix.branch }}
+    name: ${{ matrix.environment }}
     needs: plan
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -35,30 +36,27 @@ jobs:
       matrix: ${{ fromJSON(needs.plan.outputs.plan).all }}
     environment: ${{ matrix.environment }}
     steps:
-      # A production joins the release routine when its release branch is
-      # created and its site publishes that branch. Until then it follows main.
-      - name: Does ${{ matrix.branch }} exist yet?
-        id: branch
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Which branch does its site publish?
+        id: published
         env:
-          GH_TOKEN: ${{ github.token }}
           ENVIRONMENT: ${{ matrix.environment }}
           BRANCH: ${{ matrix.branch }}
         run: |
-          if gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --silent 2> /dev/null; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "::warning::$ENVIRONMENT has no $BRANCH branch yet. Until it has one and its site publishes it, every merge to main reaches $ENVIRONMENT at once (docs/ENVIRONMENTS.md)."
-            echo "exists=false" >> "$GITHUB_OUTPUT"
+          published=$(node scripts/release.mjs published "$ENVIRONMENT")
+          if [ "$published" != "$BRANCH" ]; then
+            echo "::warning::$ENVIRONMENT has no $BRANCH branch yet, so its site still publishes main and every merge reaches it at once (docs/ENVIRONMENTS.md). It is checked against main."
           fi
+          echo "branch=$published" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
-        if: steps.branch.outputs.exists == 'true'
         with:
-          ref: ${{ matrix.branch }}
+          ref: ${{ steps.published.outputs.branch }}
           persist-credentials: false
       - uses: ./.github/actions/release-tools
-        if: steps.branch.outputs.exists == 'true'
       - name: Site, admin function and database
-        if: steps.branch.outputs.exists == 'true'
         env:
           ENVIRONMENT: ${{ matrix.environment }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}

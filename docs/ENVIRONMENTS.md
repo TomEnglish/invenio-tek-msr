@@ -71,7 +71,7 @@ The build recognizes a site by its address. Before giving a site a new address (
 - **Tests** (`tests/environments.test.js`): no environment's site or database address appears in code outside `environments.json`; the browser client has no fallback connection.
 - **At every release** (`scripts/release.mjs check <name>`, see "Releasing"): the site must serve the released commit, say it was built for its own environment, and name its own database and no other listed one; the admin function must answer only that site and be that commit's version; the database's history must be exactly the migration files and its schema must match a fresh build.
 - **Every day** (the "Environments check" workflow): the same check for every environment, against the commit its site publishes. A change made by hand in one environment shows up here.
-- **Database commands** (`scripts/database.sh`): each first confirms `DATABASE_URL` is that environment's own database. Only two forms are accepted for a hosted database: its direct address (`db.<its host>`), or the database host's shared pooler with the project named in the user. Any other host, a list of hosts, and connection options or shell settings that would send the command elsewhere are refused. For an environment whose database runs on this computer, it can only confirm the connection is local. Neither command can destroy data: `build` works only on an empty database, and `sample-data` only adds rows.
+- **Database commands** (`scripts/database.sh`): each first confirms `DATABASE_URL` is that environment's own database. Only two forms are accepted for a hosted database: its direct address (`db.<its host>`), or the database host's shared pooler with the project named in the user. Any other host, a list of hosts, and connection options or shell settings that would send the command elsewhere are refused. For an environment whose database runs on this computer, it can only confirm the connection is local. `build` works only on an empty database, `sample-data` only adds rows, `check` only reads, and `align-history` changes only the history table. `migrate` runs whatever the migrations say, which is why it runs on dev first. The password in `DATABASE_URL` is handed to the database client in its environment, never on a command line.
 - **Server keys** (`scripts/create-first-admin.mjs`, the license job): a legacy key that names another database is refused before it is sent.
 - **Schema and history** (`scripts/database.sh check <name>`): the recorded history must be exactly the migration files (same numbers, names and text), and the schema is compared with a fresh build of them, line by line, including which tables report live changes.
 
@@ -81,19 +81,21 @@ A release moves one commit of `main` onto an environment: its database, then its
 
 | Environment | Released | Its site publishes |
 | --- | --- | --- |
-| `dev` | By every merge to `main`, after the quality checks pass | `main` |
+| `dev` | By every merge to `main`: its database and admin function after the quality checks pass | `main` |
 | A production | On request, by the "Release to production" workflow: one production, or each in turn in the order of `environments.json` | Its own branch, `release/<name>` |
 
 **Dev first is enforced.** A production release starts only when every dev environment is entirely at the same commit: site, admin function and database. A production's site cannot get ahead some other way, because the web host publishes it from `release/<name>` and only the routine moves that branch, and only forward along `main`.
 
+**Dev's site is the one exception to the order.** The web host publishes it from `main` when the merge lands, as it always has, so pull request previews and merges show up there at once. It can therefore be ahead of the dev database for the few minutes a dev release takes, and stays ahead if the quality checks or the release fail. The run on `main` is red until dev is entirely at the commit, and no production can be released from it meanwhile.
+
 What the routine does, in order:
 
 1. **Database.** `scripts/database.sh migrate <name>` applies the migrations the database does not have yet. It first confirms the history recorded so far is exactly the first migration files; a migration edited after it ran, or a change applied by hand, stops the release before anything is applied. Each migration and its history record are one transaction, so an interrupted run leaves a migration either fully in or not there at all.
-2. **Admin function.** When the job holds a deploy token, the function's `SITE_URL` is written from `environments.json` and the function is deployed. Nothing is sent when the environment already runs this version. Without a token the function is only checked, and the release fails if it is not this commit's version.
-3. **Site.** For a production, `release/<name>` is moved to the commit and the web host publishes it. Dev's site is already publishing `main`.
+2. **Admin function.** When the job holds a deploy token, the function's `SITE_URL` is written from `environments.json` and the function is deployed. Nothing is sent when the environment already runs this version. Without a token, a production's function must already be this commit's version, or the release stops here, before the site moves.
+3. **Site.** For a production, `release/<name>` is moved to the commit and the web host publishes it. The branch only moves forward: a commit that does not come after the one it is at is refused before anything is changed.
 4. **Check.** `scripts/release.mjs check <name>` (see "Checks that keep environments apart").
 
-The database goes first because new pages may need new tables. If a later step fails, the production keeps its last site with the newer database until the release is run again. So **a migration must work with the site that is already published**: add in one release; remove what the old site used only in a later one.
+The database goes first because new pages may need new tables, and the function before the site so a new page never meets an old function. If a step fails, the production keeps its last site with whatever was already released behind it, until the release is run again. So **a migration, and a change to the admin function, must work with the site that is already published**: add in one release; remove what the old site used only in a later one.
 
 The admin function tells anyone which version it is (the `X-Function-Release` header, a checksum of its source written by `node scripts/release.mjs stamp`). The check trusts that header; it does not read the deployed code.
 
@@ -101,12 +103,17 @@ The admin function tells anyone which version it is (the `X-Function-Release` he
 
 Each environment has a repository environment of the same name (Settings > Environments) holding its own secrets. A job only ever receives the secrets of the one environment it names.
 
+- **Allow deployments from `main` only** in each repository environment (its "Deployment branches" setting). Without that, a workflow file on any pushed branch could name the environment and be handed its secrets; the workflows' own refusal to run from another branch is no protection against a changed copy of them.
+- **Never store these as repository-wide secrets.** A repository-wide secret of the same name reaches every job that has none of its own.
+
 | Secret | Where | Used for |
 | --- | --- | --- |
 | `DATABASE_URL` | Each environment | Applying migrations and checking the database. Use the session pooler connection string (port 5432, user `postgres.<project>`); the code host's runners cannot reach the direct address. Every command first confirms the string is that environment's own database. |
 | `SUPABASE_ACCESS_TOKEN` | Each environment, optional | Deploying the admin function. Store a scoped token: limited to that environment's one project, with read-write access to "Edge Functions" and "Edge Function Secrets" and nothing else. Never store a full-access token, which reaches every organization its account belongs to. Without this secret, deploy by hand when the function changes: `SUPABASE_ACCESS_TOKEN=… node scripts/release.mjs function <name>`. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Each production | The license-removal job (see "Secrets for scheduled jobs"). |
-| `RELEASE_DEPLOY_KEY` | Repository | A write deploy key for this repository only. The release job uses it to move `release/<name>`; the workflow's own token is not allowed to push a commit that changes a workflow file. |
+| `RELEASE_DEPLOY_KEY` | Each production | The private half of a write deploy key for this repository only. The release job uses it to move `release/<name>`; the workflow's own token is not allowed to push a commit that changes a workflow file. |
+
+Anyone who can push to this repository can move a release branch by hand. Restrict pushes to `release/*` in the repository's branch rules, leaving the deploy key able to push.
 
 Until an environment's `DATABASE_URL` is stored, a merge still releases to dev but says, as a warning, that the database was neither migrated nor checked. A production is never released without its database.
 
@@ -115,11 +122,12 @@ Until an environment's `DATABASE_URL` is stored, a merge still releases to dev b
 The workflows only call the scripts, so a release can be run from a checkout of `main` with the same secrets in the shell:
 
 ```bash
-DATABASE_URL='postgres://…' node scripts/release.mjs release <name>
-DATABASE_URL='postgres://…' node scripts/release.mjs check <name>     # read-only
+DATABASE_URL='postgres://…' node scripts/release.mjs check <name>                                      # read-only
+DATABASE_URL='postgres://…' node scripts/release.mjs release dev
+DATABASE_URL='postgres://…' DATABASE_URL_DEV='postgres://…' node scripts/release.mjs release <production>
 ```
 
-Run by hand, a production release still refuses unless every dev site and dev admin function is at the commit. Only the workflow also checks the dev databases first.
+A production release by hand is dev first too. It needs each dev database's own connection string (`DATABASE_URL_DEV` for `dev`) and checks that database before it changes anything. In the workflow that check is its own job, which the release job waits for.
 
 ## Setting up a new environment
 
@@ -154,13 +162,13 @@ The same steps set up dev and, later, each customer. Do them in this order.
 
 Demo was the only environment before this page existed. Done on November 15, 2026: the demo site builds from `environments.json`; migrations `028` and `029` are applied and its schema matches a fresh build; `SITE_URL` is stored on its admin function; the phone app's build profiles have `EXPO_PUBLIC_OFFICE_SITE_URL`; and the sign-in email templates needed no change.
 
-What is left puts demo under the release routine. Until step 3, every merge to `main` still reaches demo at once.
+What is left puts demo under the release routine. Until step 3, every merge to `main` still reaches demo's site at once; the run on `main` says so and checks the site there, as it did before.
 
 1. **History.** Demo's migrations were recorded by other tools: 001 to 011 in pieces, and 019 to 025 without their `BEGIN;` and `COMMIT;` lines. Its schema matches a fresh build, so only the record differs. This stores each file's text as the record and keeps the earlier records in `supabase_migrations.schema_migrations_as_first_recorded`:
    ```bash
    DATABASE_URL='postgres://…' scripts/database.sh align-history demo
    ```
-2. **Secrets.** Add the repository environments `dev` and `demo` with their `DATABASE_URL`, and the repository's `RELEASE_DEPLOY_KEY` (see "Secrets").
+2. **Secrets.** Add the repository environments `dev` and `demo`, each allowing deployments from `main` only, with their `DATABASE_URL`, and `RELEASE_DEPLOY_KEY` for demo (see "Secrets").
 3. **Site.** Create `release/demo` at the commit demo serves, and set the demo site's production branch to `release/demo` on the web host.
 4. **First release.** Run "Release to production" for `demo`. It deploys the admin function version that reads `SITE_URL` and reports which version it is.
 
@@ -169,7 +177,7 @@ What is left puts demo under the release routine. Until step 3, every merge to `
 - **No customer-specific code.** A difference between customers is a setting stored in that customer's database, never a branch or a copy of the code.
 - **Schema changes are migrations.** Nothing is changed by hand in any environment; `scripts/database.sh check` shows it if someone does.
 - **Dev first.** A change runs on dev before it reaches any production. The release routine refuses otherwise.
-- **A migration is named `<number>_<lowercase_name>.sql`**, with a later number than the one before it, and is one transaction: `BEGIN;` as its first statement, `COMMIT;` as its last, and no other transaction statement. `tests/release.test.js` fails otherwise.
+- **A migration is named `<number>_<lowercase_name>.sql`**, with a later number than the one before it, and is one transaction: `BEGIN;` as its first statement, `COMMIT;` as its last, and no other transaction statement. It is SQL only, with no backslash command of the database client. `tests/release.test.js` fails otherwise, and a release refuses such a file before applying anything.
 - **A released migration is never edited.** The history check compares its text and stops the next release. Correct it with a new migration.
 - **A change to the admin function comes with its stamp**: run `node scripts/release.mjs stamp` and commit the result.
 - **A table a page listens to for live changes** must be added to the publication by a migration (see `028_live_updates.sql`); `tests/live-updates.test.js` fails otherwise.

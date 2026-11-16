@@ -84,6 +84,14 @@ nothing_left "plain"
 printf 'BEGIN;\ncreate table public.half_made (id int);\nCOMMIT;\nBEGIN;\nselect 1/0;\nCOMMIT;\n' > "$half"
 refused "migration with two transactions" "must either have no transaction statement of its own" env DATABASE_URL="$(url rel_dev)" "$work/next/scripts/database.sh" migrate devlocal
 nothing_left "two transactions"
+# A command of the database client could commit or run outside the transaction, so it is refused before anything runs.
+printf "create table public.half_made (id int);\nselect 'commit' \\\\gexec\nselect 1/0;\n" > "$half"
+refused "migration with a client command" "must be SQL only" env DATABASE_URL="$(url rel_dev)" "$work/next/scripts/database.sh" migrate devlocal
+nothing_left "client command"
+# Nothing in a migration's own text is replaced by the release's variables: this fails here exactly as in a fresh build.
+printf "BEGIN;\ncreate table public.half_made (label text default :'name', n int default :version);\nCOMMIT;\n" > "$half"
+refused "migration naming a client variable" "Stopped at 99999_half_made; it was not applied" env DATABASE_URL="$(url rel_dev)" "$work/next/scripts/database.sh" migrate devlocal
+nothing_left "client variable"
 # A good one is applied and recorded with the file's own text.
 printf -- '-- Made by the release test.\nBEGIN;\ncreate table public.half_made (id int);\nCOMMIT;\n' > "$half"
 DATABASE_URL=$(url rel_dev) "$work/next/scripts/database.sh" migrate devlocal > "$work/migrate.log" 2>&1 || { cat "$work/migrate.log" >&2; fail "migrate of a new wrapped migration"; }
@@ -124,6 +132,16 @@ DATABASE_URL=$(url rel_dev) scripts/database.sh align-history devlocal > /dev/nu
 [ "$(count rel_dev "select statements[1] from supabase_migrations.schema_migrations_as_first_recorded where version='005'")" = "select 1" ] || fail "the first earlier records are never overwritten"
 DATABASE_URL=$(url rel_dev) scripts/database.sh check devlocal > /dev/null || fail "check after the third align"
 passed "a history that is not the files stops a release; align-history repairs the record only when the schema matches"
+
+# align-history needs every file recorded already: a partial or empty history is not something to tidy.
+createdb -T rel_dev rel_partial
+sql rel_partial "update supabase_migrations.schema_migrations set statements = array['select 1'] where version = '005'"
+sql rel_partial "delete from supabase_migrations.schema_migrations where version = '${newest%%_*}'"
+refused "align a partial history" "records $((files - 1)) migrations and there are $files migration files" env DATABASE_URL="$(url rel_partial)" scripts/database.sh align-history devlocal
+[ "$(count rel_partial "select statements[1] from supabase_migrations.schema_migrations where version='005'")" = "select 1" ] || fail "a refused align of a partial history changes nothing"
+sql rel_partial "delete from supabase_migrations.schema_migrations"
+refused "align an empty history" "records 0 migrations and there are $files migration files" env DATABASE_URL="$(url rel_partial)" scripts/database.sh align-history devlocal
+passed "align-history refuses a history that does not already list every migration"
 
 # Never onto an empty database, and never onto another environment's.
 new_database rel_empty

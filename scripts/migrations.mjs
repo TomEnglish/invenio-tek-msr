@@ -6,7 +6,7 @@
 //   node scripts/migrations.mjs shape <file>         plain | wrapped
 //   node scripts/migrations.mjs without-commit <file>   a wrapped migration up to its final COMMIT;
 //   node scripts/migrations.mjs pending               files the history on stdin does not have yet
-//   node scripts/migrations.mjs differing             files whose recorded text differs (names must match)
+//   node scripts/migrations.mjs differing             files whose recorded text differs (every file must be recorded, under its name)
 //
 // `pending` and `differing` read the recorded history on stdin, one line per
 // migration: version|name|md5 of its text|number of parts it was stored in.
@@ -82,15 +82,21 @@ function topLevelStatements(text) {
     return found;
 }
 
+const SHAPE_RULE = 'must either have no transaction statement of its own, or start with BEGIN; and end with COMMIT;';
+const CLIENT_RULE = 'must be SQL only: a backslash command of the database client could run outside its transaction';
 const TRANSACTION = /^(BEGIN|START\s+TRANSACTION|COMMIT|END|ROLLBACK|ABORT|SAVEPOINT|RELEASE|PREPARE\s+TRANSACTION)\b/i;
 function readShape(text) {
+    // A backslash outside a string or comment starts a command of the database
+    // client (\gexec, \connect, \i), which can end the transaction or run
+    // outside it. A migration is SQL only.
+    if (topLevelSql(text).includes('\\')) return { shape: 'mixed', rule: CLIENT_RULE };
     const statements = topLevelStatements(text);
     const control = statements.filter(statement => TRANSACTION.test(statement.text));
     if (!control.length) return { shape: 'plain' };
     const last = statements.at(-1);
     return control.length === 2 && /^BEGIN$/i.test(statements[0].text) && /^COMMIT$/i.test(last.text) && last.ended
         ? { shape: 'wrapped', commitAt: last.start }
-        : { shape: 'mixed' };
+        : { shape: 'mixed', rule: SHAPE_RULE };
 }
 
 // How a migration handles its own transaction. A migration and its history
@@ -100,7 +106,8 @@ function readShape(text) {
 //            no other transaction statement
 // Anything else ("mixed") could commit half of a migration, and is refused.
 export const migrationShape = text => readShape(text).shape;
-export const SHAPE_RULE = 'must either have no transaction statement of its own, or start with BEGIN; and end with COMMIT;';
+// Why a migration cannot be applied as one transaction, or null when it can.
+export const migrationProblem = text => readShape(text).rule || null;
 
 // A wrapped migration up to its final COMMIT;, so the history record can be
 // added inside the migration's own transaction.
@@ -118,9 +125,9 @@ export function migrationFiles(directory = join(root, MIGRATIONS)) {
         const match = FILE.exec(file);
         if (!match) throw new Error(`A migration must be named <number>_<lowercase_name>.sql: ${file}`);
         const text = readFileSync(join(directory, file), 'utf8');
-        const shape = migrationShape(text);
-        if (shape === 'mixed') throw new Error(`${file} ${SHAPE_RULE}`);
-        return { file, path: join(MIGRATIONS, file), version: match[1], name: match[2], md5: textChecksum(text), shape };
+        const problem = migrationProblem(text);
+        if (problem) throw new Error(`${file} ${problem}`);
+        return { file, path: join(MIGRATIONS, file), version: match[1], name: match[2], md5: textChecksum(text), shape: migrationShape(text) };
     });
     files.forEach((entry, index) => {
         if (index && !(files[index - 1].version < entry.version)) {
@@ -142,8 +149,12 @@ export function parseRecorded(text) {
 // names and (unless namesOnly) the same text. Then `pending` lists the files
 // not applied yet. `differing` lists files recorded under the right number
 // and name but with other text.
-export function compareHistory(recorded, files, { namesOnly = false } = {}) {
+export function compareHistory(recorded, files, { namesOnly = false, complete = false } = {}) {
     const problems = [];
+    // `complete`: every file must already be recorded, none more and none fewer.
+    if (complete && recorded.length < files.length) {
+        problems.push(`the database records ${recorded.length} migrations and there are ${files.length} migration files`);
+    }
     const differing = [];
     const label = entry => `${entry.version}_${entry.name}`;
     recorded.forEach((row, index) => {
@@ -175,13 +186,13 @@ function main([command, argument]) {
         if (!argument) throw new Error(`Usage: migrations.mjs ${command} <file>`);
         const text = readFileSync(argument, 'utf8');
         if (command === 'without-commit') { process.stdout.write(withoutCommit(text)); return; }
-        const shape = migrationShape(text);
-        if (shape === 'mixed') throw new Error(`${argument} ${SHAPE_RULE}`);
-        console.log(shape);
+        const problem = migrationProblem(text);
+        if (problem) throw new Error(`${argument} ${problem}`);
+        console.log(migrationShape(text));
         return;
     }
     if (command === 'pending' || command === 'differing') {
-        const result = compareHistory(parseRecorded(readStdin()), migrationFiles(), { namesOnly: command === 'differing' });
+        const result = compareHistory(parseRecorded(readStdin()), migrationFiles(), { namesOnly: command === 'differing', complete: command === 'differing' });
         if (result.problems.length) throw new Error(result.problems.join('\n'));
         for (const entry of command === 'pending' ? result.pending : result.differing) console.log(entry.path);
         return;

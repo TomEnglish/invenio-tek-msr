@@ -2,14 +2,20 @@
 // A release moves one commit of main onto an environment: its database, its
 // admin function and its office site, in that order, then checks all three.
 //
-//   node scripts/release.mjs release <name> [--skip-database]
-//       Runs the routine for the commit checked out here. For a production it
-//       first confirms every dev site and dev admin function is at this commit.
-//       Needs DATABASE_URL (that environment's database). With
-//       SUPABASE_ACCESS_TOKEN it also deploys the admin function; without it
-//       the function is only checked. --skip-database is for dev only.
-//   node scripts/release.mjs check <name> [--skip-database] [--attempts N]
+//   node scripts/release.mjs release <name> [--skip-database] [--dev-databases-checked]
+//       Runs the routine for the commit checked out here. Needs DATABASE_URL
+//       (that environment's database). With SUPABASE_ACCESS_TOKEN it also
+//       deploys the admin function; without it the function must already be
+//       this commit's version. --skip-database is for dev only.
+//       A production is released only when every dev environment is entirely
+//       at this commit. Each dev database is checked through DATABASE_URL_<NAME>
+//       (DATABASE_URL_DEV for "dev"); --dev-databases-checked says a run that
+//       this one depends on has just done that, as the workflow's has.
+//   node scripts/release.mjs check <name> [--skip-database | --site-only] [--attempts N]
 //       Read-only: is this environment entirely at the commit checked out here?
+//   node scripts/release.mjs published <name>
+//       The branch that environment's site publishes today: its release
+//       branch once that exists, and main until then.
 //   node scripts/release.mjs function <name>
 //       Deploys the admin function alone (needs SUPABASE_ACCESS_TOKEN).
 //   node scripts/release.mjs stamp
@@ -116,9 +122,10 @@ const tools = {
     }).then(() => `serves ${short(commit)} as "${environment.name}", connected to its own database`),
     function: (environment, expected, attempts) => checkFunction(environment, expected, attempts),
     // scripts/database.sh prints its own findings; only the outcome is needed here.
-    database: environment => {
-        if (!process.env.DATABASE_URL) throw new Error(`set DATABASE_URL to the ${environment.name} database's connection string`);
-        const result = spawnSync(join(root, 'scripts', 'database.sh'), ['check', environment.name], { cwd: root, stdio: ['ignore', 'inherit', 'inherit'] });
+    database: (environment, connection = process.env.DATABASE_URL) => {
+        if (!connection) throw new Error(`set DATABASE_URL to the ${environment.name} database's connection string`);
+        const result = spawnSync(join(root, 'scripts', 'database.sh'), ['check', environment.name],
+            { cwd: root, stdio: ['ignore', 'inherit', 'inherit'], env: { ...process.env, DATABASE_URL: connection } });
         if (result.status !== 0) throw new Error('its history or schema is not what the migration files build (see above)');
         return 'history is exactly the migration files; schema matches a fresh build';
     },
@@ -127,13 +134,14 @@ const tools = {
 // Is this environment entirely at one commit? Site, admin function and
 // database are each checked and all reported, so one run shows everything
 // that is behind. Throws when any part differs.
-export async function check(registry, name, { skipDatabase = false, attempts = 1, log = console.log, use = tools } = {}) {
+export async function check(registry, name, { skipDatabase = false, siteOnly = false, attempts = 1, log = console.log, use = tools } = {}) {
     const environment = getEnvironment(registry, name);
     const commit = use.commit();
+    skipDatabase = skipDatabase || siteOnly;
     const parts = [
         ['site', () => use.site(environment, commit, attempts, registry)],
         // The site may still be building; a function is either this version or it is not.
-        ['function', () => use.function(environment, use.stamp(), Math.min(attempts, 6))],
+        ['function', siteOnly ? null : () => use.function(environment, use.stamp(), Math.min(attempts, 6))],
         ['database', skipDatabase ? null : () => use.database(environment)],
     ];
     const failures = [];
@@ -143,7 +151,8 @@ export async function check(registry, name, { skipDatabase = false, attempts = 1
         catch (error) { failures.push(`${part}: ${error.message}`); log(`${part.padEnd(9)} DIFFERENT: ${error.message}`); }
     }
     if (failures.length) throw new Error(`"${name}" is not at ${short(commit)}:\n  ${failures.join('\n  ')}`);
-    log(`"${name}" is entirely at ${short(commit)}${skipDatabase ? ', apart from the database, which was not checked' : ''}.`);
+    const unchecked = siteOnly ? 'the admin function and the database' : skipDatabase ? 'the database' : '';
+    log(unchecked ? `"${name}" is at ${short(commit)}, apart from ${unchecked}, which ${siteOnly ? 'were' : 'was'} not checked.` : `"${name}" is entirely at ${short(commit)}.`);
     return { environment: name, commit, database: !skipDatabase };
 }
 
@@ -189,18 +198,32 @@ const releaseTools = {
     ...tools,
     clean: () => git('status', '--porcelain', '--untracked-files=no') === '',
     onMain: () => { try { git('merge-base', '--is-ancestor', 'HEAD', 'origin/main'); return true; } catch { return false; } },
+    // Why this commit may not go to the environment's branch, or null. The
+    // branch only ever moves forward; a first release creates it.
+    forward: environment => {
+        const branch = releaseBranch(environment);
+        const at = git('ls-remote', 'origin', `refs/heads/${branch}`).split(/\s+/)[0];
+        if (!at) return null;
+        try { git('merge-base', '--is-ancestor', at, 'HEAD'); return null; }
+        catch { return `${branch} is at ${short(at)}, which this commit does not come after (or this checkout has not fetched it). A release only moves forward.`; }
+    },
     migrate: environment => {
         const result = spawnSync(join(root, 'scripts', 'database.sh'), ['migrate', environment.name], { cwd: root, stdio: ['ignore', 'inherit', 'inherit'] });
-        if (result.status !== 0) throw new Error(`The ${environment.name} database was not released (see above). The site and function were not touched.`);
+        // Migrations applied before the stop stay applied; what was and was not applied is printed above.
+        if (result.status !== 0) throw new Error(`The release of the ${environment.name} database stopped (see above). Its admin function and site were not touched.`);
     },
     deploy: environment => deployFunction(environment),
     // Fast-forward only: git itself refuses to move the branch anywhere but forward.
     publish: (environment, commit) => git('push', 'origin', `${commit}:refs/heads/${releaseBranch(environment)}`),
 };
 
+// The variable that holds a dev environment's connection string when a
+// production is released by hand: DATABASE_URL_DEV for "dev".
+export const devDatabaseVariable = environment => `DATABASE_URL_${environment.name.toUpperCase().replaceAll('-', '_')}`;
+
 // The routine. Order matters: the database first, since new pages may need
 // new tables; then the function; the site last, because it is what people see.
-export async function release(registry, name, { skipDatabase = false, env = process.env, log = console.log, use = releaseTools } = {}) {
+export async function release(registry, name, { skipDatabase = false, devDatabasesChecked = false, env = process.env, log = console.log, use = releaseTools } = {}) {
     const environment = getEnvironment(registry, name);
     const production = environment.kind === 'production';
     const commit = use.commit();
@@ -209,23 +232,40 @@ export async function release(registry, name, { skipDatabase = false, env = proc
     if (production && skipDatabase) throw new Error('A production is never released without its database.');
     if (!skipDatabase && !env.DATABASE_URL) throw new Error(`Set DATABASE_URL to the ${name} database's connection string. Nothing was changed.`);
     if (production) {
-        // Dev first. What a dev site and its function show needs no secret, so
-        // it is checked here too; the workflow checks the dev databases before this runs.
+        const backward = use.forward(environment);
+        if (backward) throw new Error(`${backward} Nothing was changed.`);
+        // Dev first: every dev environment must be entirely at this commit.
+        // Its site and function are read without a secret. Its database is
+        // checked here through its own connection string, unless the caller
+        // says a run this one depends on has just checked it.
         const devs = listEnvironments(registry, 'dev');
         if (!devs.length) throw new Error('There is no dev environment to release to first.');
         for (const dev of devs) {
+            const connection = env[devDatabaseVariable(dev)];
+            if (!devDatabasesChecked && !connection) {
+                throw new Error(`Dev first: set ${devDatabaseVariable(dev)} to the "${dev.name}" database's connection string so its database can be checked, or use the "Release to production" workflow, which checks it. Nothing was changed.`);
+            }
             try {
                 await use.site(dev, commit, 1, registry);
                 await use.function(dev, use.stamp(), 1);
+                if (!devDatabasesChecked) use.database(dev, connection);
             } catch (error) { throw new Error(`Dev first: "${dev.name}" is not at ${short(commit)} (${error.message}). Nothing was changed.`); }
         }
-        log(`Dev first: ${devs.map(dev => `"${dev.name}"`).join(', ')} at ${short(commit)}.`);
+        log(`Dev first: ${devs.map(dev => `"${dev.name}"`).join(', ')} at ${short(commit)}${devDatabasesChecked ? '; the dev databases were checked by the run before this one' : ''}.`);
     }
     log(`Releasing ${short(commit)} to "${name}".`);
     if (skipDatabase) log('Database: skipped.');
     else use.migrate(environment);
     if (env.SUPABASE_ACCESS_TOKEN) await use.deploy(environment);
-    else log('Admin function: no deploy token here, so it is only checked.');
+    else if (production) {
+        // No token to deploy with: the function must already be this commit's
+        // version before the site moves, or the new site would face the old function.
+        try { await use.function(environment, use.stamp(), 1); }
+        catch (error) {
+            throw new Error(`The database of "${name}" is released, but ${error.message} and there is no deploy token here, so its site was not changed. Deploy the function, then run the release again:\n  SUPABASE_ACCESS_TOKEN=… node scripts/release.mjs function ${name}`);
+        }
+        log('Admin function: already this version.');
+    } else log('Admin function: no deploy token here, so it is only checked.');
     if (production) {
         try { use.publish(environment, commit); }
         catch (error) {
@@ -236,6 +276,19 @@ export async function release(registry, name, { skipDatabase = false, env = proc
         log(`Site: ${releaseBranch(environment)} now points at ${short(commit)}.`);
     }
     return check(registry, name, { skipDatabase, attempts: 90, log, use });
+}
+
+// The branch an environment's site publishes today. A production joins the
+// release routine when its release branch exists and its site publishes it;
+// until then its site still publishes main. Any answer other than "it is
+// there" or "it is not" is an error, never a guess.
+export function publishedBranch(environment, lookUp = branch => spawnSync('git', ['ls-remote', '--exit-code', 'origin', `refs/heads/${branch}`], { cwd: root, encoding: 'utf8' })) {
+    const branch = releaseBranch(environment);
+    if (branch === 'main') return branch;
+    const result = lookUp(branch);
+    if (result.status === 0) return branch;
+    if (result.status === 2) return 'main';
+    throw new Error(`Could not ask whether ${branch} exists: ${String(result.stderr || result.error?.message || '').trim().slice(0, 300)}`);
 }
 
 // Which environments a workflow run covers. `dev` and `production` are
@@ -261,13 +314,15 @@ async function main(args) {
     const attemptsFlag = rest.indexOf('--attempts');
     const name = rest.find((value, index) => !value.startsWith('--') && (attemptsFlag === -1 || index !== attemptsFlag + 1));
     const skipDatabase = rest.includes('--skip-database');
+    const siteOnly = rest.includes('--site-only');
     if (command === 'stamp') { console.log(`Release stamp is now ${writeStamp()}`); return; }
     const registry = loadEnvironments();
     if (command === 'plan') { console.log(JSON.stringify(plan(registry, name))); return; }
-    if (!name) throw new Error('Usage: release.mjs release <name> [--skip-database] | check <name> [--skip-database] [--attempts N] | function <name> | stamp | plan [<production>|all]');
-    if (command === 'check') { await check(registry, name, { skipDatabase, attempts: attemptsFlag === -1 ? 1 : Number(rest[attemptsFlag + 1]) }); return; }
+    if (!name) throw new Error('Usage: release.mjs release <name> [--skip-database] [--dev-databases-checked] | check <name> [--skip-database | --site-only] [--attempts N] | function <name> | published <name> | stamp | plan [<production>|all]');
+    if (command === 'check') { await check(registry, name, { skipDatabase, siteOnly, attempts: attemptsFlag === -1 ? 1 : Number(rest[attemptsFlag + 1]) }); return; }
     if (command === 'function') { await deployFunction(getEnvironment(registry, name)); return; }
-    if (command === 'release') { await release(registry, name, { skipDatabase }); return; }
+    if (command === 'release') { await release(registry, name, { skipDatabase, devDatabasesChecked: rest.includes('--dev-databases-checked') }); return; }
+    if (command === 'published') { console.log(publishedBranch(getEnvironment(registry, name))); return; }
     throw new Error(`Unknown command "${command}"`);
 }
 

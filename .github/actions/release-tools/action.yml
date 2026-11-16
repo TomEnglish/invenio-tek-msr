@@ -25,7 +25,19 @@ runs:
         fi
         sudo apt-get install -y postgresql-17
         echo /usr/lib/postgresql/17/bin >> "$GITHUB_PATH"
+    # Fetched from its publisher's release and accepted only when it is the
+    # exact file with this checksum. No third-party action runs in a job that
+    # holds an environment's secrets.
     - if: inputs.cli == 'true'
-      uses: supabase/setup-cli@v1
-      with:
-        version: 2.108.0
+      name: The command line that deploys the admin function
+      shell: bash
+      env:
+        CLI_VERSION: 2.108.0
+        CLI_SHA256: 01e467428fe615952cfd576f964e4fb053fecb546a4d81dee85853ec0f3f8220
+      run: |
+        curl -fsSL -o "$RUNNER_TEMP/supabase.tar.gz" "https://github.com/supabase/cli/releases/download/v$CLI_VERSION/supabase_linux_amd64.tar.gz"
+        echo "$CLI_SHA256  $RUNNER_TEMP/supabase.tar.gz" | sha256sum --check --quiet
+        mkdir -p "$RUNNER_TEMP/supabase-cli"
+        tar -xzf "$RUNNER_TEMP/supabase.tar.gz" -C "$RUNNER_TEMP/supabase-cli"
+        "$RUNNER_TEMP/supabase-cli/supabase" --version
+        echo "$RUNNER_TEMP/supabase-cli" >> "$GITHUB_PATH"

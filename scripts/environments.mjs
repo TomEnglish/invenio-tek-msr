@@ -8,6 +8,8 @@
 //   node scripts/environments.mjs config <name>         write ./supabase-config.js for local pages
 //   node scripts/environments.mjs templates <name>      write that environment's email templates
 //   node scripts/environments.mjs database <name>       confirm DATABASE_URL is that environment's database
+//   node scripts/environments.mjs connection address    DATABASE_URL without its password
+//   node scripts/environments.mjs connection password   the password alone
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -167,6 +169,21 @@ export function databaseBelongsTo(environment, connectionString) {
     return SHARED_POOLER.test(host) && user.length === 2 && user[1] === home.split('.')[0];
 }
 
+// A connection string split into its address, without the password, and the
+// password alone. A command line can be read by every process on the machine,
+// so the database client is given the address there and the password in its
+// environment (PGPASSWORD).
+export function connectionParts(connectionString) {
+    let connection, password;
+    try {
+        connection = new URL(connectionString);
+        password = decodeURIComponent(connection.password);
+    } catch { throw new Error('DATABASE_URL is not a connection string.'); }
+    if (!/^postgres(ql)?:$/.test(connection.protocol)) throw new Error('DATABASE_URL is not a connection string.');
+    connection.password = '';
+    return { address: connection.href, password };
+}
+
 // ENVIRONMENTS_FILE points at another list; only the test harness uses it.
 export function loadEnvironments(file = process.env.ENVIRONMENTS_FILE || join(root, 'environments.json')) {
     return validateEnvironments(JSON.parse(readFileSync(file, 'utf8')));
@@ -281,6 +298,11 @@ function main(args) {
         console.log(environment.kind);
         return;
     }
+    if (command === 'connection') {
+        if (!['address', 'password'].includes(rest[0])) throw new Error('Usage: environments.mjs connection address | password');
+        process.stdout.write(connectionParts(process.env.DATABASE_URL || '')[rest[0]]);
+        return;
+    }
     if (command === 'config') {
         const environment = getEnvironment(registry, rest[0]);
         const target = resolve(option(rest, '--out') || join(root, 'supabase-config.js'));
@@ -296,7 +318,7 @@ function main(args) {
         console.log(`Wrote ${EMAIL_TEMPLATES.length} email templates for "${environment.name}" to ${directory}`);
         return;
     }
-    throw new Error('Usage: environments.mjs check | list [--kind K] | matrix [--kind K] | config <name> [--out file] | templates <name> [--out dir] | database <name>');
+    throw new Error('Usage: environments.mjs check | list [--kind K] | matrix [--kind K] | config <name> [--out file] | templates <name> [--out dir] | database <name> | connection address|password');
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

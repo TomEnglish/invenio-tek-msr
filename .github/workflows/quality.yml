@@ -94,7 +94,8 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/release-tools
         with:
-          cli: 'true'
+          # The deploy tool is only fetched when there is a token to deploy with.
+          cli: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' }}
       - name: Database, admin function, then confirm the site, function and database are at this commit
         env:
           ENVIRONMENT: ${{ matrix.environment }}
@@ -107,3 +108,31 @@ jobs:
           else
             node scripts/release.mjs release "$ENVIRONMENT"
           fi
+  # A production joins the release routine when its release branch exists and
+  # its site publishes it. Until then its site still publishes main, so a
+  # merge reaches it at once and is checked there as it always was: the commit
+  # is served for its own environment and database, and no private file is.
+  following-main:
+    name: ${{ matrix.environment }} (if its site still publishes main)
+    needs: [quality, plan]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.plan).production }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Its site serves this commit, unless it has a release branch
+        env:
+          ENVIRONMENT: ${{ matrix.environment }}
+        run: |
+          published=$(node scripts/release.mjs published "$ENVIRONMENT")
+          if [ "$published" != main ]; then
+            echo "$ENVIRONMENT publishes $published. This merge does not reach it."
+            exit 0
+          fi
+          echo "::warning::$ENVIRONMENT has no release branch yet, so this merge reached its site at once. Dev first is not enforced for it until it has one and its site publishes it (docs/ENVIRONMENTS.md)."
+          node scripts/release.mjs check "$ENVIRONMENT" --site-only --attempts 90

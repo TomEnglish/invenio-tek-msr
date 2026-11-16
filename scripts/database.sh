@@ -29,7 +29,8 @@
 # so an interrupted run leaves it either fully in or not there at all.
 # Every command first confirms DATABASE_URL is that environment's own database,
 # so a command meant for dev cannot run against a production. DATABASE_URL is
-# the connection string from the database's settings; it is never printed.
+# the connection string from the database's settings. It is never printed, and
+# its password never appears on a command line.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -50,7 +51,14 @@ kind=$(node scripts/environments.mjs database "$environment")
 work=$(mktemp -d "${TMPDIR:-/tmp}/database.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 
-run_sql() { psql -X -q -v ON_ERROR_STOP=1 -d "$DATABASE_URL" "$@"; }
+# The database client gets the address on its command line and the password in
+# its environment: a command line can be read by any process on the machine.
+address=$(node scripts/environments.mjs connection address)
+password=$(node scripts/environments.mjs connection password)
+[ -z "$password" ] || export PGPASSWORD="$password"
+unset password
+
+run_sql() { psql -X -q -v ON_ERROR_STOP=1 -d "$address" "$@"; }
 ask() { run_sql -A -t -c "$1"; }
 holds_schema() { [ "$(ask "select to_regclass('public.projects') is not null or to_regclass('public.users') is not null")" = t ]; }
 
@@ -102,26 +110,27 @@ schema_matches_fresh_build() {
 
 # Applies one migration file and records it, in a single transaction. A file
 # wrapped in BEGIN; and COMMIT; keeps its own transaction: it runs up to its
-# COMMIT; line, the record is added, and then it commits. A file with no
-# transaction of its own is given one.
+# COMMIT;, the record is added, and then it commits. A file with no
+# transaction of its own is given one. The client's variables carry names no
+# migration would contain, so nothing in a migration's own text is replaced.
 apply_migration() {
   local file=$1 base shape
   base=$(basename "$file" .sql)
   shape=$(node scripts/migrations.mjs shape "$file") || return 1
   if [ "$shape" = wrapped ]; then
     node scripts/migrations.mjs without-commit "$file" > "$work/part.sql" || return 1
-    run_sql -v version="${base%%_*}" -v name="${base#*_}" -v file="$file" -v part="$work/part.sql" > /dev/null <<'SQL'
-\set body `cat :'file'`
-\i :part
-insert into supabase_migrations.schema_migrations (version, name, statements) values (:'version', :'name', array[:'body']);
+    run_sql -v release__version="${base%%_*}" -v release__name="${base#*_}" -v release__file="$file" -v release__part="$work/part.sql" > /dev/null <<'SQL'
+\i :release__part
+\set release__body `cat :'release__file'`
+insert into supabase_migrations.schema_migrations (version, name, statements) values (:'release__version', :'release__name', array[:'release__body']);
 commit;
 SQL
   else
-    run_sql -v version="${base%%_*}" -v name="${base#*_}" -v file="$file" > /dev/null <<'SQL'
-\set body `cat :'file'`
+    run_sql -v release__version="${base%%_*}" -v release__name="${base#*_}" -v release__file="$file" > /dev/null <<'SQL'
 begin;
-\i :file
-insert into supabase_migrations.schema_migrations (version, name, statements) values (:'version', :'name', array[:'body']);
+\i :release__file
+\set release__body `cat :'release__file'`
+insert into supabase_migrations.schema_migrations (version, name, statements) values (:'release__version', :'release__name', array[:'release__body']);
 commit;
 SQL
   fi

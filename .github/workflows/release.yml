@@ -72,18 +72,21 @@ jobs:
     steps:
       # The job moves the production's release branch, so this checkout keeps
       # its credentials. RELEASE_DEPLOY_KEY (a write key for this repository
-      # only) is needed whenever a release includes a change to a workflow
-      # file, which the workflow's own token is not allowed to push.
+      # only, stored in the production's repository environment) is needed
+      # whenever a release includes a change to a workflow file, which the
+      # workflow's own token is not allowed to push.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
       - uses: ./.github/actions/release-tools
         with:
-          cli: 'true'
+          # The deploy tool is only fetched when there is a token to deploy with.
+          cli: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' }}
       - name: Database, admin function, site, then confirm all three are at this commit
         env:
           ENVIRONMENT: ${{ matrix.environment }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: node scripts/release.mjs release "$ENVIRONMENT"
+        # The dev-first job above, which this job needs, has just checked every dev database.
+        run: node scripts/release.mjs release "$ENVIRONMENT" --dev-databases-checked

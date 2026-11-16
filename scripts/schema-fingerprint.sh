@@ -19,10 +19,17 @@ if [ "$detail" = 1 ]; then
 else
   sql="select kind, count(*), md5(string_agg(key || ':' || h, ',' order by key)) from (${query}) fp group by kind order by kind;"
 fi
-run_query() { psql -X -q -A -t -F '|' -v ON_ERROR_STOP=1 "$@" -c "$sql"; }
+# Read-only by its own transaction, which every kind of connection accepts.
+run_query() { psql -X -q -A -t -F '|' -v ON_ERROR_STOP=1 "$@" -c 'begin transaction read only' -c "$sql" -c 'commit'; }
 
 if [ -n "${DATABASE_URL:-}" ]; then
-  PGOPTIONS='-c default_transaction_read_only=on' run_query "$DATABASE_URL"
+  # The address goes on the command line and the password in the environment,
+  # since a command line can be read by any process on the machine.
+  address=$(node scripts/environments.mjs connection address)
+  password=$(node scripts/environments.mjs connection password)
+  [ -z "$password" ] || export PGPASSWORD="$password"
+  unset password
+  run_query "$address"
   exit 0
 fi
 

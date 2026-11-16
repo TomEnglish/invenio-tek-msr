@@ -104,13 +104,13 @@ test('the deployed function must answer its own site and be the released version
 // Stand-ins for the parts a check and a release touch; `order` records what ran.
 function parts(overrides = {}) {
     const order = [];
-    const state = {clean: true, onMain: true, site: {}, function: {}, database: null, ...overrides};
+    const state = {clean: true, onMain: true, backward: null, site: {}, function: {}, database: {}, ...overrides};
     const use = {
         commit: () => COMMIT, stamp: () => STAMP,
-        clean: () => state.clean, onMain: () => state.onMain,
+        clean: () => state.clean, onMain: () => state.onMain, forward: () => state.backward,
         site: async environment => { order.push(`site ${environment.name}`); if (state.site[environment.name]) throw new Error(state.site[environment.name]); return 'serves it'; },
         function: async environment => { order.push(`function ${environment.name}`); if (state.function[environment.name]) throw new Error(state.function[environment.name]); return 'right version'; },
-        database: environment => { order.push(`database ${environment.name}`); if (state.database) throw new Error(state.database); return 'matches'; },
+        database: (environment, connection) => { order.push(`database ${environment.name}${connection ? ` through ${connection}` : ''}`); if (state.database[environment.name]) throw new Error(state.database[environment.name]); return 'matches'; },
         migrate: environment => { order.push(`migrate ${environment.name}`); },
         deploy: async environment => { order.push(`deploy ${environment.name}`); },
         publish: (environment, commit) => { order.push(`publish ${environment.name} ${commit === COMMIT}`); },
@@ -126,7 +126,7 @@ test('a check reports every part and fails when any one differs', async () => {
     assert.match(all.lines.at(-1), /"acme" is entirely at cccccccccccc\.$/);
 
     // Every part is still checked after one differs, so one run shows everything that is behind.
-    const behind = parts({site: {acme: 'This commit is not deployed'}, database: 'history differs'});
+    const behind = parts({site: {acme: 'This commit is not deployed'}, database: {acme: 'history differs'}});
     await assert.rejects(check(registry, 'acme', {use: behind.use, log: line => behind.log(line)}),
         /"acme" is not at cccccccccccc:\n  site: This commit is not deployed\n  database: history differs$/);
     assert.deepEqual(behind.order, ['site acme', 'function acme', 'database acme']);
@@ -137,24 +137,41 @@ test('a check reports every part and fails when any one differs', async () => {
     assert.deepEqual(skipped.order, ['site dev', 'function dev']);
     assert.ok(skipped.lines.includes('database  not checked'));
     assert.match(skipped.lines.at(-1), /apart from the database, which was not checked/);
+    // A production that still publishes main is checked for what a merge changes there: its site.
+    const site = parts({function: {acme: 'an earlier version'}});
+    await check(registry, 'acme', {siteOnly: true, use: site.use, log: line => site.log(line)});
+    assert.deepEqual(site.order, ['site acme']);
+    assert.match(site.lines.at(-1), /apart from the admin function and the database, which were not checked/);
     await assert.rejects(check(registry, 'nowhere', {use: all.use}), /Unknown environment "nowhere"/);
 });
 
 test('a production release is dev first, then database, function, site, and a full check', async () => {
-    const {release} = await ready;
-    const env = {DATABASE_URL: 'postgres://x', SUPABASE_ACCESS_TOKEN: 't'};
+    const {release, devDatabaseVariable} = await ready;
+    const env = {DATABASE_URL: 'postgres://acme', DATABASE_URL_DEV: 'postgres://dev', SUPABASE_ACCESS_TOKEN: 't'};
     const run = (name, options, overrides) => { const p = parts(overrides); return {p, done: release(registry, name, {env, use: p.use, log: line => p.log(line), ...options})}; };
+    const devFirst = ['site dev', 'function dev', 'database dev through postgres://dev'];
+    const after = ['publish acme true', 'site acme', 'function acme', 'database acme'];
 
     const good = run('acme');
     assert.deepEqual(await good.done, {environment: 'acme', commit: COMMIT, database: true});
-    assert.deepEqual(good.p.order, ['site dev', 'function dev', 'migrate acme', 'deploy acme', 'publish acme true', 'site acme', 'function acme', 'database acme']);
+    assert.deepEqual(good.p.order, [...devFirst, 'migrate acme', 'deploy acme', ...after]);
 
-    // Dev first: a production is not touched until every dev site and function is at this commit.
-    for (const overrides of [{site: {dev: 'This commit is not deployed'}}, {function: {dev: 'another version'}}]) {
+    // Dev first: a production is not touched until every part of every dev environment is at this commit.
+    for (const overrides of [{site: {dev: 'This commit is not deployed'}}, {function: {dev: 'another version'}}, {database: {dev: 'its history is not the files'}}]) {
         const early = run('acme', {}, overrides);
         await assert.rejects(early.done, /Dev first: "dev" is not at cccccccccccc .*Nothing was changed\.$/);
-        assert.ok(early.p.order.every(step => step.endsWith(' dev')), 'nothing of the production may run');
+        assert.ok(early.p.order.every(step => / dev( |$)/.test(step)), 'nothing of the production may run');
     }
+    // The dev database is checked here, through its own connection string...
+    assert.equal(devDatabaseVariable({name: 'dev'}), 'DATABASE_URL_DEV');
+    assert.equal(devDatabaseVariable({name: 'dev-two'}), 'DATABASE_URL_DEV_TWO');
+    const unchecked = run('acme', {env: {DATABASE_URL: 'postgres://acme', SUPABASE_ACCESS_TOKEN: 't'}});
+    await assert.rejects(unchecked.done, /Dev first: set DATABASE_URL_DEV to the "dev" database's connection string .* Nothing was changed\.$/);
+    assert.deepEqual(unchecked.p.order, []);
+    // ...unless the caller says the run before this one did, as the workflow's dev-first job has.
+    const byWorkflow = run('acme', {devDatabasesChecked: true, env: {DATABASE_URL: 'postgres://acme', SUPABASE_ACCESS_TOKEN: 't'}});
+    await byWorkflow.done;
+    assert.deepEqual(byWorkflow.p.order, ['site dev', 'function dev', 'migrate acme', 'deploy acme', ...after]);
     const noDev = parts();
     await assert.rejects(release({environments: {demo: entry('demo')}, previews: null}, 'demo', {env, use: noDev.use, log: () => {}}), /no dev environment to release to first/);
 
@@ -162,6 +179,7 @@ test('a production release is dev first, then database, function, site, and a fu
     const refusals = [
         [{}, {clean: false}, /uncommitted changes/],
         [{}, {onMain: false}, /is not on main/],
+        [{}, {backward: 'release/acme is at 999999999999, which this commit does not come after. A release only moves forward.'}, /A release only moves forward\. Nothing was changed\.$/],
         [{skipDatabase: true}, {}, /never released without its database/],
         [{env: {SUPABASE_ACCESS_TOKEN: 't'}}, {}, /Set DATABASE_URL to the acme database's connection string\. Nothing was changed\./],
     ];
@@ -176,13 +194,31 @@ test('a production release is dev first, then database, function, site, and a fu
     stuck.use.publish = () => { const error = new Error('push failed'); error.stderr = 'refusing to allow a GitHub App to create or update workflow'; throw error; };
     await assert.rejects(release(registry, 'acme', {env, use: stuck.use, log: () => {}}),
         /database and admin function of "acme" are released, but release\/acme could not be moved, so its site is unchanged\. This release changes a workflow file, which needs the RELEASE_DEPLOY_KEY secret/);
-    assert.deepEqual(stuck.order, ['site dev', 'function dev', 'migrate acme', 'deploy acme']);
+    assert.deepEqual(stuck.order, [...devFirst, 'migrate acme', 'deploy acme']);
 
-    // Without a deploy token the function is not deployed, and the check still decides.
-    const noToken = run('acme', {env: {DATABASE_URL: 'postgres://x'}}, {function: {acme: 'another version'}});
-    await assert.rejects(noToken.done, /"acme" is not at cccccccccccc:\n  function: another version$/);
-    assert.ok(!noToken.p.order.includes('deploy acme'));
-    assert.ok(noToken.p.lines.includes('Admin function: no deploy token here, so it is only checked.'));
+    // Without a deploy token the function must already be this version before the site moves:
+    // a new site is never published in front of an old function.
+    const noTokenEnv = {DATABASE_URL: 'postgres://acme', DATABASE_URL_DEV: 'postgres://dev'};
+    const stale = run('acme', {env: noTokenEnv}, {function: {acme: 'the admin function is version bbbbbbbbbbbb, not aaaaaaaaaaaa'}});
+    await assert.rejects(stale.done, /database of "acme" is released, but the admin function is version bbbbbbbbbbbb, not aaaaaaaaaaaa and there is no deploy token here, so its site was not changed\./);
+    assert.deepEqual(stale.p.order, [...devFirst, 'migrate acme', 'function acme']);
+    const current = run('acme', {env: noTokenEnv});
+    await current.done;
+    assert.deepEqual(current.p.order, [...devFirst, 'migrate acme', 'function acme', ...after]);
+    assert.ok(current.p.lines.includes('Admin function: already this version.'));
+});
+
+test('a site publishes its release branch once that exists, and main until then', async () => {
+    const {publishedBranch} = await ready;
+    const asked = [];
+    const answer = status => branch => { asked.push(branch); return {status, stderr: 'fatal: unable to access'}; };
+    assert.equal(publishedBranch({name: 'dev', kind: 'dev'}, answer(2)), 'main');
+    assert.deepEqual(asked, [], 'dev always publishes main');
+    assert.equal(publishedBranch({name: 'acme', kind: 'production'}, answer(0)), 'release/acme');
+    assert.equal(publishedBranch({name: 'acme', kind: 'production'}, answer(2)), 'main');
+    // An error is never read as "there is no such branch".
+    assert.throws(() => publishedBranch({name: 'acme', kind: 'production'}, answer(128)), /Could not ask whether release\/acme exists: fatal: unable to access/);
+    assert.deepEqual(asked, ['release/acme', 'release/acme', 'release/acme']);
 });
 
 test('a dev release needs no other environment, publishes nothing, and may run before its database is set up', async () => {
@@ -245,7 +281,7 @@ test('deploying the function sets its site address from the list and keeps the t
 });
 
 test('every migration is one transaction: none of its own, or BEGIN; first and COMMIT; last', async () => {
-    const {migrationFiles, migrationShape, withoutCommit} = await migrationsReady;
+    const {migrationFiles, migrationShape, migrationProblem, withoutCommit} = await migrationsReady;
     const files = migrationFiles();
     assert.ok(files.length >= 29);
     assert.ok(files.every(file => ['plain', 'wrapped'].includes(file.shape)));
@@ -269,6 +305,14 @@ test('every migration is one transaction: none of its own, or BEGIN; first and C
     for (const mixed of ['START TRANSACTION;\nselect 1;\nCOMMIT;\n', 'select 1;\nEND;\n', 'BEGIN;\nselect 1;\nROLLBACK;\n', 'BEGIN;\nsavepoint a;\nselect 1;\nCOMMIT;\n', 'BEGIN ISOLATION LEVEL SERIALIZABLE;\nselect 1;\nCOMMIT;\n', 'BEGIN;\nselect 1;\nCOMMIT']) {
         assert.equal(migrationShape(mixed), 'mixed', mixed);
     }
+    // A command of the database client can end the transaction or run outside it, so a migration is SQL only.
+    for (const client of ["select 'commit' \\gexec\n", 'BEGIN;\n\\i other.sql\nCOMMIT;\n', '\\connect other\nselect 1;\n']) {
+        assert.equal(migrationShape(client), 'mixed', client);
+        assert.match(migrationProblem(client), /must be SQL only/);
+    }
+    // A backslash inside a string, a function body or a comment is only text.
+    assert.equal(migrationProblem("select E'a\\nb', '\\d', $$ \\gexec $$;\n-- \\i x\n/* \\q */\n"), null);
+    assert.match(migrationProblem('BEGIN;\nselect 1;\n'), /must either have no transaction statement of its own/);
     assert.equal(withoutCommit('-- note\nBEGIN;\nselect 1;\n\nCOMMIT;\n-- done\n'), '-- note\nBEGIN;\nselect 1;\n\n');
     assert.equal(withoutCommit("BEGIN;\nselect '\nCOMMIT;\n';\nCOMMIT;\n"), "BEGIN;\nselect '\nCOMMIT;\n';\n", 'a COMMIT; inside a string is not the one left out');
     assert.throws(() => withoutCommit('select 1;\n'), /Only a migration wrapped/);
@@ -312,6 +356,11 @@ test('a recorded history is compared with the files by number, name and text', a
     assert.deepEqual(compareHistory([row(files[0]), row(files[1], {md5: 'other'}), row(files[2], {parts: 4})], files, {namesOnly: true}),
         {problems: [], differing: [files[1], files[2]], pending: []});
 
+    // align-history also needs the whole list recorded: not a part of it, and not nothing.
+    assert.deepEqual(compareHistory([row(files[0]), row(files[1], {md5: 'other'})], files, {namesOnly: true, complete: true}).problems, ['the database records 2 migrations and there are 3 migration files']);
+    assert.deepEqual(compareHistory([], files, {namesOnly: true, complete: true}).problems, ['the database records 0 migrations and there are 3 migration files']);
+    assert.deepEqual(compareHistory(files.map(file => row(file)), files, {namesOnly: true, complete: true}).problems, []);
+
     assert.deepEqual(compareHistory([row(files[0]), row(files[2])], files).problems, ['migration 2 is 003_three in the database and 002_two in the files']);
     assert.deepEqual(compareHistory([row(files[0], {name: 'uno'})], files, {namesOnly: true}).problems, ['migration 1 is 001_uno in the database and 001_one in the files']);
     assert.deepEqual(compareHistory([...files.map(file => row(file)), {version: '004', name: 'newer', md5: 'x', parts: 1}], files).problems,
@@ -327,7 +376,12 @@ test('the workflows release dev on every merge and a production only through the
     assert.match(quality, /matrix: \$\{\{ fromJSON\(needs\.plan\.outputs\.plan\)\.dev \}\}/);
     assert.match(quality, /release\.mjs release "\$ENVIRONMENT"\n/);
     assert.doesNotMatch(quality, /smoke-deploy\.mjs --all/, 'a merge to main no longer waits for, or expects, the productions');
-    assert.doesNotMatch(quality, /\.production/, 'a merge to main releases to dev only');
+    // Only the dev job holds an environment's secrets and releases anything.
+    assert.equal(quality.match(/environment: \$\{\{ matrix\.environment \}\}/g).length, 1);
+    const followingMain = quality.slice(quality.indexOf('\n  following-main:'));
+    assert.doesNotMatch(followingMain, /secrets\.|release\.mjs release |\n    environment:/);
+    // A production whose site still publishes main is checked there after each merge, site only.
+    assert.match(quality, /\n  following-main:[\s\S]*fromJSON\(needs\.plan\.outputs\.plan\)\.production[\s\S]*release\.mjs published "\$ENVIRONMENT"[\s\S]*release\.mjs check "\$ENVIRONMENT" --site-only --attempts 90\n/);
 
     const release = read('release.yml');
     assert.match(release, /\non:\n  workflow_dispatch:/);
@@ -335,6 +389,9 @@ test('the workflows release dev on every merge and a production only through the
     assert.match(release, /"\$GITHUB_REF" != refs\/heads\/main/);
     // Dev first: every dev environment, database included, before any production job starts.
     assert.match(release, /\n  dev-first:[\s\S]*release\.mjs check "\$ENVIRONMENT"\n  release:/);
+    // Only the job that needs dev-first may say the dev databases were checked.
+    assert.match(release, /needs: \[plan, dev-first\][\s\S]*release\.mjs release "\$ENVIRONMENT" --dev-databases-checked\n/);
+    assert.equal((quality + release).match(/--dev-databases-checked/g).length, 1);
     assert.match(release, /\n  release:\n    name: [^\n]+\n    needs: \[plan, dev-first\]/);
     assert.match(release, /matrix: \$\{\{ fromJSON\(needs\.plan\.outputs\.plan\)\.production \}\}/);
     assert.match(release, /max-parallel: 1/);
@@ -342,7 +399,9 @@ test('the workflows release dev on every merge and a production only through the
 
     const check = read('environments-check.yml');
     assert.match(check, /schedule:/);
-    assert.match(check, /ref: \$\{\{ matrix\.branch \}\}/);
+    assert.match(check, /release\.mjs published "\$ENVIRONMENT"/);
+    assert.match(check, /ref: \$\{\{ steps\.published\.outputs\.branch \}\}/);
+    assert.doesNotMatch(check, /2> ?\/dev\/null/, 'an error while asking about a branch is never hidden');
     assert.match(check, /fromJSON\(needs\.plan\.outputs\.plan\)\.all/);
     for (const workflow of [quality, release, check]) {
         // Each job takes its secrets from the repository environment named after its environment,
@@ -353,4 +412,47 @@ test('the workflows release dev on every merge and a production only through the
         assert.doesNotMatch(workflow.replace(/^ +[A-Z_]+: \$\{\{ [^\n]+\n/gm, ''), /\n\s+(node|echo|if|gh) [^\n]*\$\{\{/, 'no expression is pasted into a script');
     }
     for (const workflow of [quality, release]) assert.match(workflow, /group: release-\$\{\{ matrix\.environment \}\}\n\s+cancel-in-progress: false/);
+    // No third-party action runs where secrets are: the deploy tool is fetched and checked by its checksum.
+    const tools = readFileSync(join(root, '.github/actions/release-tools/action.yml'), 'utf8');
+    assert.match(tools, /sha256sum --check/);
+    for (const file of [quality, release, check, tools]) {
+        for (const [, action] of file.matchAll(/uses: ([^\s]+)/g)) assert.match(action, /^(actions\/|denoland\/setup-deno@|\.\/)/, action);
+    }
+});
+
+test('a database password is handed to the client in its environment, never on its command line', async () => {
+    const {connectionParts} = await import('../scripts/environments.mjs');
+    assert.deepEqual(connectionParts('postgresql://postgres.acmeref:p%40ss%2Fw@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require'),
+        {address: 'postgresql://postgres.acmeref@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require', password: 'p@ss/w'});
+    assert.deepEqual(connectionParts('postgresql://127.0.0.1:5432/env_dev'), {address: 'postgresql://127.0.0.1:5432/env_dev', password: ''});
+    for (const bad of ['', 'not a connection string', 'https://db.acmeref.supabase.co', 'postgresql://u:%E0%A4%A@h/db']) assert.throws(() => connectionParts(bad), /not a connection string/);
+
+    // The real scripts, with a stand-in client that records what it was started with.
+    const directory = mkdtempSync(join(tmpdir(), 'client-'));
+    try {
+        writeFileSync(join(directory, 'psql'), '#!/bin/sh\nprintf \'%s\' "$*" | tr \'\\n\' \' \' >> "$CLIENT_LOG"\necho >> "$CLIENT_LOG"\nprintf \'%s\\n\' "${PGPASSWORD:-}" >> "$CLIENT_LOG.password"\n', {mode: 0o755});
+        const key = `x.${Buffer.from(JSON.stringify({ref: 'acmeref', role: 'anon'})).toString('base64url')}.y`;
+        writeFileSync(join(directory, 'environments.json'), JSON.stringify({environments: {acme: {...entry('acme'), databaseUrl: 'https://acmeref.supabase.co', publicKey: key}}}));
+        const env = {
+            ...process.env, PATH: `${directory}:${process.env.PATH}`, CLIENT_LOG: join(directory, 'log'), ENVIRONMENTS_FILE: join(directory, 'environments.json'),
+            DATABASE_URL: 'postgresql://postgres.acmeref:s3cr%40t-word@aws-0-us-east-1.pooler.supabase.com:5432/postgres',
+        };
+        delete env.PGPASSWORD;
+        const {spawnSync} = require('node:child_process');
+        const migrate = spawnSync(join(root, 'scripts/database.sh'), ['migrate', 'acme'], {cwd: root, env, encoding: 'utf8'});
+        assert.match(migrate.stderr, /The acme database is empty/, 'the stand-in client answers nothing, so the release stops at its first question');
+        const fingerprint = spawnSync(join(root, 'scripts/schema-fingerprint.sh'), [], {cwd: root, env, encoding: 'utf8'});
+        assert.equal(fingerprint.status, 0, fingerprint.stderr);
+        const calls = readFileSync(join(directory, 'log'), 'utf8').trim().split('\n');
+        assert.ok(calls.length >= 2);
+        for (const call of calls) {
+            assert.match(call, /postgresql:\/\/postgres\.acmeref@aws-0-us-east-1\.pooler\.supabase\.com:5432\/postgres/);
+            assert.doesNotMatch(call, /s3cr/);
+        }
+        assert.deepEqual([...new Set(readFileSync(join(directory, 'log.password'), 'utf8').trim().split('\n'))], ['s3cr@t-word']);
+        assert.doesNotMatch(migrate.stdout + migrate.stderr + fingerprint.stdout + fingerprint.stderr, /s3cr/);
+    } finally { rmSync(directory, {recursive: true, force: true}); }
+    for (const script of ['scripts/database.sh', 'scripts/schema-fingerprint.sh']) {
+        assert.doesNotMatch(readFileSync(join(root, script), 'utf8'), /(psql|run_sql|run_query)[^\n]*DATABASE_URL/, `${script} must not start the client with the connection string`);
+    }
 });
