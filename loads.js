@@ -52,6 +52,10 @@
     }
 
     let loads = [], places = [], view = 'open', current = null;
+    // The loads are shown as a board of cards or as a table; the browser remembers which, where it can.
+    const LAYOUT_KEY = 'invenio-loads-layout', LAYOUTS = { showBoard: 'board', showTable: 'table' };
+    let layout = 'board';
+    try { if (localStorage.getItem(LAYOUT_KEY) === 'table') layout = 'table'; } catch (error) { /* nothing remembered: the board */ }
 
     // Places this project can use (shared ones and its own), for the origin, the stops and "found at".
     async function loadPlaces() {
@@ -65,11 +69,27 @@
     // ---- Board ------------------------------------------------------------------------------
     async function loadBoard() {
         loads = await fetchAll('load_overview', '*');
+        // A change to a load can change its stops, so the table's are read again with the loads. The table on screen
+        // stays as it is until both are in.
+        stopsRead++; stopsByLoad = new Map(); stopsError = null; stopsBusy = false;
+        if (layout === 'table') await readStops();
         renderBoard();
     }
 
+    // A button in the list that opens a load. The list is redrawn after every change, so each button says which load
+    // it opens and which of that load's buttons it is: focus comes back to it when the drawer closes.
+    function loadButton(load, text, className, part, label) {
+        const node = button(text, className, () => openLoad(load.id, part), label);
+        node.dataset.loadId = load.id; node.dataset.part = part;
+        return node;
+    }
+    function listButton({ loadId, part }) {
+        const list = layout === 'table' ? $('loadTableRows') : $('loadBoard');
+        return list.querySelector(`button[data-load-id="${loadId}"][data-part="${part}"]`) || list.querySelector(`button[data-load-id="${loadId}"]`);
+    }
+
     function card(load) {
-        const node = button('', 'load-card', () => openLoad(load.id));
+        const node = loadButton(load, '', 'load-card', 'card');
         const top = el('span', '', 'load-card-top');
         top.append(el('strong', load.load_number, 'mono'), el('span', dayText(load.planned_date), 'small text-muted'));
         node.append(top);
@@ -90,10 +110,16 @@
         return node;
     }
 
+    /** The loads the switch shows, as the board or as the table, whichever is chosen. */
     function renderBoard() {
-        const groups = loadsApi.boardGroups(loads, { view });
+        const groups = loadsApi.boardGroups(loads, { view }), table = layout === 'table';
         const board = $('loadBoard'); board.className = `load-board${view === 'finished' ? ' is-finished' : ''}`;
-        board.replaceChildren(...groups.map(group => {
+        board.hidden = table; $('loadTable').hidden = !table;
+        for (const [id, name] of Object.entries(LAYOUTS)) $(id).setAttribute('aria-pressed', String(name === layout));
+        // Only the one showing is drawn; the other is emptied, so nothing out of date is left on the page.
+        if (table) board.replaceChildren(); else $('loadTableRows').replaceChildren();
+        if (table) renderTable(groups.flatMap(group => group.loads));
+        else board.replaceChildren(...groups.map(group => {
             const column = el('section', '', 'load-column'), heading = el('h2', `${group.label} (${group.loads.length.toLocaleString()})`);
             heading.id = `column-${group.status}`; column.setAttribute('aria-labelledby', heading.id);
             column.append(heading);
@@ -113,6 +139,79 @@
             : view === 'field' ? plural(fromField, 'open load started in the field', 'open loads started in the field') : plural(open, 'open load');
     }
 
+    // ---- Table ------------------------------------------------------------------------------
+    // The same loads in the board's order, one row each, with the stops side by side: as many stop columns as the
+    // longest load listed has, and never fewer than three. load_overview has no stops, so the stops of the loads
+    // listed are read when the table is showing, 100 loads to a request, and again after any change.
+    // load_stop_overview leaves cancelled stops out. The table never shows the driver or the licence.
+    const STOP_COLUMNS = 3, LOADS_PER_READ = 100;
+    // stopsRead counts the reads of the loads: stops read for an earlier one are dropped.
+    let stopsByLoad = new Map(), stopsError = null, stopsBusy = false, stopsRead = 0;
+    const listedLoads = () => loadsApi.boardGroups(loads, { view }).flatMap(group => group.loads);
+
+    /** Reads the stops of the loads listed that aren't read yet. A failed read is kept for the table to say; nothing is thrown. */
+    async function readStops() {
+        const read = stopsRead, ids = listedLoads().map(load => load.id).filter(id => !stopsByLoad.has(id));
+        if (!ids.length || stopsBusy) return;
+        stopsBusy = true;
+        const rows = [];
+        let failure = null;
+        try {
+            for (let from = 0; from < ids.length; from += LOADS_PER_READ) {
+                rows.push(...await fetchAll('load_stop_overview', 'id,load_id,seq,place_name,kind,status,planned_date', query => query.in('load_id', ids.slice(from, from + LOADS_PER_READ))));
+            }
+        } catch (error) { failure = error; }
+        // The loads were read again meanwhile, and their stops are being read with them.
+        if (read !== stopsRead) return;
+        stopsBusy = false; stopsError = failure;
+        if (failure) return;
+        for (const id of ids) stopsByLoad.set(id, []);
+        for (const stop of rows) stopsByLoad.get(stop.load_id)?.push(stop);
+        for (const id of ids) stopsByLoad.get(id).sort((a, b) => a.seq - b.seq);
+    }
+
+    function renderTable(listed) {
+        const waiting = listed.some(load => !stopsByLoad.has(load.id)), read = stopsRead;
+        // Drawn again once the stops are in, unless the loads were read again meanwhile: that read draws them.
+        if (waiting && !stopsError && !stopsBusy) void readStops().then(() => { if (read === stopsRead) renderBoard(); });
+        const note = $('loadTableNote');
+        note.hidden = !(waiting && stopsError);
+        note.textContent = note.hidden ? '' : `The stops could not be loaded (${loadsApi.errorMessage(stopsError)}). Reload the page to try again.`;
+        const stopColumns = Math.max(STOP_COLUMNS, ...listed.map(load => stopsByLoad.get(load.id)?.length || 0));
+        const labels = ['Load', 'Status', 'Truck', 'Trailer', 'Bill of lading', 'Starts at', 'Planned', ...Array.from({ length: stopColumns }, (_, index) => `Stop ${index + 1}`)];
+        $('loadTableHead').replaceChildren(...labels.map(label => { const cell = el('th', label); cell.scope = 'col'; return cell; }));
+        if (!listed.length) {
+            const row = el('tr'), cell = el('td', 'No loads.', 'text-center py-4 text-muted');
+            cell.colSpan = labels.length; row.append(cell); $('loadTableRows').replaceChildren(row);
+            return;
+        }
+        $('loadTableRows').replaceChildren(...listed.map(load => {
+            const row = el('tr'), number = el('td'), state = el('td');
+            number.append(loadButton(load, load.load_number, 'btn btn-link btn-sm p-0 mono load-table-open', 'load'));
+            state.append(chip(loadsApi.LOAD_STATUS[load.status], load.status));
+            row.append(number, state, ...[load.truck_number, load.trailer_number, load.bol_number, load.origin_name, dayText(load.planned_date)].map(value => el('td', value || '—')));
+            const stops = stopsByLoad.get(load.id);
+            if (stops) row.append(...Array.from({ length: stopColumns }, (_, index) => stopCell(load, stops[index], index + 1)));
+            else {
+                // Stops that aren't in yet, or couldn't be read, aren't "no stops": say which.
+                const cell = el('td', stopsError ? 'Unavailable' : 'Loading…', 'text-muted');
+                cell.colSpan = stopColumns; row.append(cell);
+            }
+            return row;
+        }));
+    }
+
+    // A stop's place opens the load, as its number does. Under it: what kind of stop it is unless it is a plain
+    // drop-off, how far along it is and its planned date.
+    function stopCell(load, stop, position) {
+        if (!stop) return el('td', '—');
+        const cell = el('td', '', 'load-table-stop');
+        cell.append(loadButton(load, stop.place_name, 'btn btn-link btn-sm p-0 load-table-open', `stop-${stop.id}`, `${stop.place_name}, stop ${position} of ${load.load_number}`));
+        const facts = [stop.kind !== 'dropoff' && loadsApi.STOP_KINDS[stop.kind], loadsApi.STOP_STATUS[stop.status]?.label || stop.status, dayText(stop.planned_date)];
+        cell.append(el('div', facts.filter(Boolean).join(' · '), 'small text-muted'));
+        return cell;
+    }
+
     // ---- Drawer -----------------------------------------------------------------------------
     const drawer = $('loadDrawer'), body = $('loadBody'), drawerStatus = $('loadStatus');
     const status = text => { drawerStatus.textContent = text; };
@@ -127,7 +226,11 @@
             if (lock.busy) status(STILL_SAVING);
             return;
         }
+        const opener = current?.opener;
         closing = false; current = null; window.InvenioUnsavedChanges = false;
+        // The board or table was redrawn if anything changed, so the button that opened the load is found again. A load
+        // that is no longer listed leaves focus on the message saying what happened.
+        if (opener) (listButton(opener) || $('pageMessage')).focus();
     });
     function closeDrawer() {
         if (lock.busy) { status(STILL_SAVING); return; }
@@ -169,9 +272,10 @@
             unattached: (stored || []).filter(path => !photos.some(photo => photo.storage_path === path)) });
     }
 
-    async function openLoad(id) {
+    // part: which of the load's buttons in the board or table opened it, if one did.
+    async function openLoad(id, part) {
         const state = { id, isNew: false, load: loads.find(load => load.id === id), dirty: {}, companyDraft: null, stopDraft: null, found: null, unattached: [], writeOffs: [],
-            crates: crateContents.newState() };
+            crates: crateContents.newState(), opener: part ? { loadId: id, part } : null };
         if (!state.load) { message('That load is not in this project.'); return; }
         current = state;
         const heading = el('h2', state.load.load_number); heading.id = 'loadTitle';
@@ -1201,8 +1305,16 @@ section { break-inside: avoid-page; }
     const VIEWS = { showOpen: 'open', showFinished: 'finished', showField: 'field' };
     for (const [id, name] of Object.entries(VIEWS)) {
         $(id).onclick = () => {
-            view = name;
+            // A switch tries again for stops that couldn't be read.
+            view = name; stopsError = null;
             for (const [other, otherName] of Object.entries(VIEWS)) $(other).setAttribute('aria-pressed', String(otherName === view));
+            renderBoard();
+        };
+    }
+    for (const [id, name] of Object.entries(LAYOUTS)) {
+        $(id).onclick = () => {
+            layout = name; stopsError = null;
+            try { localStorage.setItem(LAYOUT_KEY, layout); } catch (error) { /* not remembered; the page works the same */ }
             renderBoard();
         };
     }

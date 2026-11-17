@@ -98,7 +98,8 @@ function fakeServer(state, { role }) {
         if (request.storage === 'signed') return model.storage.canRead(request.path) ? { data: { signedUrl: `signed:${request.path}` }, error: null } : { data: null, error: { message: 'Object not found' } };
         if (request.storage === 'remove') return { data: model.storage.remove(request.paths).map(name => ({ name })), error: null };
         if (request.storage === 'list') return { data: model.storage.list(request.prefix), error: null };
-        const rows = reads[request.table]().filter(row => request.filters.every(([key, value]) => (row[key] ?? null) === value)).map(row => structuredClone(row));
+        const rows = reads[request.table]().filter(row => request.filters.every(([key, value]) => (row[key] ?? null) === value)
+            && (!request.among || request.among[1].includes(row[request.among[0]]))).map(row => structuredClone(row));
         if (request.one) return { data: rows[0] || null, error: null };
         return { data: rows.slice(request.from, request.to + 1), error: null };
     }
@@ -109,6 +110,8 @@ function fakeServer(state, { role }) {
         range(from, to) { Object.assign(this.request, { from, to }); return this; }
         eq(key, value) { this.request.filters.push([key, value]); return this; }
         is(key, value) { this.request.filters.push([key, value]); return this; }
+        // The table asks for the stops of the loads it lists: one of these values.
+        in(key, values) { this.request.among = [key, [...values]]; return this; }
         maybeSingle() { this.request.one = true; return this; }
         then(resolve, reject) { return respond(this.request).then(resolve, reject); }
     }
@@ -127,7 +130,7 @@ function fakeServer(state, { role }) {
     return server;
 }
 
-async function openPage({ role = 'admin', projectStatus = 'active', search = '', state = world(), fail = null } = {}) {
+async function openPage({ role = 'admin', projectStatus = 'active', search = '', state = world(), fail = null, storage = null } = {}) {
     const server = fakeServer(state, { role }), confirms = [], opened = [];
     server.fail = fail;
     const { document, Option } = fakeDocument();
@@ -149,12 +152,25 @@ async function openPage({ role = 'admin', projectStatus = 'active', search = '',
             availableProjects: [{ id: P, name: 'North Yard project' }, { id: 'p2', name: 'South Yard project' }] },
         supabaseClient: server.client, projectSupabaseClient: createProjectScopedClient(server.client, () => P),
     };
+    // The browser's storage, when a test gives one; without it the page finds none, as when storage is blocked.
+    if (storage) context.localStorage = storage;
     context.window = context;
     vm.createContext(context);
     vm.runInContext(source, context);
     await settle();
     const $ = id => document.getElementById(id);
     const drawer = $('loadDrawer'), body = $('loadBody');
+    // The table view: its headings, its rows as text (a stop as "place | what is under it"), a load's row and buttons,
+    // and the reads of stops it made (the drawer reads one load's stops, without a list of loads).
+    const table = {
+        show: async () => { $('showTable').click(); await settle(); },
+        head: () => $('loadTableHead').childNodes.map(cell => cell.textContent),
+        rows: () => $('loadTableRows').childNodes.map(row => row.childNodes.map(cell => cell.querySelector('div')
+            ? `${cell.querySelector('button').textContent} | ${cell.querySelector('div').textContent}` : cell.textContent)),
+        row: number => $('loadTableRows').childNodes.find(row => row.childNodes[0].textContent === number),
+        button: (number, name) => table.row(number).querySelectorAll('button').find(node => node.textContent === name || node.getAttribute('aria-label') === name),
+        stopReads: () => server.log.filter(request => request.table === 'load_stop_overview' && request.among),
+    };
     const columns = () => Object.fromEntries($('loadBoard').querySelectorAll('section').map(column => [column.querySelector('h2').textContent,
         column.querySelectorAll('.load-card').map(card => card.querySelector('strong').textContent)]));
     const card = number => $('loadBoard').querySelectorAll('.load-card').find(node => node.querySelector('strong').textContent === number);
@@ -168,7 +184,7 @@ async function openPage({ role = 'admin', projectStatus = 'active', search = '',
     const status = () => $('loadStatus').textContent;
     const rows = name => section(name).querySelectorAll('tbody').flatMap(tbody => tbody.childNodes.filter(row => !row.className.split(/\s+/).includes('crate-contents-row'))
         .map(row => row.childNodes.map(cell => cell.textContent)));
-    return { server, document, context, $, drawer, body, columns, card, open, section, find, press, input, set, submit, status, rows, confirms, opened };
+    return { server, document, context, $, drawer, body, columns, card, open, section, find, press, input, set, submit, status, rows, confirms, opened, table };
 }
 
 test('the board shows open loads by status, read through the project scope; closed and canceled are one switch away', async () => {
@@ -185,6 +201,9 @@ test('the board shows open loads by status, read through the project scope; clos
     page.$('showFinished').click();
     assert.deepEqual(plain(page.columns()), { 'Closed and canceled (2)': ['L-0005', 'L-0004'] });
     assert.equal(page.$('showFinished').getAttribute('aria-pressed'), 'true');
+    assert.deepEqual([page.$('loadBoard').hidden, page.$('loadTable').hidden, page.$('showBoard').getAttribute('aria-pressed'), page.$('showTable').getAttribute('aria-pressed')],
+        [false, true, 'true', 'false'], 'the board is what opens');
+    assert.equal(page.table.stopReads().length, 0, 'the board reads no stops');
 });
 
 test('a new load is created by load_save with a fresh load ID, then opens in full', async () => {
@@ -1200,4 +1219,264 @@ test("a crew can depart only with the number and a photo on file, so 022 never r
     await office.submit('actions');
     assert.deepEqual(plain(office.server.ops().at(-1).p_payload), { loadId: id(31), overrideReason: 'Photo to follow from the carrier' });
     assert.equal(office.status(), "L-0001 has left without the driver's license with 1 piece on board; 1 piece stayed behind.");
+});
+
+// ---- Table view ---------------------------------------------------------------------------
+const day = value => new Date(`${value}T12:00:00`).toLocaleDateString();
+const fakeStorage = (values = {}) => ({ values, getItem: key => values[key] ?? null, setItem: (key, value) => { values[key] = String(value); } });
+
+test('the table lists the same loads in the board\'s order, each with its truck, trailer, bill of lading and stops side by side', async () => {
+    const page = await openPage();
+    await page.table.show();
+    assert.deepEqual([page.$('loadBoard').hidden, page.$('loadTable').hidden, page.$('showBoard').getAttribute('aria-pressed'), page.$('showTable').getAttribute('aria-pressed')], [true, false, 'false', 'true']);
+    assert.equal(page.$('loadBoard').childNodes.length, 0, 'the board is emptied while the table shows');
+    assert.deepEqual(page.table.head(), ['Load', 'Status', 'Truck', 'Trailer', 'Bill of lading', 'Starts at', 'Planned', 'Stop 1', 'Stop 2', 'Stop 3'], 'three stop columns at least');
+    assert.ok(page.$('loadTableHead').childNodes.every(cell => cell.tagName === 'TH' && cell.scope === 'col'));
+    assert.deepEqual(page.table.rows(), [
+        ['L-0001', 'Planning', 'TRK-118', 'TR-9', 'BOL-1', 'Gulf Valve Supply', day('2026-11-03'), 'Fixture Machine Works | Pending', 'Coastal Terminal | Drop-off and pick-up · Pending', '—'],
+        ['L-0002', 'In transit', '—', '—', '—', 'North Yard', '—', 'Fixture Machine Works | Pending', 'Coastal Terminal | Pick-up · Pending', '—'],
+        ['L-0003', 'Delivered', '—', '—', '—', 'North Yard', '—', 'Fixture Machine Works | Done', '—', '—'],
+    ], 'planning, in transit, delivered: the board\'s columns in turn');
+    assert.equal(page.table.row('L-0002').childNodes[1].childNodes[0].className, 'chip chip-warn', 'the status is the board\'s chip');
+    assert.equal(page.$('resultSummary').textContent, '3 open loads');
+    // One read for every load listed, through the project scope: never one per load.
+    assert.deepEqual(plain(page.table.stopReads().map(request => [request.columns, request.filters, request.among])),
+        [['id,load_id,seq,place_name,kind,status,planned_date', [['project_id', P]], ['load_id', [id(31), id(32), id(33)]]]]);
+    // The driver and the license stay out of the table.
+    const text = page.$('loadTable').textContent + page.$('loadTableHead').textContent;
+    for (const hidden of ['Dana Ruiz', 'Morgan Lee', '555-0170', 'Driver', 'icense']) assert.ok(!text.includes(hidden), hidden);
+
+    // The same switch narrows the table; the stops of the loads now listed are read once.
+    page.$('showFinished').click(); await settle();
+    assert.deepEqual(page.table.rows(), [['L-0005', 'Canceled', '—', '—', '—', 'North Yard', '—', '—', '—', '—'], ['L-0004', 'Closed', '—', '—', '—', 'North Yard', '—', '—', '—', '—']]);
+    assert.equal(page.$('resultSummary').textContent, '2 closed or canceled loads');
+    assert.deepEqual(plain(page.table.stopReads().map(request => request.among[1])), [[id(31), id(32), id(33)], [id(35), id(34)]]);
+    page.$('showOpen').click(); await settle();
+    assert.equal(page.table.rows().length, 3);
+    assert.equal(page.table.stopReads().length, 2, 'stops already read are not read again');
+    page.$('showBoard').click();
+    assert.deepEqual(plain(page.columns()), { 'Planning (1)': ['L-0001'], 'Loading (0)': [], 'In transit (1)': ['L-0002'], 'Delivered (1)': ['L-0003'] });
+    assert.deepEqual([page.$('loadBoard').hidden, page.$('loadTable').hidden, page.$('loadTableRows').childNodes.length], [false, true, 0]);
+});
+
+test('stops keep their order, canceled stops are left out, and the longest load sets the number of stop columns', async () => {
+    const state = world();
+    const stop = (n, seq, placeN, extra = {}) => ({ id: id(n), project_id: P, load_id: id(32), seq, place_id: id(placeN), kind: 'dropoff', planned_date: null, status: 'pending',
+        arrived_at: null, completed_at: null, ...extra });
+    // L-0002 gets a fourth and a third stop, read out of order, and a stop taken off the load; its first stop has been reached.
+    state.load_stops.push(stop(47, 4, 6, { planned_date: '2026-11-12' }), stop(48, null, 1, { status: 'cancelled' }), stop(46, 3, 1, { kind: 'pickup', planned_date: '2026-11-09' }));
+    Object.assign(state.load_stops.find(row => row.id === id(43)), { status: 'arrived', arrived_at: ago(0.1), planned_date: '2026-11-08' });
+    const page = await openPage({ state });
+    await page.table.show();
+    assert.deepEqual(page.table.head().slice(7), ['Stop 1', 'Stop 2', 'Stop 3', 'Stop 4']);
+    assert.deepEqual(page.table.rows().map(row => row.slice(7)), [
+        ['Fixture Machine Works | Pending', 'Coastal Terminal | Drop-off and pick-up · Pending', '—', '—'],
+        [`Fixture Machine Works | Arrived · ${day('2026-11-08')}`, 'Coastal Terminal | Pick-up · Pending', `North Yard | Pick-up · Pending · ${day('2026-11-09')}`, `Gulf Valve Supply | Pending · ${day('2026-11-12')}`],
+        ['Fixture Machine Works | Done', '—', '—', '—'],
+    ], 'a plain drop-off says only how far along it is and its date');
+    assert.ok(page.table.rows().every(row => row.length === 11), 'every row has every column');
+    // No loads: the board's words, across the whole table.
+    const empty = await openPage({ state: { ...world(), loads: [] } });
+    await empty.table.show();
+    assert.deepEqual(empty.table.rows(), [['No loads.']]);
+    assert.equal(empty.$('loadTableRows').childNodes[0].childNodes[0].colSpan, 10);
+    assert.equal(empty.table.head().length, 10);
+    assert.equal(empty.table.stopReads().length, 0, 'nothing listed, nothing read');
+});
+
+test('a load opens from its number or from a stop in the table, and focus comes back to that button when the drawer closes', async () => {
+    const page = await openPage();
+    await page.table.show();
+    const number = page.table.button('L-0001', 'L-0001');
+    assert.equal(number.getAttribute('aria-label'), null, 'the load number is the button\'s name');
+    number.click(); await settle();
+    assert.deepEqual([page.drawer.open, page.drawer.querySelector('h2').textContent], [true, 'L-0001']);
+    await page.press('Close');
+    assert.equal(page.drawer.open, false);
+    assertFocus(page, page.table.button('L-0001', 'L-0001'));
+
+    // From a stop: its place is the visible name, and the label adds which stop of which load.
+    const second = page.table.button('L-0001', 'Coastal Terminal, stop 2 of L-0001');
+    assert.equal(second.textContent, 'Coastal Terminal');
+    second.click(); await settle();
+    assert.equal(page.drawer.querySelector('h2').textContent, 'L-0001');
+    // A change in the drawer redraws the table behind it, stops included.
+    page.set('truckNumber', 'TRK-200');
+    await page.submit('details');
+    assert.equal(page.status(), "Saved L-0001's details.");
+    assert.equal(page.table.rows()[0][2], 'TRK-200');
+    await page.press('Add stop');
+    page.set('stopPlace2', id(1)); page.set('stopKind2', 'pickup'); page.set('stopDate2', '2026-11-05');
+    await page.press('Save stops');
+    assert.deepEqual(page.table.rows()[0].slice(7), ['Fixture Machine Works | Pending', 'Coastal Terminal | Drop-off and pick-up · Pending', `North Yard | Pick-up · Pending · ${day('2026-11-05')}`]);
+    assert.deepEqual(plain(page.table.stopReads().map(request => request.among[1])), Array(3).fill([id(31), id(32), id(33)]), 'the stops are read again with each change: one read each time');
+    assert.notEqual(page.table.button('L-0001', 'Coastal Terminal, stop 2 of L-0001'), second, 'the table was redrawn');
+    await page.press('Close');
+    assertFocus(page, page.table.button('L-0001', 'Coastal Terminal, stop 2 of L-0001'), 'the same stop\'s button in the redrawn table');
+
+    // A load that leaves the list leaves focus on the message saying what happened.
+    page.table.button('L-0001', 'L-0001').click(); await settle();
+    await page.press('Cancel load');
+    assert.equal(page.$('pageMessage').textContent, 'L-0001 is canceled.');
+    assert.deepEqual(page.table.rows().map(row => row[0]), ['L-0002', 'L-0003']);
+    await page.press('Close');
+    assertFocus(page, page.$('pageMessage'));
+});
+
+test('on the board too, focus comes back to the load\'s card after a change redraws it; a load opened from a link is left alone', async () => {
+    const page = await openPage();
+    const before = page.card('L-0001');
+    await page.open('L-0001');
+    page.set('truckNumber', 'TRK-200');
+    await page.submit('details');
+    await page.press('Close');
+    assert.notEqual(page.card('L-0001'), before, 'the board was redrawn');
+    assertFocus(page, page.card('L-0001'));
+    // Outside Shops links to a load with ?load=<id>: no button here opened it, so the page moves focus nowhere.
+    const linked = await openPage({ search: `?load=${id(32)}` });
+    assert.equal(linked.drawer.open, true);
+    const close = linked.find('Close');
+    await linked.press('Close');
+    assertFocus(linked, close, 'left where the browser puts it');
+});
+
+test('the browser remembers the table view, and the page works the same when it cannot remember', async () => {
+    const storage = fakeStorage({ 'invenio-loads-layout': 'table' });
+    const page = await openPage({ storage });
+    assert.deepEqual([page.$('loadBoard').hidden, page.$('loadTable').hidden, page.$('showBoard').getAttribute('aria-pressed'), page.$('showTable').getAttribute('aria-pressed')], [true, false, 'false', 'true']);
+    assert.deepEqual(page.table.rows().map(row => row[0]), ['L-0001', 'L-0002', 'L-0003'], 'the table opens with its stops');
+    assert.equal(page.table.rows()[0][7], 'Fixture Machine Works | Pending');
+    // Housekeeping removed an old license and read the loads again, so there are two reads of each.
+    assert.equal(page.table.stopReads().length, page.server.log.filter(request => request.table === 'load_overview').length, 'the stops are read once with each read of the loads');
+    page.$('showBoard').click();
+    assert.equal(storage.values['invenio-loads-layout'], 'board');
+    assert.equal(page.card('L-0001').querySelector('strong').textContent, 'L-0001');
+    await page.table.show();
+    assert.equal(storage.values['invenio-loads-layout'], 'table');
+
+    // Storage that refuses to be read or written: the board opens, and both views still work.
+    const blocked = { getItem() { throw new Error('SecurityError'); }, setItem() { throw new Error('QuotaExceededError'); } };
+    const second = await openPage({ storage: blocked });
+    assert.deepEqual([second.$('loadBoard').hidden, second.$('loadTable').hidden], [false, true]);
+    assert.equal(second.$('pageMessage').textContent, '');
+    await second.table.show();
+    assert.deepEqual(second.table.rows().map(row => row[0]), ['L-0001', 'L-0002', 'L-0003']);
+    second.$('showBoard').click();
+    assert.deepEqual(plain(second.columns())['Planning (1)'], ['L-0001']);
+    // Anything else remembered is not a view: the board.
+    const odd = await openPage({ storage: fakeStorage({ 'invenio-loads-layout': 'grid' }) });
+    assert.deepEqual([odd.$('loadBoard').hidden, odd.$('loadTable').hidden], [false, true]);
+});
+
+test('stops still on their way say so, and stops that cannot be read are not shown as none', async () => {
+    const page = await openPage();
+    page.server.paused = true;
+    page.$('showTable').click(); await settle();
+    assert.deepEqual(page.table.rows().map(row => row.slice(6)), [[day('2026-11-03'), 'Loading…'], ['—', 'Loading…'], ['—', 'Loading…']], 'the loads list at once');
+    assert.equal(page.table.row('L-0001').childNodes[7].colSpan, 3);
+    page.server.paused = false; page.server.step(); await settle();
+    assert.equal(page.table.rows()[0][7], 'Fixture Machine Works | Pending');
+    assert.equal(page.$('loadTableNote').hidden, true);
+
+    const broken = await openPage({ fail: request => request.table === 'load_stop_overview' && request.among ? { message: 'Fixture source unavailable' } : null });
+    await broken.table.show();
+    assert.deepEqual(broken.table.rows().map(row => row.slice(7)), [['Unavailable'], ['Unavailable'], ['Unavailable']]);
+    assert.deepEqual([broken.$('loadTableNote').hidden, broken.$('loadTableNote').textContent], [false, 'The stops could not be loaded (Fixture source unavailable). Reload the page to try again.']);
+    assert.equal(broken.table.stopReads().length, 1, 'a failed read is not repeated on its own');
+    // The loads still open, and a switch tries the stops again.
+    broken.table.button('L-0002', 'L-0002').click(); await settle();
+    assert.equal(broken.drawer.querySelector('h2').textContent, 'L-0002');
+    await broken.press('Close');
+    broken.server.fail = null;
+    broken.$('showFinished').click(); await settle();
+    assert.deepEqual([broken.$('loadTableNote').hidden, broken.$('loadTableNote').textContent], [true, '']);
+    broken.$('showOpen').click(); await settle();
+    assert.deepEqual(broken.table.rows().map(row => row[7]), ['Fixture Machine Works | Pending', 'Fixture Machine Works | Pending', 'Fixture Machine Works | Done']);
+
+    // A failed read while a change reloads the page: the change is saved, and the table says the stops are unavailable.
+    const later = await openPage();
+    await later.table.show();
+    later.table.button('L-0001', 'L-0001').click(); await settle();
+    later.server.fail = request => request.table === 'load_stop_overview' && request.among ? { message: 'Fixture source unavailable' } : null;
+    later.set('truckNumber', 'TRK-200');
+    await later.submit('details');
+    assert.equal(later.status(), "Saved L-0001's details.");
+    assert.deepEqual(later.table.rows()[0].slice(2, 3).concat(later.table.rows()[0].slice(7)), ['TRK-200', 'Unavailable']);
+});
+
+test('switching the list or the view while the stops are being read leaves nothing waiting and reads nothing twice', async () => {
+    // Another list is chosen while the first list's stops are on their way.
+    const page = await openPage();
+    page.server.paused = true;
+    page.$('showTable').click(); await settle();
+    page.$('showFinished').click(); await settle();
+    assert.deepEqual(page.table.rows().map(row => [row[0], row.at(-1)]), [['L-0005', 'Loading…'], ['L-0004', 'Loading…']], 'the new list shows at once, its stops still to come');
+    page.server.paused = false;
+    while (page.server.waiting.length) page.server.step();
+    await settle();
+    assert.deepEqual(page.table.rows().map(row => row.slice(7)), [['—', '—', '—'], ['—', '—', '—']], 'its stops are read once the first read is in');
+    assert.equal(page.table.stopReads().length, 2, 'one read for each list');
+    page.$('showOpen').click(); await settle();
+    assert.deepEqual(page.table.rows().map(row => row[7]), ['Fixture Machine Works | Pending', 'Fixture Machine Works | Pending', 'Fixture Machine Works | Done']);
+    assert.equal(page.table.stopReads().length, 2, 'the first list keeps the stops read for it');
+
+    // Table, Board and Table again before the stops arrive: still one read, and the table fills in.
+    const quick = await openPage();
+    quick.server.paused = true;
+    quick.$('showTable').click(); await settle();
+    quick.$('showBoard').click(); await settle();
+    quick.$('showTable').click(); await settle();
+    quick.server.paused = false;
+    while (quick.server.waiting.length) quick.server.step();
+    await settle();
+    assert.deepEqual(quick.table.rows().map(row => row[7]), ['Fixture Machine Works | Pending', 'Fixture Machine Works | Pending', 'Fixture Machine Works | Done']);
+    assert.equal(quick.table.stopReads().length, 1);
+});
+
+for (const [order, first] of [['the earlier answer', 'old'], ['the later answer', 'new']]) {
+    test(`a change saved while the stops are being read: ${order} arriving first, the table ends with the saved load and its stops`, async () => {
+        const page = await openPage({ storage: fakeStorage({ 'invenio-loads-layout': 'table' }), search: `?load=${id(31)}` });
+        await settle();
+        // Only reads of stops are held from here on, so the save itself goes through.
+        let held = false;
+        Object.defineProperty(page.server, 'paused', { get() { const request = page.server.log.at(-1); return held && request.table === 'load_stop_overview' && !!request.among; }, set() {} });
+        held = true;
+        page.$('showFinished').click(); await settle();
+        assert.equal(page.server.waiting.length, 1, 'the read for the closed loads is on its way');
+        page.set('truckNumber', 'TRK-77');
+        const saving = page.submit('details');
+        for (let turn = 0; turn < 20; turn++) await settle();
+        assert.equal(page.server.waiting.length, 2, 'the save read the loads again, and their stops with them');
+        assert.deepEqual(page.table.rows().map(row => row[7]), ['Loading…', 'Loading…']);
+        held = false;
+        if (first === 'new') {
+            page.server.waiting.pop()(); await settle();
+            // What the earlier read then answers is different: a stop the later read did not see.
+            page.server.state.load_stops.push({ ...page.server.state.load_stops[0], id: id(49), load_id: id(34), seq: 1 });
+        }
+        while (page.server.waiting.length) { page.server.step(); await settle(); }
+        await saving; await settle();
+        // The answer to the earlier read is dropped; the table is never left on "Loading…" or "Unavailable".
+        const closed = [['—', '—', '—'], ['—', '—', '—']], reads = page.table.stopReads().length;
+        assert.deepEqual(page.table.rows().map(row => row.slice(7)), closed);
+        assert.equal(page.$('loadTableNote').hidden, true);
+        // Drawn again from what is kept, with no new read: still the later read's answer, not the earlier one's.
+        page.$('showBoard').click(); await settle();
+        page.$('showTable').click(); await settle();
+        assert.deepEqual(page.table.rows().map(row => row.slice(7)), closed);
+        assert.equal(page.table.stopReads().length, reads);
+        page.$('showOpen').click(); await settle();
+        assert.deepEqual(page.table.rows().map(row => [row[2], row[7]]), [['TRK-77', 'Fixture Machine Works | Pending'], ['—', 'Fixture Machine Works | Pending'], ['—', 'Fixture Machine Works | Done']]);
+    });
+}
+
+test('the stops of a long list are read 100 loads at a time', async () => {
+    const state = world();
+    for (let n = 0; n < 230; n++) state.loads.push({ ...state.loads[4], id: id(1000 + n), load_number: `L-${1000 + n}`, status: 'loading', closed_at: null });
+    state.load_stops.push({ ...state.load_stops[0], id: id(2000), load_id: id(1229), seq: 1 });
+    const page = await openPage({ state });
+    await page.table.show();
+    assert.deepEqual(page.table.stopReads().map(request => request.among[1].length), [100, 100, 33]);
+    assert.equal(page.table.rows().length, 233);
+    assert.equal(page.table.rows().find(row => row[0] === 'L-1229')[7], 'Fixture Machine Works | Pending');
 });

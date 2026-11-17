@@ -61,7 +61,8 @@ test('places are read and written with the unscoped client; crates through the p
 });
 
 test('Loads and the rebuilt Outside Shops use the shared shell, and Loads is under Logistics in the sidebar', () => {
-    const loadsPage = { 'loads.html': ['loads.js', 'Loads', ['newLoad', 'housekeeping', 'showOpen', 'showFinished', 'loadBoard', 'loadDrawer', 'loadHeader', 'loadBody', 'loadStatus']],
+    const loadsPage = { 'loads.html': ['loads.js', 'Loads', ['newLoad', 'housekeeping', 'showOpen', 'showFinished', 'showBoard', 'showTable', 'loadBoard', 'loadTable', 'loadTableNote',
+        'loadTableHead', 'loadTableRows', 'loadDrawer', 'loadHeader', 'loadBody', 'loadStatus']],
         'outside-shop-inventory.html': ['outside-shops.js', 'Outside Shops', ['filterShop', 'filterSearch', 'shopSections']] };
     for (const [file, [script, title, ids]] of Object.entries(loadsPage)) {
         const html = fs.readFileSync(file, 'utf8');
@@ -78,6 +79,25 @@ test('Loads and the rebuilt Outside Shops use the shared shell, and Loads is und
     assert.match(fs.readFileSync('loads.html', 'utf8'), /<dialog id="loadDrawer" class="review-drawer load-drawer" aria-labelledby="loadTitle"><div id="loadHeader"><\/div><fieldset id="loadBody"/);
     const logisticsNav = sidebar.slice(sidebar.indexOf("section: 'Logistics'"), sidebar.indexOf("section: 'Planning'"));
     assert.match(logisticsNav, /label: 'Loads', +icon: '[\w-]+', +href: 'loads\.html'/);
+});
+
+test('Loads has a board and a table view, the table scrolls in its own container, and Loads and Shipments point to each other', () => {
+    const html = fs.readFileSync('loads.html', 'utf8');
+    assert.match(html, /<div class="view-switch" role="group" aria-label="View"><button type="button" id="showBoard" class="btn btn-sm" aria-pressed="true">Board<\/button><button type="button" id="showTable" class="btn btn-sm" aria-pressed="false">Table<\/button><\/div>/,
+        'the board is the view the page opens with');
+    assert.match(html, /<section id="loadTable" class="card" aria-label="Loads table" hidden>\s*<p id="loadTableNote" class="small card-body mb-0" role="status" hidden><\/p>/);
+    assert.match(html, /<div class="table-container"><table class="table table-hover mb-0 load-table"><caption class="visually-hidden">Loads with their truck, trailer, bill of lading and stops<\/caption><thead><tr id="loadTableHead"><\/tr><\/thead><tbody id="loadTableRows"><\/tbody><\/table><\/div>/);
+    assert.match(html, /Supplier shipments and their trackers are on <a href="shipment-visibility\.html">Shipments<\/a>\./);
+    assert.match(fs.readFileSync('shipment-visibility.html', 'utf8'), /Truck numbers and stops are on <a href="loads\.html">Loads<\/a>\./);
+    assert.match(sidebar, /label: 'Shipments', +icon: '[\w-]+', +href: 'shipment-visibility\.html'/, 'the page is called Shipments in the sidebar');
+    // The table reads only what it shows of a stop, and its code never touches the driver or the license.
+    const loads = fs.readFileSync('loads.js', 'utf8');
+    assert.match(loads, /fetchAll\('load_stop_overview', 'id,load_id,seq,place_name,kind,status,planned_date', query => query\.in\('load_id', ids\.slice\(from, from \+ LOADS_PER_READ\)\)\)/);
+    const table = loads.slice(loads.indexOf('function renderTable'), loads.indexOf('// ---- Drawer'));
+    assert.ok(table.includes('function stopCell'));
+    assert.doesNotMatch(table, /licen[cs]e|driver/i, 'no driver or license in the table');
+    // The view is remembered only inside try, so blocked storage can't stop the page.
+    assert.deepEqual(loads.match(/^.*localStorage.*$/gm).map(line => /^\s*try \{ .*localStorage\.(getItem|setItem)\(LAYOUT_KEY.*\} catch \(error\) \{/.test(line)), [true, true]);
 });
 
 test('Loads never parses HTML, logs nothing, sends every change as an operation and keeps the license out of URLs and print-outs', () => {

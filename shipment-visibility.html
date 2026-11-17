@@ -30,7 +30,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <!-- Shared Design System -->
-    <link rel="stylesheet" href="styles.css?v=20261113ship">
+    <link rel="stylesheet" href="styles.css?v=20261117table">
     <style>html:not(.auth-ready) body { visibility: hidden; }</style>
 </head>
 
@@ -82,8 +82,8 @@
         <div class="card-body">
             <div class="row g-3 align-items-end">
                 <div class="col-md-3">
-                    <label class="form-label fw-semibold" for="filterSearch">Cargo Description</label>
-                    <input type="text" class="form-control" id="filterSearch" placeholder="Search cargo...">
+                    <label class="form-label fw-semibold" for="filterSearch">Search</label>
+                    <input type="text" class="form-control" id="filterSearch" placeholder="Cargo, shipment, PO or tracker">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label fw-semibold" for="filterShipType">Shipment Type</label>
@@ -116,6 +116,7 @@
     </div>
 
     <p id="pageMessage" class="small" role="status" aria-live="polite" tabindex="-1"></p>
+    <p class="small text-muted">Truck numbers and stops are on <a href="loads.html">Loads</a>.</p>
 
     <!-- Cargo Table -->
     <div class="card fade-up" style="animation-delay:0.15s;">
@@ -128,6 +129,7 @@
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr>
+                            <th>Shipment</th>
                             <th>Cargo Description</th>
                             <th>Mode</th>
                             <th>Ship Type</th>
@@ -135,12 +137,13 @@
                             <th>Destination</th>
                             <th>Shipped Date</th>
                             <th>Status</th>
+                            <th>Tracker</th>
                             <th>Location</th>
                         </tr>
                     </thead>
                     <tbody id="cargoTableBody">
                         <tr>
-                            <td colspan="8" class="text-center py-5">
+                            <td colspan="10" class="text-center py-5">
                                 <span class="loading-spinner"></span>
                                 <p class="mt-2" style="color:var(--text-muted);">Loading shipments...</p>
                             </td>
@@ -170,7 +173,7 @@
     <script src="js/utils/sidebar.js?v=20261010portal"></script>
 
     <script src="js/utils/shipment-location.js?v=20261113ship"></script>
-    <script src="shipment-visibility.js?v=20261113ship"></script>
+    <script src="shipment-visibility.js?v=20261117table"></script>
 </body>
 
 </html>
