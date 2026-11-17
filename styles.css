@@ -1450,6 +1450,9 @@ button.category-toggle:hover { background:var(--primary-soft); color:var(--prima
 .load-card:hover, .load-card:focus-visible { border-color:var(--primary); }
 .load-card-top { display:flex; justify-content:space-between; gap:.5rem; }
 .load-card-badges { display:flex; flex-wrap:wrap; gap:.25rem; }
+.load-table td { white-space:nowrap; }
+.load-table td.load-table-stop { min-width:11rem; white-space:normal; }
+.btn.load-table-open { color:var(--primary); text-align:left; text-decoration:underline; text-underline-offset:2px; }
 .review-drawer.load-drawer { width:min(980px,100%); }
 .load-body { min-width:0; margin:0; padding:0; border:0; }
 .load-section { margin-top:1rem; padding-top:1rem; border-top:1px solid var(--border); }
@@ -1478,6 +1481,9 @@ button.category-toggle:hover { background:var(--primary-soft); color:var(--prima
 @media (max-width:600px) { .load-board, .load-grid, .load-row, .stop-row { grid-template-columns:1fr; } .company-row .load-row-tools { grid-column:auto; } }
 
 /* Shipments: where each shipment is now (026). */
+.shipment-number { white-space: nowrap; }
+.shipment-number-link, .shipment-tracker-link { font-weight: 600; }
+.shipment-tracker { min-width: 9rem; }
 .shipment-location { min-width: 12rem; }
 .shipment-location-link { font-weight: 600; }
 .shipment-location-warn { color: var(--warn); }

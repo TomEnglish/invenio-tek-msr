@@ -173,7 +173,8 @@
   </ol>
   <p>The first sign-in on a phone needs a connection. After that, someone who signed in online on that phone can reopen the app offline on “previously verified access”; uploads wait until access can be checked again.</p>
   <p><strong>Choosing a project.</strong> The app opens the project last used on that phone, or else the first one assigned. The project name is at the top right; with several projects it is a button that opens <span class="ui">Select project</span>. Drafts and saved work are kept separately for each account and project. With no project at all the app shows “Project access pending”; ask an administrator, then tap <span class="ui">Check access again</span>.</p>
-  <p><strong>Tabs.</strong> Crews have <span class="ui">Scan</span>, <span class="ui">Count</span>, <span class="ui">Loads</span>, <span class="ui">Inventory</span> and <span class="ui">Activity</span>. Office users have <span class="ui">Dashboard</span>, <span class="ui">Materials</span>, <span class="ui">Exceptions</span>, <span class="ui">Locations</span>, <span class="ui">Scan</span>, <span class="ui">QR Codes</span>, <span class="ui">Activity</span>, <span class="ui">Reports</span> and, for administrators, <span class="ui">Data Browser</span>; they reach Count and Loads from the Dashboard cards <span class="ui">Initial field count</span> and <span class="ui">Loads</span>.</p>
+  <p><strong>Tabs and the menu.</strong> Everyone has the same four tabs along the bottom: <span class="ui">Scan</span>, <span class="ui">Count</span>, <span class="ui">Loads</span> and <span class="ui">Inventory</span>. The menu button (three lines) at the top left of these and the other main screens opens <span class="ui">Menu</span>, which lists every screen you can use and marks the one showing. Under <span class="ui">Field</span> are the same four, with Scan listed as <span class="ui">Receiving (Scan)</span>. Crews also have <span class="ui">Activity</span>, under <span class="ui">More</span>. Office users have <span class="ui">Admin</span>: <span class="ui">Dashboard</span>, <span class="ui">Reports</span>, <span class="ui">Activity</span>, <span class="ui">Locations</span> and <span class="ui">QR Codes</span>. A screen opened by a step (a receipt, a load, a crate) has no menu button; finish or cancel the step, or use the tabs.</p>
+  <p>Exceptions and the Data Browser are on the office site, not in the app. For office users the menu ends with <span class="ui">On the office site</span>: <span class="ui">Exceptions (Work Inbox)</span> and, for administrators, <span class="ui">Data Browser</span> open those pages in the phone's browser (chapters 18 and 19).</p>
   <p><strong>Signing out.</strong> Tap the sign-out icon at the top right and confirm <span class="ui">Sign Out</span>. Read chapter 4 first: signing out deletes any driver license that hasn't uploaded yet.</p>
 
   <h3>The office site</h3>
@@ -190,7 +191,7 @@
 <section class="chapter">
   <h2 data-toc="c-sync"><span class="n">4</span>Working offline and Sync</h2>
   <p class="lede">The app saves everything on the phone first and uploads it, in order, whenever it has signal.</p>
-  <p>When there is no signal, a yellow bar reads “You are offline — changes will sync when reconnected”, or “You are offline — 3 pending”. Every tab has a <span class="ui">Sync &amp; recovery</span> link at the top, with a count when anything is waiting. When the database refuses a step, the banner says so, for example “1 queued action refused: open Sync to decide”.</p>
+  <p>When there is no signal, a yellow bar reads “You are offline — changes will sync when reconnected”, or “You are offline — 3 pending”. Every screen has a <span class="ui">Sync &amp; recovery</span> link at the top, with a count when anything is waiting. When the database refuses a step, the banner says so, for example “1 queued action refused: open Sync to decide”.</p>
   <h3>What works without signal</h3>
   <ul>
     <li><strong>Works offline:</strong> scanning crate labels, counting (with the data saved the last time Count was opened online), packing crates, every step of a load, and moving and issuing stock.</li>
@@ -298,7 +299,7 @@
 <section class="chapter">
   <h2 data-toc="c-inventory"><span class="n">8</span>Stock: moving, issuing, correcting</h2>
   <p class="for"><span class="who crew">Crew</span><span class="who office">Office</span></p>
-  <p class="lede">Received material lives on the <span class="ui">Inventory</span> tab (office: <span class="ui">Materials</span>). Each item opens on its material page, which says what it is, how much is left and where it is. Search finds an item by its type, its grade or part of its QR code.</p>
+  <p class="lede">Received material lives on the <span class="ui">Inventory</span> tab. Each item opens on its material page, which says what it is, how much is left and where it is. Search finds an item by its type, its grade or part of its QR code.</p>
   <p>The page shows <span class="ui">Quantity</span>, <span class="ui">Size</span>, <span class="ui">Grade</span>, <span class="ui">Weight</span>, <span class="ui">Spec</span>, <span class="ui">QR Code</span>, <span class="ui">Rack</span>, <span class="ui">Where</span> and <span class="ui">Received</span>. “Where” reads, for example, “On load L-0003”, “Missing from load L-0003”, “In crate HU-ABC123 (inside HU-XYZ789) at Yard · Rack 2” or “Place · Area”; crate and load lines open those screens.</p>
   <p><strong>Photos.</strong> The page's <span class="ui">Photos</span> section shows the photos taken at receiving and, if the item was counted first, its count photo, each labeled with what it is and when (for example “Damage, Oct 27”). Tap one to see it full screen; <span class="ui">Previous</span> and <span class="ui">Next</span> page through them. Photos the phone has already shown appear offline too; otherwise it says “Photos show when this phone is online.” If a photo doesn't load, tap <span class="ui">Reload photos</span>.</p>
   <h3>Actions</h3>
@@ -384,7 +385,7 @@
 <section class="chapter cont">
   <h2 data-toc="c-activity"><span class="n">11</span>Activity</h2>
   <p class="for"><span class="who crew">Crew</span><span class="who office">Office</span></p>
-  <p>The <span class="ui">Activity</span> tab lists recent work, newest first: crews see their own, the office sees everyone's. Entries read like “Received …”, “Counted …”, “Transferred …”, “Packed new crate HU-…”, “Loaded L-0003”, “L-0003 left” or “Finished a stop on L-0003”, with who and when. <span class="ui">Load More</span> fetches older entries. Activity needs signal, and never lists anything about driver licenses.</p>
+  <p><span class="ui">Activity</span>, opened from the menu, lists recent work, newest first: crews see their own, the office sees everyone's. Entries read like “Received …”, “Counted …”, “Transferred …”, “Packed new crate HU-…”, “Loaded L-0003”, “L-0003 left” or “Finished a stop on L-0003”, with who and when. <span class="ui">Load More</span> fetches older entries. Activity needs signal, and never lists anything about driver licenses.</p>
 </section>
 
 <!-- ============================================================ Part III -->
@@ -422,13 +423,15 @@
   <p><strong>Search.</strong> <span class="ui">Search records...</span> in the header looks through materials, receipts, purchase orders, shipments and QR codes (at least two characters, up to 20 results a group). A result opens “Record details”, with its photos and any exception; a material shows the photos from its receipt and from its count; select one to see it large.</p>
   <p><strong>Read-only pages.</strong> On a completed project every page is read-only. Pages also show text instead of forms when you lack the role for an action, saying who can do it, for example “Office staff manage site maps. You can view plans and zones.”</p>
   <h3>Shipments: where each one is</h3>
+  <p>Each row starts with the shipment's number, which opens its record, with its PO number under it. <span class="ui">Search</span> finds a shipment by its cargo, its number, its PO number or the name of its tracker. The <span class="ui">Tracker</span> column names the GPS tracker linked to the shipment and opens the <span class="ui">GPS Tracking</span> map on it; it reads “None” when no tracker is linked.</p>
   <p>The <span class="ui">Location</span> column says where each shipment is now, going by its status in the shipment log. Press it to see that place:</p>
   <ul>
     <li><strong>Not RTS or RTS:</strong> the loading location (the origin).</li>
     <li><strong>In Transit:</strong> the GPS tracker linked to the shipment, for example “Live GPS · seen 2 hours ago”. A tracker not heard from for a day reads “GPS · last seen 3 days ago”, and after 7 days it is flagged. It opens the <span class="ui">GPS Tracking</span> map on that tracker. With no tracker it says “No tracker linked” and where the shipment is heading.</li>
     <li><strong>Delivered:</strong> the delivery location (the destination), with the storage area when one is recorded.</li>
   </ul>
-  <p>A loading or delivery location opens a map in a new tab: at the place's map point when <span class="ui">Places</span> has a place of that name, otherwise as a map search for the name. Office staff link a tracker to a shipment that is RTS or In Transit with <span class="ui">Link tracker</span>, and change or remove it with <span class="ui">Change tracker</span> and <span class="ui">Unlink tracker</span>. A tracker rides with one shipment at a time: one already on another shipment moves only after <span class="ui">Move tracker here</span>. Field workers see the links but can't change them. Every link and unlink is recorded, and shows in the project's Activity with the shipment's number.</p>
+  <p>A loading or delivery location opens a map in a new tab: at the place's map point when <span class="ui">Places</span> has a place of that name, otherwise as a map search for the name. In the <span class="ui">Tracker</span> column, office staff link a tracker to a shipment that is RTS or In Transit with <span class="ui">Link tracker</span>, and change or remove it with <span class="ui">Change tracker</span> and <span class="ui">Unlink tracker</span>. A tracker rides with one shipment at a time: one already on another shipment moves only after <span class="ui">Move tracker here</span>. Field workers see the links but can't change them. Every link and unlink is recorded, and shows in the project's Activity with the shipment's number.</p>
+  <p>Shipments are the supplier shipments in the shipment log. The trucks we send between our yards, sites and shops, with their truck numbers and stops, are on <span class="ui">Loads</span> (chapter 15); each page links to the other.</p>
 </section>
 
 <section class="chapter">
@@ -480,6 +483,7 @@
   <p class="for"><span class="who office">Office</span></p>
   <p class="lede">The <span class="ui">Loads</span> page is where the office plans trucks and follows them: columns for <span class="ui">Planning</span>, <span class="ui">Loading</span>, <span class="ui">In transit</span> and <span class="ui">Delivered</span>, then <span class="ui">Closed and canceled</span>.</p>
   <p>Each card shows the load number and date, “From … · Next: …”, the driver, piece counts, and chips such as “N flags”, “Started in the field”, “Left without license” and “License on file”. Loads that crews started appear in <span class="ui">Started in the field</span> so the office can check them.</p>
+  <p><strong>Board or table.</strong> <span class="ui">Table</span> shows the same loads one to a row, with the stops side by side: load number, status, truck, trailer, bill of lading, where it starts, the planned date, then <span class="ui">Stop 1</span>, <span class="ui">Stop 2</span>, <span class="ui">Stop 3</span> and as many more as the longest load needs. Each stop shows its place, whether it is a pick-up, how far along it is (Pending, Arrived or Done) and its date. Press a load number or a stop to open the load. <span class="ui">Board</span> goes back to the cards; the page remembers your choice in that browser. The table never shows the driver or the license.</p>
   <h3>Planning a load</h3>
   <ol class="steps">
     <li>Press <span class="ui">New load</span>, fill the details and press <span class="ui">Create load</span>. The drawer opens with its sections: <span class="ui">Status</span>, <span class="ui">Details</span>, <span class="ui">Companies</span>, <span class="ui">Stops</span>, <span class="ui">Manifest</span> and <span class="ui">Driver's license</span>.</li>
@@ -802,7 +806,7 @@
   <h3>Separate calls</h3>
   <ul>
     <li><strong>Licenses</strong> never pass through <code>field_operations</code> or the audit log in full: <code>record_driver_licence</code>, <code>attach_driver_licence_photo</code>, <code>remove_driver_licence_photo</code>, <code>remove_driver_licence</code>, <code>keep_driver_licence</code>, <code>release_driver_licence_hold</code> and <code>driver_licences_due_soon</code>. <code>driver_licence_purge_queue</code> and <code>purge_driver_licence</code> are for the service role only.</li>
-    <li><strong>Reading</strong>: <code>lookup_tag</code> (what Scan should open), <code>list_project_activity</code> (the Activity tab), <code>load_licence_complete</code> and <code>load_licence_due_at</code> (license state without the license itself), and the views in A2.</li>
+    <li><strong>Reading</strong>: <code>lookup_tag</code> (what Scan should open), <code>list_project_activity</code> (the app's Activity screen), <code>load_licence_complete</code> and <code>load_licence_due_at</code> (license state without the license itself), and the views in A2.</li>
   </ul>
 </section>
 
@@ -860,7 +864,7 @@
       <tr><td>Projects</td><td>Create, edit, complete (read-only) or archive (hidden). Completing or archiving is refused while loads are open. Each active project lists what it still needs before work can start (A6); the links are offered for projects you are assigned to.</td></tr>
       <tr><td>Data Browser</td><td>Browse any table for the active project, 25 to 100 rows at a time, and export the table on screen as CSV. History tables and the newer data (counts, categories, site maps, places, racks, crates, loads, trackers) are read-only, and nothing can be deleted. A row with photos shows how many; press it to open them. An opened record shows its photos and <span class="ui">Open record details</span>. License tables and fields are never shown (A5). Material records can be corrected with a reason of at least five characters. <span class="ui">Locations</span> lists the racks, read-only, with whether each is active; racks are added, edited and retired on the <span class="ui">Racks</span> page (chapter 13).</td></tr>
       <tr><td>PO &amp; Installation links</td><td><span class="ui">Edit</span> changes a link's PO and installation details; <span class="ui">Delete</span> removes a link. Each asks why (5 to 500 characters). An edit records the old and new values with the reason, and isn't saved if someone changed the same detail since the form opened. A delete records the link, its status history and any tracker on it, then removes the link and its history and unhooks the tracker. Office staff still change a link's status with <span class="ui">Update</span>.</td></tr>
-      <tr><td>Activity &amp; Audit</td><td>Administrator changes (users and projects) with person, time and old and new values, 25 a page. Operational history (counts, crates, loads) is in Data Browser › <span class="ui">Audit Log</span>, and on the app's Activity tab.</td></tr>
+      <tr><td>Activity &amp; Audit</td><td>Administrator changes (users and projects) with person, time and old and new values, 25 a page. Operational history (counts, crates, loads) is in Data Browser › <span class="ui">Audit Log</span>, and on the app's Activity screen.</td></tr>
       <tr><td>Auth settings</td><td>Held by the sign-in service: email codes last 3,600 seconds; the redirect allowlist has <code>/login.html</code> and <code>/login.html?setup=invite</code>; templates and subjects as in <code>docs/INVITATION_RECOVERY.md</code>.</td></tr>
       <tr><td>Function secrets</td><td>The database address, its public and service-role keys, <code>SITE_URL</code> (the one office site the function answers and sends invitation links to; without it the function answers nothing), <code>INVITATION_TTL_SECONDS</code> (default 3600) and <code>INVITATION_EMAIL_ENABLED</code>. With email switched off, invitations are disabled and the page says so.</td></tr>
     </tbody>
@@ -920,8 +924,8 @@
     <li>Delivered loads aren't on the Loads tab; open them from an item's or crate's “Delivered to … on L-…” line.</li>
     <li>Moving a crate, correcting a location, departing, finishing a stop and editing a load close the screen without a confirmation message; Sync shows the step.</li>
     <li>A planned date or a license's expiration date can't be cleared once set.</li>
-    <li>The app can put a receipt on hold but not release it; release it on the office site.</li>
-    <li>The app's rack lists (Receiving, Transfer and the office Locations tab) still show retired racks. Choosing one is refused with “That rack is retired; choose another rack”. The office Locations tab can add a rack but not edit or retire one, and gives it no yard; use the Racks page.</li>
+    <li>The app no longer decides exceptions: hold, return or release a receipt in the office site's Work Inbox (chapter 18), which the app's menu opens in the browser.</li>
+    <li>The app's rack lists (Receiving, Transfer and the office Locations screen) still show retired racks. Choosing one is refused with “That rack is retired; choose another rack”. The office Locations screen can add a rack but not edit or retire one, and gives it no yard; use the Racks page.</li>
   </ul>
   <h3>Office site</h3>
   <ul>

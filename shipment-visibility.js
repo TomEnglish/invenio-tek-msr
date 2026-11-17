@@ -1,8 +1,9 @@
 /**
- * Shipments: the PO & Shipment Log with its totals and filters, and where each shipment is now (026). The location
- * links to the loading location before a shipment leaves, to its tracker's GPS position on the way, and to the
- * delivery location once it is delivered. Office staff link a tracker to a shipment that is ready to ship or on its
- * way; everyone on the project sees the links.
+ * Shipments: the PO & Shipment Log with its totals and filters, and where each shipment is now (026). Each row opens
+ * the shipment's record from its number and names the tracker linked to it. The location links to the loading
+ * location before a shipment leaves, to its tracker's GPS position on the way, and to the delivery location once it
+ * is delivered. Office staff link a tracker to a shipment that is ready to ship or on its way; everyone on the
+ * project sees the links.
  */
 (async function () {
     if (document.readyState === 'loading') await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve, { once: true }));
@@ -36,6 +37,7 @@
         return date.toLocaleString('en-US', { month: 'short', day: 'numeric', year, hour: 'numeric', minute: '2-digit' });
     }
     const numberOf = shipment => shipment.shipment_number || `#${shipment.id}`;
+    const COLUMNS = 10;
 
     async function fetchAll(client, table, columns, filter = query => query) {
         const rows = [];
@@ -55,7 +57,7 @@
 
     async function load() {
         const [shipments, places, trackers, links] = await Promise.allSettled([
-            fetchAll(projectSupabaseClient, 'shipments', 'id,shipment_number,cargo_description,mode,ship_type,origin,destination,ship_from,ship_to,storage_location,status,rts_date,delivery_date'),
+            fetchAll(projectSupabaseClient, 'shipments', 'id,shipment_number,po_number,cargo_description,mode,ship_type,origin,destination,ship_from,ship_to,storage_location,status,rts_date,delivery_date'),
             // Places are shared by every project, so they are read without the project scope.
             fetchAll(supabaseClient, 'places', 'id,name,project_id,is_active,address,city,state,postal_code,latitude,longitude', query => query.eq('is_active', true)),
             fetchAll(projectSupabaseClient, 'vw_active_samsara_trackers', 'id,name,last_latitude,last_longitude,last_seen_at'),
@@ -63,7 +65,7 @@
         ]);
         if (shipments.status === 'rejected') {
             const row = el('tr'), cell = el('td', 'Failed to load shipment data.', 'text-center py-5 text-danger');
-            cell.colSpan = 8; row.append(cell); $('cargoTableBody').replaceChildren(row);
+            cell.colSpan = COLUMNS; row.append(cell); $('cargoTableBody').replaceChildren(row);
             return;
         }
         data.shipments = shipments.value;
@@ -81,10 +83,12 @@
     }
 
     // Statuses come from the shipment log as typed: the totals, badges, filter and location all ignore capitals and spacing.
+    // The search looks in what a row shows: its cargo, its shipment and PO numbers and the tracker linked to it.
     function applyFilters() {
         const search = $('filterSearch').value.toLowerCase().trim();
         const shipType = $('filterShipType').value, mode = $('filterMode').value, status = where.statusKey($('filterStatus').value);
-        const filtered = data.shipments.filter(row => (!search || (row.cargo_description || '').toLowerCase().includes(search))
+        const found = row => [row.cargo_description, numberOf(row), poText(row), linkedTrackerName(row)].some(text => String(text || '').toLowerCase().includes(search));
+        const filtered = data.shipments.filter(row => (!search || found(row))
             && (!shipType || row.ship_type === shipType) && (!mode || row.mode === mode) && (!status || where.statusKey(row.status) === status));
         updateKPIs(filtered);
         renderTable(filtered);
@@ -106,6 +110,49 @@
     }
 
     const trackerName = link => data.trackerById.get(link.tracker_id)?.name || link.tracker_id;
+    // The tracker linked to a shipment, as the page names it everywhere: by its name, or by its ID when its name
+    // isn't known (a tracker that is no longer listed, or a list that couldn't be read).
+    const linkedTrackerName = shipment => { const link = data.linkByShipment.get(shipment.id); return link ? trackerName(link) : ''; };
+    // The PO number as the row shows it: with "PO" in front unless the number already starts with it.
+    const poText = shipment => { const po = String(shipment.po_number ?? '').trim(); return !po || /^po\b/i.test(po) ? po : `PO ${po}`; };
+
+    // The shipment's number opens its record; its PO number sits under it, without a second "PO" when the number
+    // already starts with one.
+    function shipmentCell(shipment) {
+        // A shipment the log gave no number is called by its row number, as it is everywhere else on the page.
+        const cell = el('td', '', 'shipment-number'), record = el('a', numberOf(shipment), 'shipment-number-link');
+        record.href = `record.html?type=shipments&id=${encodeURIComponent(shipment.id)}`;
+        record.title = 'Open its record';
+        cell.append(record);
+        const po = poText(shipment);
+        if (po) cell.append(el('div', po, 'small text-muted'));
+        return cell;
+    }
+
+    // The tracker linked to the shipment, whatever its status, opening on our GPS Tracking map; office staff link,
+    // change or unlink it from here. Unread links aren't "no tracker": say so rather than guess.
+    function trackerCell(shipment) {
+        const cell = el('td', '', 'shipment-tracker'), linked = el('div');
+        const link = data.linkByShipment.get(shipment.id) || null;
+        if (!data.linksReady) linked.append(el('span', 'Unavailable', 'text-muted'));
+        else if (!link) linked.append(el('span', 'None', 'text-muted'));
+        else {
+            const name = trackerName(link), anchor = el('a', name, 'shipment-tracker-link');
+            anchor.href = where.gpsHref(link.tracker_id); anchor.target = '_blank'; anchor.rel = 'noopener noreferrer';
+            anchor.title = `${name} on the GPS Tracking map (new tab)`; anchor.setAttribute('aria-label', anchor.title);
+            linked.append(anchor);
+        }
+        cell.append(linked);
+        if (office && data.linksReady && (link || where.linkable(shipment.status))) {
+            const text = link ? 'Change tracker' : 'Link tracker';
+            const action = button(text, 'btn btn-link btn-sm p-0 shipment-tracker-action', () => openTrackerDialog(shipment));
+            action.dataset.shipmentId = String(shipment.id);
+            // The accessible name starts with the words on the button.
+            action.setAttribute('aria-label', `${text} ${link ? 'on' : 'to'} shipment ${numberOf(shipment)}`);
+            cell.append(action);
+        }
+        return cell;
+    }
 
     function locationCell(shipment) {
         const cell = el('td', '', 'shipment-location');
@@ -125,16 +172,6 @@
             cell.append(el('span', spot.label, spot.tone === 'muted' ? 'text-muted' : ''));
         }
         if (spot.caption) cell.append(el('div', spot.caption, `small ${spot.tone === 'warn' ? 'shipment-location-warn' : 'text-muted'}`));
-        // A tracker still on a shipment that isn't on its way: say which, so it can be taken off for reuse.
-        if (link && stage !== 'transit') cell.append(el('div', `Tracker: ${trackerName(link)}`, 'small text-muted'));
-        if (office && data.linksReady && (link || where.linkable(shipment.status))) {
-            const text = link ? 'Change tracker' : 'Link tracker';
-            const action = button(text, 'btn btn-link btn-sm p-0 shipment-tracker-action', () => openTrackerDialog(shipment));
-            action.dataset.shipmentId = String(shipment.id);
-            // The accessible name starts with the words on the button.
-            action.setAttribute('aria-label', `${text} ${link ? 'on' : 'to'} shipment ${numberOf(shipment)}`);
-            cell.append(action);
-        }
         return cell;
     }
 
@@ -142,13 +179,13 @@
         $('rowCount').textContent = `${rows.length.toLocaleString('en-US')} record${rows.length !== 1 ? 's' : ''}`;
         if (!rows.length) {
             const row = el('tr'), cell = el('td', 'No shipments match the current filters.', 'text-center py-4 text-muted');
-            cell.colSpan = 8; row.append(cell); $('cargoTableBody').replaceChildren(row);
+            cell.colSpan = COLUMNS; row.append(cell); $('cargoTableBody').replaceChildren(row);
             return;
         }
         $('cargoTableBody').replaceChildren(...rows.map(shipment => {
             const row = el('tr');
-            row.append(...[shipment.cargo_description, shipment.mode, shipment.ship_type, shipment.origin, shipment.destination].map(value => el('td', value || '—')),
-                el('td', formatDate(shipment.rts_date)), statusCell(shipment.status), locationCell(shipment));
+            row.append(shipmentCell(shipment), ...[shipment.cargo_description, shipment.mode, shipment.ship_type, shipment.origin, shipment.destination].map(value => el('td', value || '—')),
+                el('td', formatDate(shipment.rts_date)), statusCell(shipment.status), trackerCell(shipment), locationCell(shipment));
             return row;
         }));
     }

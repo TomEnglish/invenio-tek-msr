@@ -79,6 +79,11 @@ Run `python3 tests/browser/serve.py`, then open `http://127.0.0.1:8092/places.ht
   - It also shows any flags, "Started in the field", "Left without licence", "Licence on file" and the planned date. "Licence on file" means the number and a photo are both recorded (`licence_complete`), as departure needs; a number or a photo alone doesn't count.
   - Office staff get a third switch, "Started in the field (N)", while crews have open loads they started. It lists those loads so the office can check them and plan the rest.
   - Everything comes from `load_overview`, read through the project scope.
+- **Table.** A second switch, Board or Table, shows the same loads (the same switch, the same order) one to a row: load number, status, truck, trailer, bill of lading, origin, planned date, then one column for each stop in order, never fewer than three.
+  - Each stop shows its place, its kind unless it is a plain drop-off, its status and its planned date. The load number and each stop's place open the drawer.
+  - `load_overview` has no stops, so the stops of the loads listed are read from `load_stop_overview` (which leaves cancelled stops out) in one request for every 100 loads, when the table is showing and again after any change. Until they arrive the stop cells read "Loading…"; if the read fails they read "Unavailable" and a note says so.
+  - The browser remembers the choice (`invenio-loads-layout`); the page works the same when it can't. The table never shows the driver's name or phone, or anything about the licence.
+  - When the drawer closes, focus goes back to the card or table button that opened the load, found again in the redrawn list.
 - **New load.** The form makes a load ID with `crypto.randomUUID()`. Its first `load_save` creates the load and gets its number; the drawer then opens in full. A load someone other than office staff creates is started in the field.
 - **Every change is one operation.** Each is `apply_field_operation` with a new operation ID.
   - 022's refusals are shown as the database words them.
