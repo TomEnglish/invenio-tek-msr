@@ -3,4 +3,4 @@
 // fails when it is out of date, so it changes whenever the code does. Every
 // response carries it in the X-Function-Release header, which is how the
 // release check confirms an environment runs the released code.
-export const FUNCTION_RELEASE = '63c4c39e37f5f3498987317ced79a705554893c3ae2f482e21f2f5314dbf4dbf';
+export const FUNCTION_RELEASE = '7238dbdd32d6cc6e0ebacdff646976a618ea80131efad92f6e405aed9cbe37e9';

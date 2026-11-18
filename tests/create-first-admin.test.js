@@ -46,14 +46,14 @@ const run = async (state, overrides = {}) => {
 
 test('a new environment gets an unconfirmed account, the admin role, and an invitation to its own site', async () => {
     const {fake, result} = await run({});
-    assert.deepEqual(await result, {userId: USER, email: 'lead@acme.example', invited: true, expiresAt: '2026-11-15T13:00:00.000Z'});
+    assert.deepEqual(await result, {userId: USER, email: 'lead@acme.example', invited: true, expiresAt: '2026-11-16T12:00:00.000Z'});
     assert.deepEqual(fake.calls.map(call => `${call.method} ${call.path}`), [
         'GET /rest/v1/users', 'POST /auth/v1/admin/users', 'POST /rest/v1/rpc/bootstrap_first_admin',
         `GET /auth/v1/admin/users/${USER}`, 'POST /auth/v1/invite',
     ]);
     assert.deepEqual(fake.calls[0].query, {select: 'id', email: 'eq.lead@acme.example'});
     assert.deepEqual(fake.calls[1].body, {email: 'lead@acme.example', email_confirm: false, user_metadata: {full_name: 'Lead Person'}});
-    assert.deepEqual(fake.calls[2].body, {p_target: USER, p_full_name: 'Lead Person', p_expires_at: '2026-11-15T13:00:00.000Z'});
+    assert.deepEqual(fake.calls[2].body, {p_target: USER, p_full_name: 'Lead Person', p_expires_at: '2026-11-16T12:00:00.000Z'});
     assert.deepEqual(fake.calls[4].query, {redirect_to: 'https://acme.example.test/login.html?setup=invite'});
     assert.deepEqual(fake.calls[4].body, {email: 'lead@acme.example', data: {full_name: 'Lead Person'}});
     for (const call of fake.calls) assert.equal(call.headers.Authorization, `Bearer ${KEY}`);
@@ -94,10 +94,23 @@ test('a failed email says the administrator is set up and to run it again; other
     assert.equal(create.fake.calls.some(call => call.path.includes('bootstrap_first_admin')), false);
 });
 
+test('the invitation lasts 24 hours unless a length is given, and a given length is used up to both ends of the range', async () => {
+    const until = async overrides => (await (await run({}, overrides)).result).expiresAt;
+    assert.equal(await until({}), '2026-11-16T12:00:00.000Z', 'by default, a day');
+    assert.equal(await until({ttlSeconds: 3600}), '2026-11-15T13:00:00.000Z');
+    assert.equal(await until({ttlSeconds: 60}), '2026-11-15T12:01:00.000Z');
+    assert.equal(await until({ttlSeconds: 604800}), '2026-11-22T12:00:00.000Z');
+    // Run as a command, the script takes the environment's own setting, or a day without one.
+    const source = readFileSync(resolve(__dirname, '..', 'scripts', 'create-first-admin.mjs'), 'utf8');
+    assert.match(source, /ttlSeconds: Number\(process\.env\.INVITATION_TTL_SECONDS \|\| 86400\),/);
+    assert.match(source, /ttlSeconds = 86400, fetchImpl/);
+});
+
 test('bad input is refused before anything is sent, and the key is never printed', async () => {
     for (const [overrides, pattern] of [
         [{email: 'not-an-email'}, /email address/], [{fullName: '  '}, /full name/], [{key: ''}, /SUPABASE_SERVICE_ROLE_KEY is required/],
         [{ttlSeconds: 30}, /between 60 seconds and 7 days/], [{ttlSeconds: 700000}, /between 60 seconds and 7 days/],
+        [{ttlSeconds: 59}, /between 60 seconds and 7 days/], [{ttlSeconds: 604801}, /between 60 seconds and 7 days/], [{ttlSeconds: NaN}, /between 60 seconds and 7 days/],
         // Another environment's server key, or a browser key, is never sent to this database.
         [{key: serverKey('demodb')}, /SUPABASE_SERVICE_ROLE_KEY belongs to a different database\. Use the server key of "acme"; nothing was sent/],
         [{key: serverKey('acmedb', 'anon')}, /has the "anon" role, not "service_role"/],

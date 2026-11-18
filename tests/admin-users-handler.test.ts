@@ -40,6 +40,7 @@ function setup(options: { actor?: Row | null; target?: Row; authError?: boolean;
     rpc: [] as { name: string; args: Row }[],
     queries: [] as { table: string; steps: unknown[][] }[],
     mail: [] as { kind: string; email: string }[],
+    created: [] as string[],
     redirects: [] as (string | undefined)[],
   };
 
@@ -108,6 +109,7 @@ function setup(options: { actor?: Row | null; target?: Row; authError?: boolean;
       auth: {
         admin: {
           getUserById: async (id: string) => ({ data: { user: { id, last_sign_in_at: VERSION, email_confirmed_at: null } }, error: null }),
+          createUser: async (input: { email: string }) => { calls.created.push(input.email); return { data: { user: { id: TARGET } }, error: null }; },
           inviteUserByEmail: async (email: string, options?: { redirectTo?: string }) => { calls.mail.push({ kind: 'invite', email }); calls.redirects.push(options?.redirectTo); return { error: null }; },
         },
         resetPasswordForEmail: async (email: string, options?: { redirectTo?: string }) => { calls.mail.push({ kind: 'reset', email }); calls.redirects.push(options?.redirectTo); return { error: null }; },
@@ -286,6 +288,53 @@ Deno.test('resending an expired pending invitation refreshes expiry and uses a s
   equal(changes.is_active, true);
   if (!(Date.parse(String(changes.invitation_expires_at)) > Date.now())) throw new Error('Expiry was not renewed');
   equal(calls.mail, [{ kind: 'invite', email: 'worker@example.test' }]);
+});
+
+Deno.test('an invitation can be finished for 24 hours, the life of the code in its email, unless the environment sets another length', async () => {
+  const previous = Deno.env.get('INVITATION_TTL_SECONDS');
+  // How far ahead a resend puts the expiry, in seconds, to the nearest second.
+  const ahead = async () => {
+    const { clients, calls } = setup({ target: { invitation_status: 'pending', invitation_expires_at: '2020-01-01T00:00:00Z' } });
+    const before = Date.now();
+    const response = await handle(request('POST', { action: 'resend_invite', userId: TARGET }), clients);
+    equal(response.status, 200);
+    const changes = calls.rpc[0].args.p_changes as Row;
+    return Math.round((Date.parse(String(changes.invitation_expires_at)) - before) / 1000);
+  };
+  try {
+    Deno.env.delete('INVITATION_TTL_SECONDS');
+    equal(await ahead(), 86400);
+    // An explicit length wins, up to and including both ends of the range: one minute and seven days.
+    for (const set of [3600, 60, 604800]) {
+      Deno.env.set('INVITATION_TTL_SECONDS', String(set));
+      equal(await ahead(), set);
+    }
+    // A length outside one minute to seven days, or not a number, is a wrong setting. A resend changes and sends
+    // nothing, and a new invitation makes no account.
+    for (const wrong of ['59', '604801', '30', '700000', 'soon', '-1']) {
+      Deno.env.set('INVITATION_TTL_SECONDS', wrong);
+      const resend = setup({ target: { invitation_status: 'pending', invitation_expires_at: '2020-01-01T00:00:00Z' } });
+      equal((await handle(request('POST', { action: 'resend_invite', userId: TARGET }), resend.clients)).status, 500);
+      equal(resend.calls.rpc.length, 0);
+      equal(resend.calls.mail, []);
+      const invite = setup();
+      equal((await handle(request('POST', { action: 'invite', email: 'new.person@example.test', fullName: 'New Person', role: 'field_worker', projectIds: [PROJECT] }), invite.clients)).status, 500);
+      equal(invite.calls.created, []);
+      equal(invite.calls.rpc.length, 0);
+      equal(invite.calls.mail, []);
+    }
+    // With a right setting the same new invitation makes the account and sends the email.
+    Deno.env.delete('INVITATION_TTL_SECONDS');
+    const invite = setup();
+    const before = Date.now();
+    equal((await handle(request('POST', { action: 'invite', email: 'new.person@example.test', fullName: 'New Person', role: 'field_worker', projectIds: [PROJECT] }), invite.clients)).status, 201);
+    equal(invite.calls.created, ['new.person@example.test']);
+    equal(invite.calls.mail.length, 1);
+    const sent = invite.calls.rpc.map((call) => call.args.p_changes as Row).find((changes) => changes?.invitation_expires_at);
+    equal(Math.round((Date.parse(String(sent?.invitation_expires_at)) - before) / 1000), 86400);
+  } finally {
+    if (previous === undefined) Deno.env.delete('INVITATION_TTL_SECONDS'); else Deno.env.set('INVITATION_TTL_SECONDS', previous);
+  }
 });
 
 Deno.test('disabled invitation email reports capability and rejects sends before mutation', async () => {
