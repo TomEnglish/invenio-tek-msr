@@ -13,7 +13,7 @@ import { keyProblem } from './environments.mjs';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export async function createFirstAdmin({ environment, email, fullName, key, ttlSeconds = 3600, fetchImpl = fetch, now = Date.now }) {
+export async function createFirstAdmin({ environment, email, fullName, key, ttlSeconds = 86400, fetchImpl = fetch, now = Date.now }) {
     const address = String(email || '').trim().toLowerCase();
     const name = String(fullName || '').trim();
     if (!EMAIL.test(address) || address.length > 254) throw new Error('Give the administrator\'s email address');
@@ -79,7 +79,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         const environment = getEnvironment(loadEnvironments(), name);
         const result = await createFirstAdmin({
             environment, email, fullName, key: process.env.SUPABASE_SERVICE_ROLE_KEY,
-            ttlSeconds: Number(process.env.INVITATION_TTL_SECONDS || 3600),
+            ttlSeconds: Number(process.env.INVITATION_TTL_SECONDS || 86400),
         });
         console.log(result.invited
             ? `Invitation sent to ${result.email} for ${environment.name}. They finish setup at ${environment.siteUrl}/login.html before ${result.expiresAt}.`

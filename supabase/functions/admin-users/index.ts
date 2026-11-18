@@ -289,11 +289,19 @@ async function profileResponse(adminClient: SupabaseClient, profile: Profile, st
   return json({ data: toRecord(profile, null, memberships.get(profile.id) || []) }, status);
 }
 
+// How long an invitation can be finished, in seconds: 24 hours unless the environment says otherwise. It is the same
+// as the life of the code in the email (the sign-in settings' email code expiry, which can't be longer than a day),
+// so an invitation sent in the evening can be finished the next morning. docs/ENVIRONMENTS.md keeps the two in step.
+function invitationSeconds(): number {
+  const seconds = Number(Deno.env.get('INVITATION_TTL_SECONDS') || 86400);
+  if (!Number.isFinite(seconds) || seconds < 60 || seconds > 604800) throw new Error('Invalid invitation expiry configuration');
+  return seconds;
+}
+
 async function sendInvitation(adminClient: SupabaseClient, actor: Profile, profile: Profile, action: 'invite' | 'resend_invite') {
+  const seconds = invitationSeconds();
   const { data: authUser, error: lookupError } = await adminClient.auth.admin.getUserById(profile.id);
   if (lookupError) throw new Error(lookupError.message);
-  const seconds = Number(Deno.env.get('INVITATION_TTL_SECONDS') || 3600);
-  if (!Number.isFinite(seconds) || seconds < 60 || seconds > 604800) throw new Error('Invalid invitation expiry configuration');
   const updated = await saveProfile(adminClient, actor, profile.id, {
     invitation_status: 'pending', is_active: true,
     invitation_expires_at: new Date(Date.now() + seconds * 1000).toISOString(),
@@ -310,6 +318,8 @@ async function sendInvitation(adminClient: SupabaseClient, actor: Profile, profi
 }
 
 async function inviteUser(adminClient: SupabaseClient, actor: Profile, input: InviteInput): Promise<Response> {
+  // A wrong length setting stops the invitation here, before an account is made for it.
+  invitationSeconds();
   const projects = await fetchProjectIds(adminClient, input.projectIds);
   // Create an unconfirmed identity first. Membership setup can then succeed
   // before mail is sent; a partial failure leaves a visible recoverable account.

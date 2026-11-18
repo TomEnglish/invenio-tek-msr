@@ -185,10 +185,10 @@ The same steps set up dev and, later, each customer. Do them in this order.
    ```bash
    DATABASE_URL='postgres://…' scripts/database.sh build <name>
    ```
-4. **Sign-in settings** for that database: site address = `siteUrl`; allowed redirects `<siteUrl>/login.html` and `<siteUrl>/login.html?setup=invite`; email link expiry 3600 seconds; the email sender; and the two templates from `node scripts/environments.mjs templates <name>` (invitation and password reset).
+4. **Sign-in settings** for that database: site address = `siteUrl`; allowed redirects `<siteUrl>/login.html` and `<siteUrl>/login.html?setup=invite`; email code expiry 86400 seconds (24 hours, the longest the sign-in service allows); the email sender; and the two templates from `node scripts/environments.mjs templates <name>` (invitation and password reset).
 5. **Admin function.** Set its invitation settings, then deploy it. The deploy writes `SITE_URL` from the entry.
    ```bash
-   supabase secrets set INVITATION_TTL_SECONDS=3600 INVITATION_EMAIL_ENABLED=true --project-ref <ref>
+   supabase secrets set INVITATION_TTL_SECONDS=86400 INVITATION_EMAIL_ENABLED=true --project-ref <ref>
    SUPABASE_ACCESS_TOKEN=… node scripts/release.mjs function <name>
    ```
 6. **Office site.** Create a site on the web host at `siteUrl` that publishes this repository. A dev site publishes `main`. A production's site publishes `release/<name>` and no other branch (production branch `release/<name>`, branch deploys off); create that branch at the commit of `main` the database was built from. The site needs no settings of its own. Until the entry is on the branch it publishes, its build fails and nothing is published, which is expected.
@@ -226,6 +226,18 @@ Demo was the only environment before this page existed. It has been under the re
 
 Nothing is left to do.
 
+## Changing how long email codes last
+
+Invitation and password-reset codes last 24 hours. The length is held in three places in each environment, outside the release routine, so a release does not change it:
+
+1. **Sign-in settings**, email code expiry: 86400 seconds. The sign-in service allows no more than a day.
+2. **The admin function's `INVITATION_TTL_SECONDS` secret**: 86400. Every environment has this secret set, and a set secret wins over the default in the code, so changing the code alone changes nothing. It decides when an invitation can no longer be finished and when Users & Access shows "Expired invite".
+3. **The sentence in both email templates.** Change `supabase/templates/*.html`, run `node scripts/environments.mjs templates <name>`, and save the two files it writes as that environment's invitation and password-reset emails.
+
+To change the length, do all three for every environment in `environments.json`, then read each back: the expiry shows the new number, the secret's date is today's, and each saved email is the same text as the file written for it. Change the default in `supabase/functions/admin-users/index.ts` and `scripts/create-first-admin.mjs` too, and the field guide. Until all three agree, either a code is refused while its invitation is still open or an invitation is refused while its code still works.
+
+- **November 17, 2026.** The length went from one hour to 24 hours on dev and demo, so that someone invited in the evening can finish the next morning. On both, the expiry was 3600 seconds and the secret was already set (this page's step 5 used to set it to 3600); both were changed to 86400 and both emails were saved with the new sentence and read back equal to the files written for them. Dev sends its email through the sign-in service's built-in sender, which allows two emails an hour; demo has its own sender.
+
 ## Rules
 
 - **No customer-specific code.** A difference between customers is a setting stored in that customer's database, never a branch or a copy of the code.
@@ -234,6 +246,7 @@ Nothing is left to do.
 - **A migration is named `<number>_<lowercase_name>.sql`**, with a later number than the one before it, and is one transaction: `BEGIN;` as its first statement, `COMMIT;` as its last, and no other transaction statement. It is SQL only, with no backslash command of the database client. `tests/release.test.js` fails otherwise, and a release refuses such a file before applying anything.
 - **A released migration is never edited.** The history check compares its text and stops the next release. Correct it with a new migration.
 - **A change to the admin function comes with its stamp**: run `node scripts/release.mjs stamp` and commit the result.
+- **One length for every email code.** Invitation and password-reset codes last 24 hours. Three things say so and must agree in every environment: the sign-in settings' email code expiry (86400 seconds, the longest the sign-in service allows), the admin function's `INVITATION_TTL_SECONDS` (86400; it sets when an invitation can no longer be finished) and the sentence in both email templates. Change all three together (see "Changing how long email codes last"), and the field guide with them: chapter 3 and appendices A5 and A7. A shorter code than the invitation leaves people with a code that is refused; a shorter invitation than the code refuses a code that still works.
 - **A table a page listens to for live changes** must be added to the publication by a migration (see `028_live_updates.sql`); `tests/live-updates.test.js` fails otherwise.
 
 ## Not automated yet

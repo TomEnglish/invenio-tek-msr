@@ -180,7 +180,7 @@
   <h3>The office site</h3>
   <p>New people are invited by an administrator (chapter 19).</p>
   <ol class="steps">
-    <li>Open the email “Finish your Invenio invitation”. Its code lasts one hour and works once, and only the newest email's code is valid.</li>
+    <li>Open the email “Finish your Invenio invitation”. Its code lasts 24 hours and works once, and only the newest email's code is valid.</li>
     <li>Press <span class="ui">Finish account setup</span>. On “Enter your email code”, fill <span class="ui">Invited email address</span> and <span class="ui">Email code</span>, then press <span class="ui">Verify code</span>.</li>
     <li>Choose a password of at least 8 characters, enter it twice and press <span class="ui">Update Password</span>.</li>
   </ol>
@@ -830,7 +830,7 @@
   </ul>
   <h3>Accounts</h3>
   <ul>
-    <li>Invitations and resets use email codes that last an hour and work once; only the newest is valid.</li>
+    <li>Invitations and resets use email codes that last 24 hours and work once; only the newest is valid.</li>
     <li>Deactivating someone takes effect at once. The last active administrator can't be removed.</li>
     <li>The admin function accepts requests only from the production office site.</li>
     <li>Secrets are never kept in the repositories. The service-role key exists only in the repository's secret store and the function's secret store; set it there yourself and never paste it into a chat, file or ticket.</li>
@@ -865,8 +865,8 @@
       <tr><td>Data Browser</td><td>Browse any table for the active project, 25 to 100 rows at a time, and export the table on screen as CSV. History tables and the newer data (counts, categories, site maps, places, racks, crates, loads, trackers) are read-only, and nothing can be deleted. A row with photos shows how many; press it to open them. An opened record shows its photos and <span class="ui">Open record details</span>. License tables and fields are never shown (A5). Material records can be corrected with a reason of at least five characters. <span class="ui">Locations</span> lists the racks, read-only, with whether each is active; racks are added, edited and retired on the <span class="ui">Racks</span> page (chapter 13).</td></tr>
       <tr><td>PO &amp; Installation links</td><td><span class="ui">Edit</span> changes a link's PO and installation details; <span class="ui">Delete</span> removes a link. Each asks why (5 to 500 characters). An edit records the old and new values with the reason, and isn't saved if someone changed the same detail since the form opened. A delete records the link, its status history and any tracker on it, then removes the link and its history and unhooks the tracker. Office staff still change a link's status with <span class="ui">Update</span>.</td></tr>
       <tr><td>Activity &amp; Audit</td><td>Administrator changes (users and projects) with person, time and old and new values, 25 a page. Operational history (counts, crates, loads) is in Data Browser › <span class="ui">Audit Log</span>, and on the app's Activity screen.</td></tr>
-      <tr><td>Auth settings</td><td>Held by the sign-in service: email codes last 3,600 seconds; the redirect allowlist has <code>/login.html</code> and <code>/login.html?setup=invite</code>; templates and subjects as in <code>docs/INVITATION_RECOVERY.md</code>.</td></tr>
-      <tr><td>Function secrets</td><td>The database address, its public and service-role keys, <code>SITE_URL</code> (the one office site the function answers and sends invitation links to; without it the function answers nothing), <code>INVITATION_TTL_SECONDS</code> (default 3600) and <code>INVITATION_EMAIL_ENABLED</code>. With email switched off, invitations are disabled and the page says so.</td></tr>
+      <tr><td>Auth settings</td><td>Held by the sign-in service: email codes last 86,400 seconds (24 hours); the redirect allowlist has <code>/login.html</code> and <code>/login.html?setup=invite</code>; templates and subjects as in <code>docs/INVITATION_RECOVERY.md</code>.</td></tr>
+      <tr><td>Function secrets</td><td>The database address, its public and service-role keys, <code>SITE_URL</code> (the one office site the function answers and sends invitation links to; without it the function answers nothing), <code>INVITATION_TTL_SECONDS</code> (default 86400, the same 24 hours) and <code>INVITATION_EMAIL_ENABLED</code>. With email switched off, invitations are disabled and the page says so.</td></tr>
     </tbody>
   </table>
 </section>
