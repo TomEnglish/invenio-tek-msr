@@ -9,5 +9,8 @@ assert.match(html, /updateUser\(\{\s*password:\s*newPassword\s*\}\)/);
 assert.match(html, /PASSWORD_RECOVERY/);
 assert.match(html, /InvenioLoginFlow.createLoginFlow/);
 assert.match(html, /loginFlow.shouldRedirect\(session\)/);
+// The code step takes its heading and email label from the flow, so a reset reads as a reset.
+assert.match(html, /InvenioLoginFlow\.codeStepText\(loginFlow\.mode\)/);
+assert.match(html, /label\[for="verify-email"\]/);
 
 console.log('login reset tests passed');

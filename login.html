@@ -315,7 +315,7 @@ My account email: [your email address]</textarea>
     </div>
 
     <script>document.documentElement.classList.add('auth-ready');</script>
-    <script src="js/utils/login-flow.js?v=20260909-invite-code"></script>
+    <script src="js/utils/login-flow.js?v=20261115-reset-wording"></script>
     <script>window.loginFlow = InvenioLoginFlow.createLoginFlow(location.hash, location.search);</script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js?v=20260424f"></script>
@@ -437,8 +437,10 @@ My account email: [your email address]</textarea>
             resetRequestForm.classList.remove('active');
             updatePasswordForm.classList.remove('active');
             verifyCodeForm.classList.add('active');
-            title.textContent = 'Enter your email code';
-            subtitle.textContent = 'Verify your email to continue setting up your password.';
+            const text = InvenioLoginFlow.codeStepText(loginFlow.mode);
+            title.textContent = text.title;
+            subtitle.textContent = text.subtitle;
+            document.querySelector('label[for="verify-email"]').textContent = text.emailLabel;
             document.getElementById('verify-email').focus();
         }
 

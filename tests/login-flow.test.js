@@ -94,3 +94,20 @@ test('expired, canceled and failed completion remain blocked instead of redirect
         await assert.rejects(completeSignIn({rpc:async()=>({error})}), e=>e===error);
     }
 });
+test('the code step reads as a password reset unless it is finishing an invitation', () => {
+    const { codeStepText } = require('../js/utils/login-flow');
+    // The email's "Reset password" link, and Forgot password? on the sign-in page.
+    for (const flow of [createLoginFlow('', '?setup=recovery&verification=recovery'), createLoginFlow('', '')]) {
+        const text = codeStepText(flow.mode);
+        assert.equal(text.title, 'Reset your password');
+        assert.equal(text.emailLabel, 'Email address');
+        assert.match(text.subtitle, /reset email/);
+        assert.doesNotMatch(JSON.stringify(text), /invit/i);
+    }
+    // A first invitation and a resent one keep the invitation wording.
+    for (const search of ['?setup=invite&verification=invite', '?setup=invite&verification=recovery']) {
+        const text = codeStepText(createLoginFlow('', search).mode);
+        assert.equal(text.title, 'Enter your email code');
+        assert.equal(text.emailLabel, 'Invited email address');
+    }
+});
